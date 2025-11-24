@@ -1,0 +1,134 @@
+:root {
+  background-color: #050b12;
+  color: #f5f8ff;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #060b12 0%, #07101c 65%, #0c1624 100%);
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.instruction-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 12px;
+  width: min(760px, 100%);
+  margin-bottom: 16px;
+}
+
+.controls {
+  width: min(760px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.file-label input {
+  margin-left: 10px;
+}
+
+.button-row {
+  display: flex;
+  gap: 6px;
+}
+
+button {
+  background: #1b72ef;
+  border: none;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.speed-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.speed-label input[type='range'] {
+  cursor: pointer;
+}
+
+.test-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.test-label select {
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(32, 40, 64, 0.9);
+  color: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+canvas {
+  border-radius: 16px;
+  margin-top: 12px;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: #0c111c;
+}
+
+.frame-info {
+  width: min(760px, 100%);
+  margin-top: 8px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.status {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.frame-info .jam {
+  color: #ff7b7b;
+  font-weight: 600;
+}
+
+.frame-info .ok {
+  color: #7fe37a;
+  font-weight: 600;
+}

@@ -1,0 +1,22 @@
+{
+  "ssid": "",
+  "passwd": "",
+  "elegooip": "",
+  "pause_on_runout": true,
+  "ap_mode": false,
+  "start_print_timeout": 6000,
+  "enabled": true,
+  "has_connected": false,
+  "detection_length_mm": 7.0,
+  "detection_grace_period_ms": 500,
+  "tracking_mode": 1,
+  "tracking_window_ms": 3000,
+  "tracking_ewma_alpha": 0.3,
+  "sdcp_loss_behavior": 2,
+  "flow_telemetry_stale_ms": 1500,
+  "ui_refresh_interval_ms": 1000,
+  "dev_mode": false,
+  "verbose_logging": true,
+  "flow_summary_logging": false,
+  "movement_mm_per_pulse": 3.025
+}

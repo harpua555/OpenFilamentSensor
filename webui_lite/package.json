@@ -1,0 +1,21 @@
+{
+  "name": "cc_sfs-webui-lite",
+  "version": "1.0.0",
+  "description": "Lightweight WebUI for BigTreeTech Filament Motion Sensor",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node dev-server.js"
+  },
+  "keywords": [
+    "esp32",
+    "webui",
+    "bigtreetech",
+    "opencenauri"
+  ],
+  "author": "OpenCentauri",
+  "license": "MIT",
+  "devDependencies": {
+    "express": "^4.18.2"
+  }
+}

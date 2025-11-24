@@ -1,0 +1,12 @@
+# PlatformIO environments to build.
+# Comment out any entries you don't want included in CI.
+
+platformio_envs:
+  - esp32-s3-dev              # active (main dev board)
+  - seeed_xiao_esp32c3-dev    # active (seeed c3 dev board)
+  # - esp32-dev               # uncomment to include original ESP32 dev board
+  # - esp32-build             # build-only variant (kept for compatibility)
+  # - esp32-s3-build          # build-only variant
+  # - seeed_xiao_esp32s3-dev  # Seeed XIAO ESP32-S3
+  # - seeed_xiao_esp32s-build # S3 build-only variant
+  # - seeed_xiao_esp32c3-build# C3 build-only variant

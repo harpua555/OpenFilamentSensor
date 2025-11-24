@@ -1,0 +1,35 @@
+@echo off
+echo Building pulse simulator tests...
+
+REM Check if g++ is available
+where g++ >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: g++ not found. Please install MinGW or MSYS2.
+    echo Download from: https://www.msys2.org/
+    exit /b 1
+)
+
+REM Compile test suite (include test dir first for Arduino.h mock)
+g++ -std=c++11 -o pulse_simulator.exe pulse_simulator.cpp -I. -I..
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Compilation failed
+    exit /b 1
+)
+
+echo Build successful!
+echo.
+echo Running tests...
+echo.
+
+REM Run tests
+pulse_simulator.exe
+set TEST_RESULT=%ERRORLEVEL%
+
+echo.
+if %TEST_RESULT% EQU 0 (
+    echo All tests passed!
+) else (
+    echo Some tests failed. See output above.
+)
+
+exit /b %TEST_RESULT%

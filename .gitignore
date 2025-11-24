@@ -1,0 +1,16 @@
+.pio
+.vscode
+.DS_Store
+.commands
+.claude
+data/user_settings.secrets.json
+data_lite/
+merge_bin.py
+test/render/filament_log*
+logs/*
+!logs/README.md
+!logs/history/
+logs/history/*
+!logs/history/README.md
+webui_lite/README.md
+webui_lite/node_modules/

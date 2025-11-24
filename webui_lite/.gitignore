@@ -1,0 +1,20 @@
+# Build output
+data_lite/
+
+# Node modules (if using npm install for dev server)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

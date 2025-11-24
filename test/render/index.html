@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang= en>
+<head>
+  <meta charset=utf-8>
+  <title>Filament Flow Renderer</title>
+  <link rel=stylesheet href=styles.css>
+</head>
+<body>
+  <header>
+    <h1>Filament Flow Renderer</h1>
+    <p>A lightweight player that turns simulator logs into flowing filament bars.</p>
+  </header>
+  <section class=instruction-card>
+    <h2>Quick Start</h2>
+    <ol>
+      <li>Run <code>./pulse_simulator --log render/filament_log.csv</code> from the <code>test</code> folder.</li>
+      <li>Serve this directory (e.g., <code>python3 -m http.server</code>) and open <code>index.html</code> in a browser.</li>
+      <li>Pick the generated CSV, then press Play to animate filament flow.</li>
+    </ol>
+  </section>
+  <section class=controls>
+    <label class=file-label>
+      Load log:
+      <input type=file id=csvInput accept=.csv>
+    </label>
+    <div class=button-row>
+      <button id=playButton disabled>Play</button>
+      <button id=pauseButton disabled>Pause</button>
+      <button id=stepButton disabled>Step</button>
+    </div>
+    <label class=speed-label>
+      Speed:
+      <input type=range id=speedRange min=120 max=1200 value=600>
+      <span id=speedLabel>600 ms/frame</span>
+    </label>
+    <label class=test-label>
+      Test:
+      <select id=testSelect disabled>
+        <option value=all>All tests</option>
+      </select>
+    </label>
+  </section>
+  <canvas id=filamentCanvas width=960 height=220></canvas>
+  <div id=frameInfo class=frame-info></div>
+  <p id=status class=status>Awaiting log...</p>
+  <script src=filament_viz.js></script>
+</body>
+</html>

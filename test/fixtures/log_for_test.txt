@@ -1,0 +1,294 @@
+﻿=== Log capture started at 11/23/2025 11:46:03 ===
+1763916114 ESP SFS System starting up...
+1763916114 Firmware version: dev
+1763916114 Chip family: Unknown
+1763916114 Build timestamp (UTC compile time): Nov 23 2025 11:15:04
+1763916114 Filesystem initialized
+1763916114 Filesystem usage: total=1572864 bytes, used=208896 bytes
+1763916114 Settings Manager Loaded
+1763916114 Settings snapshot: {"ap_mode":false,"ssid":"CRS234_2","elegooip":"192.168.0.188","pause_on_runout":true,"start_print_timeout":6000,"enabled":true,"has_connected":false,"detection_length_mm":7,"detection_grace_period_ms":500,"detection_ratio_threshold":0.25,"detection_hard_jam_mm":5,"detection_soft_jam_time_ms":10000,"detection_hard_jam_time_ms":5000,"tracking_mode":1,"tracking_window_ms":3000,"tracking_ewma_alpha":0.300000012,"sdcp_loss_behavior":2,"flow_telemetry_stale_ms":1500,"ui_refresh_interval_ms":10
+1763916114 Connecting to WiFi: CRS234_2
+1763916115 WiFi Connected
+1763916115 IP Address: 192.168.0.153
+1763916116 Settings saved successfully
+1763916116 First successful WiFi connection recorded
+1763916116 Wifi setup complete
+1763916116 Webserver setup complete
+1763916116 Attempting connection to Elegoo CC @ 192.168.0.188
+1763916116 Elegoo setup complete
+1763916116 NTP time synchronization successful
+1763916116 NTP setup complete
+1763916117 Connected to Carbon Centauri
+1763916117 Stored MainboardID: 3c751a940107103d00000c0000000000
+1763916117 Telemetry: sdcp_exp=196.16mm cumul_sns=0.00mm pulses=0 | win_exp=0.00 win_sns=0.00 deficit=0.00
+1763916117 Flow debug: SDCP status print=9 layer=1/1 progress=0 expected=196.16mm delta=0.00mm telemetry=1
+1763916207 Sending SDCP discovery probe to 192.168.0.255
+1763916207 Discovery reply from 192.168.0.198: {"Id":"979d4C788A4a78bC777A870F1A02867A","Data":{"Name":"Centauri Carbon","MachineName":"Centauri Carbon","BrandName":"ELEGOO",
+1763916207 Settings saved successfully
+1763916207 Disconnected from Carbon Centauri
+1763916207 Attempting connection to Elegoo CC @ 192.168.0.198
+1763916207 Connected to Carbon Centauri
+1763916219 Settings saved successfully
+1763916413 Flow debug: SDCP status print=0 layer=1/1 progress=0 expected=196.16mm delta=0.00mm telemetry=1
+1763916413 Flow debug: SDCP status print=0 layer=0/0 progress=0 expected=0.00mm delta=0.00mm telemetry=1
+1763916413 Flow debug: SDCP status print=18 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916414 Flow debug: SDCP status print=16 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916445 Flow debug: SDCP status print=20 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916445 Flow debug: SDCP status print=1 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916457 Flow debug: SDCP status print=21 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916460 Flow debug: SDCP status print=1 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916481 Flow debug: SDCP status print=20 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916483 Flow debug: SDCP status print=16 layer=0/1 progress=8 expected=0.00mm delta=0.00mm telemetry=1
+1763916509 Print status changed to printing
+1763916509 Filament tracking reset - Mode: Windowed, Window: 3000ms, EWMA Alpha: 0.30
+1763916509 Print settings: pulse=3.03mm mode=1 window=3000ms grace=500ms ratio_thr=0.25 hard_jam=5.0mm soft_time=10000ms hard_time=5000ms
+1763916509 Flow debug: SDCP status print=13 layer=1/1 progress=10 expected=1.80mm delta=0.00mm telemetry=1
+1763916509 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=0.00 pulses=0 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=232332
+1763916510 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=0.00 pulses=0 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=232108
+1763916511 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=0.00 pulses=0 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=230308
+1763916512 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=0.00 pulses=0 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=229256
+1763916513 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=0.00 pulses=0 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=231484
+1763916514 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=3.03 pulses=1 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=231260
+1763916515 Telemetry: sdcp_exp=8.54mm cumul_sns=3.03mm pulses=1 | win_exp=0.96 win_sns=0.00 deficit=0.96
+1763916515 Flow: win_exp=0.96 win_sns=0.00 deficit=0.96 | cumul=3.03 pulses=1 | thr=0.24 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=0.00 heap=230860
+1763916516 Telemetry: sdcp_exp=9.57mm cumul_sns=3.03mm pulses=1 | win_exp=1.99 win_sns=0.00 deficit=1.99
+1763916516 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=3/10000 pass=0.00 win=1.99 sns=0.00 pulses=1
+1763916516 Flow: win_exp=1.99 win_sns=0.00 deficit=1.99 | cumul=3.03 pulses=1 | thr=0.50 ratio=1.00 jam=0 hard=0.00 soft=52.95 pass=0.00 heap=228068
+1763916517 Telemetry: sdcp_exp=10.93mm cumul_sns=6.05mm pulses=2 | win_exp=3.35 win_sns=3.03 deficit=0.32
+1763916517 Flow: win_exp=3.35 win_sns=3.03 deficit=0.32 | cumul=6.05 pulses=2 | thr=0.84 ratio=0.10 jam=0 hard=0.00 soft=0.00 pass=0.90 heap=229812
+1763916518 Telemetry: sdcp_exp=12.00mm cumul_sns=6.05mm pulses=2 | win_exp=4.42 win_sns=3.03 deficit=1.39
+1763916518 Flow: win_exp=4.42 win_sns=3.03 deficit=1.39 | cumul=6.05 pulses=2 | thr=1.10 ratio=0.32 jam=0 hard=0.00 soft=0.00 pass=0.68 heap=229412
+1763916518 Telemetry: sdcp_exp=13.21mm cumul_sns=6.05mm pulses=2 | win_exp=4.66 win_sns=3.03 deficit=1.64
+1763916519 Telemetry: sdcp_exp=14.54mm cumul_sns=6.05mm pulses=2 | win_exp=6.00 win_sns=3.03 deficit=2.98
+1763916519 Flow: win_exp=6.00 win_sns=3.03 deficit=2.98 | cumul=6.05 pulses=2 | thr=1.50 ratio=0.50 jam=0 hard=0.00 soft=0.00 pass=0.50 heap=228824
+1763916520 Telemetry: sdcp_exp=16.02mm cumul_sns=9.08mm pulses=3 | win_exp=6.44 win_sns=3.03 deficit=3.42
+1763916520 Flow: win_exp=6.44 win_sns=3.03 deficit=3.42 | cumul=9.08 pulses=3 | thr=1.61 ratio=0.53 jam=0 hard=0.00 soft=0.00 pass=0.47 heap=228472
+1763916520 Telemetry: sdcp_exp=17.62mm cumul_sns=9.08mm pulses=3 | win_exp=6.69 win_sns=3.03 deficit=3.67
+1763916521 Telemetry: sdcp_exp=19.36mm cumul_sns=9.08mm pulses=3 | win_exp=7.36 win_sns=3.03 deficit=4.34
+1763916521 Telemetry: sdcp_exp=19.36mm cumul_sns=12.10mm pulses=4 | win_exp=7.36 win_sns=6.05 deficit=1.31
+1763916521 Flow: win_exp=7.36 win_sns=6.05 deficit=1.31 | cumul=12.10 pulses=4 | thr=1.84 ratio=0.18 jam=0 hard=0.00 soft=0.00 pass=0.82 heap=227672
+1763916522 Telemetry: sdcp_exp=21.24mm cumul_sns=12.10mm pulses=4 | win_exp=6.69 win_sns=3.03 deficit=3.67
+1763916522 Flow: win_exp=6.69 win_sns=3.03 deficit=3.67 | cumul=12.10 pulses=4 | thr=1.67 ratio=0.55 jam=0 hard=0.00 soft=0.00 pass=0.45 heap=227272
+1763916523 Telemetry: sdcp_exp=22.23mm cumul_sns=12.10mm pulses=4 | win_exp=6.21 win_sns=3.03 deficit=3.18
+1763916523 Telemetry: sdcp_exp=22.23mm cumul_sns=15.12mm pulses=5 | win_exp=6.21 win_sns=6.05 deficit=0.16
+1763916523 Flow: win_exp=6.21 win_sns=6.05 deficit=0.16 | cumul=15.12 pulses=5 | thr=1.55 ratio=0.03 jam=0 hard=0.00 soft=0.00 pass=0.97 heap=226652
+1763916523 Telemetry: sdcp_exp=23.25mm cumul_sns=15.12mm pulses=5 | win_exp=5.62 win_sns=6.05 deficit=0.00
+1763916524 Telemetry: sdcp_exp=24.30mm cumul_sns=15.12mm pulses=5 | win_exp=6.68 win_sns=6.05 deficit=0.63
+1763916524 Telemetry: sdcp_exp=25.39mm cumul_sns=15.12mm pulses=5 | win_exp=6.02 win_sns=3.03 deficit=3.00
+1763916524 Flow: win_exp=6.02 win_sns=3.03 deficit=3.00 | cumul=15.12 pulses=5 | thr=1.51 ratio=0.50 jam=0 hard=0.00 soft=0.00 pass=0.50 heap=225900
+1763916524 Telemetry: sdcp_exp=25.39mm cumul_sns=18.15mm pulses=6 | win_exp=6.02 win_sns=6.05 deficit=0.00
+1763916525 Telemetry: sdcp_exp=26.51mm cumul_sns=18.15mm pulses=6 | win_exp=7.15 win_sns=6.05 deficit=1.10
+1763916525 Telemetry: sdcp_exp=27.67mm cumul_sns=18.15mm pulses=6 | win_exp=6.43 win_sns=6.05 deficit=0.38
+1763916525 Flow: win_exp=6.43 win_sns=6.05 deficit=0.38 | cumul=18.15 pulses=6 | thr=1.61 ratio=0.06 jam=0 hard=0.00 soft=0.00 pass=0.94 heap=224732
+1763916526 Telemetry: sdcp_exp=28.85mm cumul_sns=18.15mm pulses=6 | win_exp=7.61 win_sns=6.05 deficit=1.56
+1763916526 Flow: win_exp=7.61 win_sns=9.08 deficit=0.00 | cumul=21.17 pulses=7 | thr=1.90 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.19 heap=221548
+1763916526 Telemetry: sdcp_exp=28.85mm cumul_sns=21.17mm pulses=7 | win_exp=7.61 win_sns=9.08 deficit=0.00
+1763916527 Telemetry: sdcp_exp=30.08mm cumul_sns=21.17mm pulses=7 | win_exp=6.83 win_sns=6.05 deficit=0.78
+1763916527 Telemetry: sdcp_exp=31.33mm cumul_sns=21.17mm pulses=7 | win_exp=7.03 win_sns=6.05 deficit=0.98
+1763916527 Flow: win_exp=7.03 win_sns=9.08 deficit=0.00 | cumul=24.20 pulses=8 | thr=1.76 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.29 heap=197332
+1763916528 Flow: win_exp=7.03 win_sns=9.08 deficit=0.00 | cumul=24.20 pulses=8 | thr=1.76 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.29 heap=190724
+1763916529 Telemetry: sdcp_exp=31.33mm cumul_sns=27.22mm pulses=9 | win_exp=7.03 win_sns=12.10 deficit=0.00
+1763916529 Telemetry: sdcp_exp=32.62mm cumul_sns=27.22mm pulses=9 | win_exp=3.77 win_sns=6.05 deficit=0.00
+1763916529 Telemetry: sdcp_exp=33.94mm cumul_sns=27.22mm pulses=9 | win_exp=5.09 win_sns=6.05 deficit=0.00
+1763916529 Telemetry: sdcp_exp=35.30mm cumul_sns=27.22mm pulses=9 | win_exp=6.44 win_sns=6.05 deficit=0.39
+1763916529 Telemetry: sdcp_exp=36.69mm cumul_sns=27.22mm pulses=9 | win_exp=7.83 win_sns=6.05 deficit=1.78
+1763916529 Flow: win_exp=7.83 win_sns=6.05 deficit=1.78 | cumul=27.22 pulses=9 | thr=1.96 ratio=0.23 jam=0 hard=0.00 soft=0.00 pass=0.77 heap=203492
+1763916529 Telemetry: sdcp_exp=38.11mm cumul_sns=27.22mm pulses=9 | win_exp=9.25 win_sns=6.05 deficit=3.20
+1763916530 Telemetry: sdcp_exp=39.56mm cumul_sns=30.25mm pulses=10 | win_exp=8.23 win_sns=3.03 deficit=5.21
+1763916530 Flow: win_exp=8.23 win_sns=3.03 deficit=5.21 | cumul=30.25 pulses=10 | thr=2.06 ratio=0.63 jam=0 hard=0.00 soft=0.00 pass=0.37 heap=221720
+1763916530 Telemetry: sdcp_exp=41.05mm cumul_sns=30.25mm pulses=10 | win_exp=9.72 win_sns=3.03 deficit=6.70
+1763916531 Telemetry: sdcp_exp=41.05mm cumul_sns=33.27mm pulses=11 | win_exp=9.72 win_sns=6.05 deficit=3.67
+1763916531 Telemetry: sdcp_exp=42.58mm cumul_sns=51.43mm pulses=17 | win_exp=11.25 win_sns=24.20 deficit=0.00
+1763916531 Flow: win_exp=11.25 win_sns=24.20 deficit=0.00 | cumul=51.43 pulses=17 | thr=2.81 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=2.15 heap=220912
+1763916532 Telemetry: sdcp_exp=44.13mm cumul_sns=51.43mm pulses=17 | win_exp=11.51 win_sns=24.20 deficit=0.00
+1763916532 Telemetry: sdcp_exp=45.72mm cumul_sns=51.43mm pulses=17 | win_exp=9.04 win_sns=24.20 deficit=0.00
+1763916532 Flow: win_exp=9.04 win_sns=24.20 deficit=0.00 | cumul=51.43 pulses=17 | thr=2.26 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=2.68 heap=220256
+1763916533 Telemetry: sdcp_exp=47.35mm cumul_sns=51.43mm pulses=17 | win_exp=9.24 win_sns=21.17 deficit=0.00
+1763916533 Flow: win_exp=9.24 win_sns=21.17 deficit=0.00 | cumul=51.43 pulses=17 | thr=2.31 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=2.29 heap=219840
+1763916533 Telemetry: sdcp_exp=49.00mm cumul_sns=51.43mm pulses=17 | win_exp=9.44 win_sns=21.17 deficit=0.00
+1763916534 Telemetry: sdcp_exp=50.69mm cumul_sns=51.43mm pulses=17 | win_exp=8.12 win_sns=0.00 deficit=8.12
+1763916534 Jam eval: hardCond=1 softCond=1 hardMs=4/5000 softMs=4/10000 pass=0.00 win=8.12 sns=0.00 pulses=17
+1763916534 Flow: win_exp=8.12 win_sns=0.00 deficit=8.12 | cumul=51.43 pulses=17 | thr=2.03 ratio=0.19 jam=0 hard=0.30 soft=0.15 pass=0.00 heap=218436
+1763916535 Telemetry: sdcp_exp=52.42mm cumul_sns=51.43mm pulses=17 | win_exp=9.84 win_sns=0.00 deficit=9.84
+1763916535 Filament jam detected! Expected 9.84mm, sensor 0.00mm, deficit 9.84mm ratio=1.00 (thr=0.25)
+1763916535 Pause condition: 1
+1763916535 Filament runout: 0
+1763916535 Filament runout pause enabled: 1
+1763916535 Filament stopped: 1
+1763916535 Time since print start 25491
+1763916535 Is Machine status printing?: 1
+1763916535 Print status: 13
+1763916535 Flow state: expected=52.42mm actual=51.43mm deficit=9.84mm threshold=2.46mm ratio=1.00 pulses=17
+1763916535 Pausing print, detected filament runout or stopped
+1763916535 Waiting for acknowledgment for command 129 with request ID 4386e45efe4d491ca410541dcd6ffd54
+1763916535 Received acknowledgment for command 129 (Ack: 0)
+1763916535 Jam eval: hardCond=1 softCond=1 hardMs=5000/5000 softMs=10000/10000 pass=0.00 win=9.84 sns=0.00 pulses=17
+1763916535 Telemetry: sdcp_exp=54.17mm cumul_sns=51.43mm pulses=17 | win_exp=8.45 win_sns=0.00 deficit=8.45
+1763916535 Flow: win_exp=8.45 win_sns=0.00 deficit=8.45 | cumul=51.43 pulses=17 | thr=2.11 ratio=1.00 jam=1 hard=100.00 soft=100.00 pass=0.00 heap=213772
+1763916536 Print status changed to paused
+1763916536 Freezing filament tracking while paused after jam
+1763916536 Telemetry: sdcp_exp=52.17mm cumul_sns=51.43mm pulses=17 | win_exp=0.00 win_sns=0.00 deficit=0.00
+1763916536 Flow debug: SDCP status print=5 layer=1/1 progress=20 expected=52.17mm delta=0.00mm telemetry=1
+1763916545 Flow debug: SDCP status print=6 layer=1/1 progress=20 expected=52.17mm delta=0.00mm telemetry=1
+1763916547 Flow debug: SDCP status print=20 layer=1/1 progress=20 expected=52.17mm delta=0.00mm telemetry=1
+1763916575 Print status changed to printing (resume)
+1763916575 Motion sensor reset (resume after pause)
+1763916575 Flow debug: SDCP status print=13 layer=1/1 progress=21 expected=61.46mm delta=0.00mm telemetry=1
+1763916575 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=51.43 pulses=17 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=214628
+1763916576 Telemetry: sdcp_exp=65.41mm cumul_sns=54.45mm pulses=18 | win_exp=1.99 win_sns=0.00 deficit=1.99
+1763916576 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=7/10000 pass=0.00 win=1.99 sns=0.00 pulses=18
+1763916576 Flow: win_exp=1.99 win_sns=0.00 deficit=1.99 | cumul=54.45 pulses=18 | thr=0.50 ratio=1.00 jam=0 hard=0.00 soft=4.88 pass=0.00 heap=184688
+1763916576 Telemetry: sdcp_exp=67.44mm cumul_sns=54.45mm pulses=18 | win_exp=4.02 win_sns=0.00 deficit=4.02
+1763916577 Telemetry: sdcp_exp=67.44mm cumul_sns=57.48mm pulses=19 | win_exp=4.02 win_sns=3.03 deficit=0.99
+1763916577 Telemetry: sdcp_exp=69.50mm cumul_sns=57.48mm pulses=19 | win_exp=6.07 win_sns=3.03 deficit=3.05
+1763916577 Flow: win_exp=6.07 win_sns=3.03 deficit=3.05 | cumul=57.48 pulses=19 | thr=1.52 ratio=0.50 jam=0 hard=0.00 soft=0.00 pass=0.50 heap=213220
+1763916578 Telemetry: sdcp_exp=71.59mm cumul_sns=60.50mm pulses=20 | win_exp=8.17 win_sns=6.05 deficit=2.12
+1763916578 Flow: win_exp=8.17 win_sns=6.05 deficit=2.12 | cumul=60.50 pulses=20 | thr=2.04 ratio=0.26 jam=0 hard=0.00 soft=0.00 pass=0.74 heap=207324
+1763916578 Telemetry: sdcp_exp=73.71mm cumul_sns=60.50mm pulses=20 | win_exp=10.29 win_sns=6.05 deficit=4.24
+1763916579 Telemetry: sdcp_exp=73.71mm cumul_sns=63.53mm pulses=21 | win_exp=10.29 win_sns=9.08 deficit=1.22
+1763916579 Telemetry: sdcp_exp=75.87mm cumul_sns=63.53mm pulses=21 | win_exp=12.45 win_sns=9.08 deficit=3.38
+1763916579 Flow: win_exp=12.45 win_sns=12.10 deficit=0.35 | cumul=66.55 pulses=22 | thr=3.11 ratio=0.03 jam=0 hard=0.00 soft=0.00 pass=0.97 heap=190260
+1763916579 Telemetry: sdcp_exp=78.06mm cumul_sns=66.55mm pulses=22 | win_exp=12.65 win_sns=12.10 deficit=0.55
+1763916580 Flow: win_exp=12.65 win_sns=15.12 deficit=0.00 | cumul=69.58 pulses=23 | thr=3.16 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.20 heap=200132
+1763916580 Telemetry: sdcp_exp=78.06mm cumul_sns=69.58mm pulses=23 | win_exp=12.65 win_sns=15.12 deficit=0.00
+1763916580 Telemetry: sdcp_exp=80.29mm cumul_sns=69.58mm pulses=23 | win_exp=10.79 win_sns=9.08 deficit=1.72
+1763916580 Telemetry: sdcp_exp=82.55mm cumul_sns=69.58mm pulses=23 | win_exp=13.05 win_sns=9.08 deficit=3.98
+1763916581 Telemetry: sdcp_exp=84.84mm cumul_sns=69.58mm pulses=23 | win_exp=13.25 win_sns=9.08 deficit=4.18
+1763916581 Flow: win_exp=13.25 win_sns=9.08 deficit=4.18 | cumul=69.58 pulses=23 | thr=3.31 ratio=0.32 jam=0 hard=0.00 soft=0.00 pass=0.68 heap=210552
+1763916581 Telemetry: sdcp_exp=87.17mm cumul_sns=69.58mm pulses=23 | win_exp=13.46 win_sns=6.05 deficit=7.41
+1763916582 Telemetry: sdcp_exp=87.17mm cumul_sns=72.60mm pulses=24 | win_exp=13.46 win_sns=9.08 deficit=4.38
+1763916582 Telemetry: sdcp_exp=89.53mm cumul_sns=72.60mm pulses=24 | win_exp=13.66 win_sns=6.05 deficit=7.61
+1763916582 Flow: win_exp=13.66 win_sns=6.05 deficit=7.61 | cumul=72.60 pulses=24 | thr=3.41 ratio=0.56 jam=0 hard=0.00 soft=0.00 pass=0.44 heap=209752
+1763916583 Telemetry: sdcp_exp=91.92mm cumul_sns=72.60mm pulses=24 | win_exp=13.86 win_sns=3.03 deficit=10.83
+1763916583 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=5/10000 pass=0.22 win=13.86 sns=3.03 pulses=24
+1763916583 Flow: win_exp=13.86 win_sns=3.03 deficit=10.83 | cumul=72.60 pulses=24 | thr=3.46 ratio=0.78 jam=0 hard=0.00 soft=30.10 pass=0.22 heap=209368
+1763916583 Telemetry: sdcp_exp=94.35mm cumul_sns=75.63mm pulses=25 | win_exp=11.80 win_sns=6.05 deficit=5.75
+1763916584 Telemetry: sdcp_exp=96.81mm cumul_sns=75.63mm pulses=25 | win_exp=11.97 win_sns=6.05 deficit=5.92
+1763916584 Flow: win_exp=11.97 win_sns=6.05 deficit=5.92 | cumul=75.63 pulses=25 | thr=2.99 ratio=0.49 jam=0 hard=0.00 soft=0.00 pass=0.51 heap=208796
+1763916584 Telemetry: sdcp_exp=96.81mm cumul_sns=78.65mm pulses=26 | win_exp=11.97 win_sns=9.08 deficit=2.89
+1763916585 Telemetry: sdcp_exp=99.30mm cumul_sns=78.65mm pulses=26 | win_exp=12.13 win_sns=6.05 deficit=6.08
+1763916585 Flow: win_exp=12.13 win_sns=6.05 deficit=6.08 | cumul=78.65 pulses=26 | thr=3.03 ratio=0.50 jam=0 hard=0.00 soft=0.00 pass=0.50 heap=208140
+1763916585 Telemetry: sdcp_exp=101.83mm cumul_sns=78.65mm pulses=26 | win_exp=12.30 win_sns=6.05 deficit=6.25
+1763916586 Telemetry: sdcp_exp=101.83mm cumul_sns=81.68mm pulses=27 | win_exp=12.30 win_sns=9.08 deficit=3.23
+1763916586 Telemetry: sdcp_exp=104.32mm cumul_sns=81.68mm pulses=27 | win_exp=12.40 win_sns=6.05 deficit=6.35
+1763916586 Flow: win_exp=12.40 win_sns=6.05 deficit=6.35 | cumul=81.68 pulses=27 | thr=3.10 ratio=0.51 jam=0 hard=0.00 soft=0.00 pass=0.49 heap=207340
+1763916587 Telemetry: sdcp_exp=106.78mm cumul_sns=81.68mm pulses=27 | win_exp=12.43 win_sns=6.05 deficit=6.38
+1763916587 Telemetry: sdcp_exp=106.78mm cumul_sns=84.70mm pulses=28 | win_exp=12.43 win_sns=9.08 deficit=3.36
+1763916587 Flow: win_exp=12.43 win_sns=9.08 deficit=3.36 | cumul=84.70 pulses=28 | thr=3.11 ratio=0.27 jam=0 hard=0.00 soft=0.00 pass=0.73 heap=206732
+1763916587 Telemetry: sdcp_exp=109.21mm cumul_sns=84.70mm pulses=28 | win_exp=12.40 win_sns=6.05 deficit=6.35
+1763916588 Telemetry: sdcp_exp=111.60mm cumul_sns=84.70mm pulses=28 | win_exp=12.30 win_sns=6.05 deficit=6.25
+1763916588 Flow: win_exp=12.30 win_sns=6.05 deficit=6.25 | cumul=84.70 pulses=28 | thr=3.08 ratio=0.51 jam=0 hard=0.00 soft=0.00 pass=0.49 heap=201768
+1763916589 Telemetry: sdcp_exp=113.96mm cumul_sns=84.70mm pulses=28 | win_exp=9.64 win_sns=3.03 deficit=6.61
+1763916589 Flow: win_exp=9.64 win_sns=3.03 deficit=6.61 | cumul=84.70 pulses=28 | thr=2.41 ratio=0.69 jam=0 hard=0.00 soft=0.00 pass=0.31 heap=205756
+1763916589 Telemetry: sdcp_exp=116.29mm cumul_sns=84.70mm pulses=28 | win_exp=11.97 win_sns=3.03 deficit=8.94
+1763916590 Telemetry: sdcp_exp=116.29mm cumul_sns=87.73mm pulses=29 | win_exp=11.97 win_sns=6.05 deficit=5.92
+1763916590 Flow: win_exp=11.97 win_sns=6.05 deficit=5.92 | cumul=87.73 pulses=29 | thr=2.99 ratio=0.49 jam=0 hard=0.00 soft=0.00 pass=0.51 heap=174464
+1763916590 Telemetry: sdcp_exp=118.58mm cumul_sns=87.73mm pulses=29 | win_exp=9.37 win_sns=3.03 deficit=6.35
+1763916590 Telemetry: sdcp_exp=120.84mm cumul_sns=87.73mm pulses=29 | win_exp=11.63 win_sns=3.03 deficit=8.61
+1763916591 Telemetry: sdcp_exp=123.07mm cumul_sns=87.73mm pulses=29 | win_exp=11.46 win_sns=3.03 deficit=8.44
+1763916591 Flow: win_exp=11.46 win_sns=3.03 deficit=8.44 | cumul=87.73 pulses=29 | thr=2.87 ratio=0.74 jam=0 hard=0.00 soft=0.00 pass=0.26 heap=201928
+1763916592 Telemetry: sdcp_exp=125.26mm cumul_sns=87.73mm pulses=29 | win_exp=13.66 win_sns=3.03 deficit=10.63
+1763916592 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=3/10000 pass=0.22 win=13.66 sns=3.03 pulses=29
+1763916592 Flow: win_exp=13.66 win_sns=3.03 deficit=10.63 | cumul=87.73 pulses=29 | thr=3.41 ratio=0.78 jam=0 hard=0.00 soft=51.90 pass=0.22 heap=203740
+1763916592 Telemetry: sdcp_exp=127.42mm cumul_sns=87.73mm pulses=29 | win_exp=13.46 win_sns=3.03 deficit=10.43
+1763916593 Filament jam detected! Expected 13.46mm, sensor 3.03mm, deficit 10.43mm ratio=0.78 (thr=0.25)
+1763916593 Pause condition: 1
+1763916593 Filament runout: 0
+1763916593 Filament runout pause enabled: 1
+1763916593 Filament stopped: 1
+1763916593 Time since print start 83310
+1763916593 Is Machine status printing?: 1
+1763916593 Print status: 13
+1763916593 Flow state: expected=127.42mm actual=87.73mm deficit=10.43mm threshold=3.36mm ratio=0.78 pulses=29
+1763916593 Pausing print, detected filament runout or stopped
+1763916593 Waiting for acknowledgment for command 129 with request ID 6423b6b31aa04f75b1669241b9660583
+1763916593 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=10000/10000 pass=0.22 win=13.46 sns=3.03 pulses=29
+1763916593 Received acknowledgment for command 129 (Ack: 0)
+1763916593 Telemetry: sdcp_exp=129.54mm cumul_sns=87.73mm pulses=29 | win_exp=13.25 win_sns=0.00 deficit=13.25
+1763916593 Flow: win_exp=13.25 win_sns=0.00 deficit=13.25 | cumul=87.73 pulses=29 | thr=3.31 ratio=1.00 jam=1 hard=23.36 soft=100.00 pass=0.00 heap=201280
+1763916593 Print status changed to paused
+1763916593 Freezing filament tracking while paused after jam
+1763916593 Telemetry: sdcp_exp=127.54mm cumul_sns=87.73mm pulses=29 | win_exp=0.00 win_sns=0.00 deficit=0.00
+1763916593 Flow debug: SDCP status print=5 layer=1/1 progress=26 expected=127.54mm delta=0.00mm telemetry=1
+1763916603 Flow debug: SDCP status print=6 layer=1/1 progress=26 expected=127.54mm delta=0.00mm telemetry=1
+1763916604 Flow debug: SDCP status print=20 layer=1/1 progress=26 expected=127.54mm delta=0.00mm telemetry=1
+1763916633 Print status changed to printing (resume)
+1763916633 Motion sensor reset (resume after pause)
+1763916633 Flow debug: SDCP status print=13 layer=1/1 progress=27 expected=137.67mm delta=0.00mm telemetry=1
+1763916633 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=87.73 pulses=29 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=199516
+1763916634 Telemetry: sdcp_exp=141.48mm cumul_sns=90.75mm pulses=30 | win_exp=1.89 win_sns=0.00 deficit=1.89
+1763916634 Jam eval: hardCond=0 softCond=1 hardMs=0/5000 softMs=3/10000 pass=0.00 win=1.89 sns=0.00 pulses=30
+1763916634 Flow: win_exp=1.89 win_sns=0.00 deficit=1.89 | cumul=90.75 pulses=30 | thr=0.47 ratio=1.00 jam=0 hard=0.00 soft=13.60 pass=0.00 heap=198908
+1763916635 Telemetry: sdcp_exp=143.34mm cumul_sns=93.78mm pulses=31 | win_exp=3.75 win_sns=3.03 deficit=0.72
+1763916635 Telemetry: sdcp_exp=145.16mm cumul_sns=93.78mm pulses=31 | win_exp=5.57 win_sns=3.03 deficit=2.55
+1763916635 Flow: win_exp=5.57 win_sns=3.03 deficit=2.55 | cumul=93.78 pulses=31 | thr=1.39 ratio=0.46 jam=0 hard=0.00 soft=0.00 pass=0.54 heap=198300
+1763916636 Telemetry: sdcp_exp=145.16mm cumul_sns=96.80mm pulses=32 | win_exp=5.57 win_sns=6.05 deficit=0.00
+1763916636 Telemetry: sdcp_exp=146.96mm cumul_sns=96.80mm pulses=32 | win_exp=7.36 win_sns=6.05 deficit=1.31
+1763916636 Telemetry: sdcp_exp=148.71mm cumul_sns=96.80mm pulses=32 | win_exp=9.12 win_sns=6.05 deficit=3.07
+1763916636 Flow: win_exp=9.12 win_sns=6.05 deficit=3.07 | cumul=96.80 pulses=32 | thr=2.28 ratio=0.34 jam=0 hard=0.00 soft=0.00 pass=0.66 heap=197500
+1763916637 Telemetry: sdcp_exp=148.71mm cumul_sns=99.83mm pulses=33 | win_exp=9.12 win_sns=9.08 deficit=0.05
+1763916637 Telemetry: sdcp_exp=150.44mm cumul_sns=99.83mm pulses=33 | win_exp=10.84 win_sns=9.08 deficit=1.77
+1763916637 Telemetry: sdcp_exp=152.13mm cumul_sns=102.85mm pulses=34 | win_exp=10.64 win_sns=9.08 deficit=1.57
+1763916637 Flow: win_exp=10.64 win_sns=9.08 deficit=1.57 | cumul=102.85 pulses=34 | thr=2.66 ratio=0.15 jam=0 hard=0.00 soft=0.00 pass=0.85 heap=196700
+1763916638 Telemetry: sdcp_exp=153.78mm cumul_sns=105.88mm pulses=35 | win_exp=10.44 win_sns=12.10 deficit=0.00
+1763916638 Telemetry: sdcp_exp=155.41mm cumul_sns=105.88mm pulses=35 | win_exp=12.07 win_sns=12.10 deficit=0.00
+1763916638 Flow: win_exp=12.07 win_sns=12.10 deficit=0.00 | cumul=105.88 pulses=35 | thr=3.02 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=194012
+1763916639 Telemetry: sdcp_exp=155.41mm cumul_sns=108.90mm pulses=36 | win_exp=12.07 win_sns=15.12 deficit=0.00
+1763916639 Telemetry: sdcp_exp=157.00mm cumul_sns=108.90mm pulses=36 | win_exp=10.04 win_sns=12.10 deficit=0.00
+1763916639 Telemetry: sdcp_exp=158.55mm cumul_sns=108.90mm pulses=36 | win_exp=11.60 win_sns=12.10 deficit=0.00
+1763916639 Flow: win_exp=11.60 win_sns=12.10 deficit=0.00 | cumul=108.90 pulses=36 | thr=2.90 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.04 heap=171228
+1763916640 Telemetry: sdcp_exp=160.08mm cumul_sns=111.93mm pulses=37 | win_exp=9.64 win_sns=9.08 deficit=0.56
+1763916640 Telemetry: sdcp_exp=161.57mm cumul_sns=111.93mm pulses=37 | win_exp=11.13 win_sns=9.08 deficit=2.05
+1763916640 Flow: win_exp=11.13 win_sns=12.10 deficit=0.00 | cumul=114.95 pulses=38 | thr=2.78 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.09 heap=189960
+1763916641 Telemetry: sdcp_exp=163.02mm cumul_sns=114.95mm pulses=38 | win_exp=10.89 win_sns=9.08 deficit=1.82
+1763916641 Telemetry: sdcp_exp=164.44mm cumul_sns=114.95mm pulses=38 | win_exp=12.32 win_sns=9.08 deficit=3.24
+1763916641 Telemetry: sdcp_exp=165.83mm cumul_sns=114.95mm pulses=38 | win_exp=12.05 win_sns=9.08 deficit=2.97
+1763916641 Telemetry: sdcp_exp=165.83mm cumul_sns=117.98mm pulses=39 | win_exp=12.05 win_sns=12.10 deficit=0.00
+1763916641 Flow: win_exp=12.05 win_sns=12.10 deficit=0.00 | cumul=117.98 pulses=39 | thr=3.01 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=193680
+1763916642 Telemetry: sdcp_exp=167.19mm cumul_sns=117.98mm pulses=39 | win_exp=11.78 win_sns=9.08 deficit=2.71
+1763916642 Telemetry: sdcp_exp=168.51mm cumul_sns=117.98mm pulses=39 | win_exp=13.10 win_sns=9.08 deficit=4.03
+1763916642 Telemetry: sdcp_exp=169.80mm cumul_sns=121.00mm pulses=40 | win_exp=12.80 win_sns=12.10 deficit=0.70
+1763916642 Flow: win_exp=12.80 win_sns=12.10 deficit=0.70 | cumul=121.00 pulses=40 | thr=3.20 ratio=0.05 jam=0 hard=0.00 soft=0.00 pass=0.95 heap=192832
+1763916643 Telemetry: sdcp_exp=171.05mm cumul_sns=121.00mm pulses=40 | win_exp=12.50 win_sns=9.08 deficit=3.43
+1763916643 Telemetry: sdcp_exp=172.28mm cumul_sns=124.03mm pulses=41 | win_exp=13.72 win_sns=12.10 deficit=1.62
+1763916643 Telemetry: sdcp_exp=173.46mm cumul_sns=124.03mm pulses=41 | win_exp=13.39 win_sns=12.10 deficit=1.29
+1763916643 Flow: win_exp=13.39 win_sns=12.10 deficit=1.29 | cumul=124.03 pulses=41 | thr=3.35 ratio=0.10 jam=0 hard=0.00 soft=0.00 pass=0.90 heap=192408
+1763916644 Telemetry: sdcp_exp=174.62mm cumul_sns=124.03mm pulses=41 | win_exp=13.05 win_sns=9.08 deficit=3.98
+1763916644 Telemetry: sdcp_exp=174.62mm cumul_sns=127.05mm pulses=42 | win_exp=13.05 win_sns=12.10 deficit=0.95
+1763916644 Telemetry: sdcp_exp=175.74mm cumul_sns=127.05mm pulses=42 | win_exp=11.30 win_sns=12.10 deficit=0.00
+1763916644 Telemetry: sdcp_exp=176.83mm cumul_sns=127.05mm pulses=42 | win_exp=11.00 win_sns=9.08 deficit=1.92
+1763916644 Flow: win_exp=11.00 win_sns=9.08 deficit=1.92 | cumul=127.05 pulses=42 | thr=2.75 ratio=0.17 jam=0 hard=0.00 soft=0.00 pass=0.83 heap=192072
+1763916645 Telemetry: sdcp_exp=177.88mm cumul_sns=130.08mm pulses=43 | win_exp=10.69 win_sns=12.10 deficit=0.00
+1763916645 Telemetry: sdcp_exp=178.90mm cumul_sns=130.08mm pulses=43 | win_exp=11.71 win_sns=12.10 deficit=0.00
+1763916645 Flow: win_exp=11.71 win_sns=15.12 deficit=0.00 | cumul=133.10 pulses=44 | thr=2.93 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.29 heap=191752
+1763916645 Telemetry: sdcp_exp=180.87mm cumul_sns=133.10mm pulses=44 | win_exp=11.07 win_sns=12.10 deficit=0.00
+1763916646 Telemetry: sdcp_exp=182.65mm cumul_sns=133.10mm pulses=44 | win_exp=11.60 win_sns=9.08 deficit=2.52
+1763916646 Telemetry: sdcp_exp=184.33mm cumul_sns=136.13mm pulses=45 | win_exp=12.05 win_sns=12.10 deficit=0.00
+1763916646 Flow: win_exp=12.05 win_sns=12.10 deficit=0.00 | cumul=136.13 pulses=45 | thr=3.01 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=191416
+1763916647 Telemetry: sdcp_exp=185.87mm cumul_sns=136.13mm pulses=45 | win_exp=11.25 win_sns=9.08 deficit=2.17
+1763916647 Telemetry: sdcp_exp=185.87mm cumul_sns=139.15mm pulses=46 | win_exp=11.25 win_sns=12.10 deficit=0.00
+1763916647 Telemetry: sdcp_exp=187.27mm cumul_sns=139.15mm pulses=46 | win_exp=11.53 win_sns=12.10 deficit=0.00
+1763916647 Flow: win_exp=11.53 win_sns=12.10 deficit=0.00 | cumul=139.15 pulses=46 | thr=2.88 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.05 heap=191160
+1763916648 Telemetry: sdcp_exp=188.54mm cumul_sns=142.18mm pulses=47 | win_exp=10.66 win_sns=12.10 deficit=0.00
+1763916648 Telemetry: sdcp_exp=189.68mm cumul_sns=142.18mm pulses=47 | win_exp=11.80 win_sns=12.10 deficit=0.00
+1763916648 Flow: win_exp=11.80 win_sns=12.10 deficit=0.00 | cumul=142.18 pulses=47 | thr=2.95 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.03 heap=165232
+1763916649 Telemetry: sdcp_exp=190.69mm cumul_sns=145.20mm pulses=48 | win_exp=8.03 win_sns=9.08 deficit=0.00
+1763916649 Telemetry: sdcp_exp=191.94mm cumul_sns=145.20mm pulses=48 | win_exp=9.29 win_sns=9.08 deficit=0.21
+1763916649 Telemetry: sdcp_exp=192.92mm cumul_sns=145.20mm pulses=48 | win_exp=10.27 win_sns=9.08 deficit=1.19
+1763916649 Telemetry: sdcp_exp=193.90mm cumul_sns=145.20mm pulses=48 | win_exp=9.57 win_sns=9.08 deficit=0.50
+1763916649 Flow: win_exp=9.57 win_sns=12.10 deficit=0.00 | cumul=148.23 pulses=49 | thr=2.39 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.26 heap=190728
+1763916650 Telemetry: sdcp_exp=193.90mm cumul_sns=148.23mm pulses=49 | win_exp=9.57 win_sns=12.10 deficit=0.00
+1763916650 Telemetry: sdcp_exp=193.16mm cumul_sns=148.23mm pulses=49 | win_exp=0.00 win_sns=0.00 deficit=0.00
+1763916650 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=151.25 pulses=50 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=164980
+1763916651 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=190392
+1763916652 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=190392
+1763916653 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=190296
+1763916654 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=183992
+1763916655 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=187096
+1763916656 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=190152
+1763916657 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=190148
+1763916658 Flow: win_exp=0.00 win_sns=0.00 deficit=0.00 | cumul=154.27 pulses=51 | thr=0.00 ratio=0.00 jam=0 hard=0.00 soft=0.00 pass=1.00 heap=188528
+1763916659 Print summary: status=9 progress=38 layer=1/1 ticks=89/93 expected=192.16mm actual=154.27mm deficit=0.00mm pulses=51
+1763916659 Print left printing state, resetting filament tracking
+1763916659 Filament tracking reset - Mode: Windowed, Window: 3000ms, EWMA Alpha: 0.30
+1763916659 Flow debug: SDCP status print=9 layer=1/1 progress=0 expected=192.16mm delta=0.00mm telemetry=1

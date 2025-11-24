@@ -7,9 +7,8 @@ import json
 import secrets
 import sys
 import time
-from typing import Any
-
 import aiohttp
+from typing import Any
 
 WEBSOCKET_PORT = 3030
 CMD_REQUEST_STATUS_REFRESH = 0

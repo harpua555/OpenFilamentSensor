@@ -6,6 +6,7 @@
 data/user_settings.secrets.json
 data_lite/
 merge_bin.py
+!tools/merge_bin.py
 test/render/filament_log*
 logs/*
 !logs/README.md

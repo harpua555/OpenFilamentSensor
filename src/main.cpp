@@ -86,10 +86,13 @@ void failWifi()
 void startAPMode()
 {
     logger.log("Starting AP mode");
-    WiFi.softAP("CentauriCarbonFilament");
+    WiFi.softAP("CentauriFilament.local");
     logger.logf("AP IP Address: %s", WiFi.softAPIP().toString().c_str());
-    // Stop mDNS as it's not needed in AP mode
-    MDNS.end();
+    // Start mDNS for AP mode
+    if (!MDNS.begin("centaurifilament"))
+    {
+        logger.log("Error setting up MDNS responder in AP mode!");
+    }
 }
 
 void handleSuccessfulWifiConnection()

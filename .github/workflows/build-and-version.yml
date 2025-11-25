@@ -6,6 +6,7 @@ on:
       - 'v*'           # build on version tags
     branches:
       - main
+      - dev
   workflow_dispatch:
 
 jobs:
@@ -82,3 +83,4 @@ jobs:
         with:
           name: firmware-${{ matrix.env }}
           path: artifacts/${{ matrix.env }}
+

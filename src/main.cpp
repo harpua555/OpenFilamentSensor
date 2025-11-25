@@ -86,7 +86,7 @@ void failWifi()
 void startAPMode()
 {
     logger.log("Starting AP mode");
-    WiFi.softAP("ElegooXBTTSFS20", "elegooccsfs20");
+    WiFi.softAP("CentauriCarbonFilament");
     logger.logf("AP IP Address: %s", WiFi.softAPIP().toString().c_str());
     // Stop mDNS as it's not needed in AP mode
     MDNS.end();

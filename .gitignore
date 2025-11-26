@@ -19,3 +19,4 @@ webui_lite/node_modules/
 # Portable build environment (created by tools/setup_local_env.py)
 tools/.venv/
 tools/.platformio/
+test/nul

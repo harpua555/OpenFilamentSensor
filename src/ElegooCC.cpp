@@ -542,10 +542,10 @@ bool ElegooCC::processFilamentTelemetry(JsonObject &printInfo, unsigned long cur
 
 void ElegooCC::pausePrint()
 {
-    if (settingsManager.getDevMode())
+    if (settingsManager.getSuppressPauseCommands())
     {
         lastPauseRequestMs = millis();
-        logger.logf("Pause command suppressed: dev mode enabled");
+        logger.logf("Pause command suppressed (suppress_pause_commands enabled)");
         return;
     }
     if (!webSocket.isConnected())

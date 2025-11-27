@@ -153,6 +153,11 @@ void WebServer::begin()
                 settingsManager.setUiRefreshIntervalMs(
                     jsonObj["ui_refresh_interval_ms"].as<int>());
             }
+            // Pause command suppression
+            if (jsonObj.containsKey("suppress_pause_commands"))
+            {
+                settingsManager.setSuppressPauseCommands(jsonObj["suppress_pause_commands"].as<bool>());
+            }
             // Deprecated settings - accepted but ignored for backwards compatibility
             // zero_deficit_logging - removed (use verbose_logging)
             // use_total_extrusion_deficit - removed (always use total mode)

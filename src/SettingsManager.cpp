@@ -27,19 +27,20 @@ SettingsManager::SettingsManager()
     settings.enabled             = true;
     settings.has_connected       = false;
     settings.detection_length_mm        = 10.0f;  // DEPRECATED: Use ratio-based detection
-    settings.detection_grace_period_ms  = 500;    // 500ms grace period (reduced from 1500ms)
+    settings.detection_grace_period_ms  = 8000;   // 8000ms grace period for communication delays
     settings.detection_min_start_mm     = 12.0f;  // Minimum total extrusion before jam detection
     settings.detection_ratio_threshold  = 0.25f;  // 25% passing threshold (~75% deficit)
     settings.detection_hard_jam_mm      = 5.0f;   // 5mm expected with zero movement = hard jam
     settings.detection_soft_jam_time_ms = 10000;  // 10 seconds to signal slow clog
     settings.detection_hard_jam_time_ms = 5000;   // 5 seconds of negligible flow
     settings.tracking_mode              = 1;      // 1 = Windowed (Klipper-style)
-    settings.tracking_window_ms         = 5000;   // 5 second sliding window
+    settings.tracking_window_ms         = 3000;   // 3 second sliding window
     settings.tracking_ewma_alpha        = 0.3f;   // 30% weight on new samples
     settings.sdcp_loss_behavior         = 2;
     settings.flow_telemetry_stale_ms    = 1000;
     settings.ui_refresh_interval_ms     = 1000;
     settings.log_level                  = 0;      // Default to Normal logging
+    settings.suppress_pause_commands    = false;  // Pause commands enabled by default
     settings.dev_mode                   = false;  // DEPRECATED: Kept for backwards compatibility
     settings.verbose_logging            = false;  // DEPRECATED: Kept for backwards compatibility
     settings.flow_summary_logging       = false;  // DEPRECATED: Kept for backwards compatibility
@@ -122,6 +123,11 @@ bool SettingsManager::load()
             ? doc["ui_refresh_interval_ms"].as<int>()
             : 1000;
 
+    // Load suppress_pause_commands (independent of log_level)
+    settings.suppress_pause_commands = doc.containsKey("suppress_pause_commands")
+                                          ? doc["suppress_pause_commands"].as<bool>()
+                                          : false;
+
     // Load log_level with migration from old boolean fields
     if (doc.containsKey("log_level"))
     {
@@ -170,7 +176,7 @@ bool SettingsManager::load()
                                          : 2.88f;  // Correct sensor spec
     settings.detection_grace_period_ms = doc.containsKey("detection_grace_period_ms")
                                              ? doc["detection_grace_period_ms"].as<int>()
-                                             : 500;  // Default 500ms
+                                             : 8000;  // Default 8000ms
     settings.detection_min_start_mm = 12.0f;
     if (doc.containsKey("detection_min_start_mm"))
     {
@@ -196,7 +202,7 @@ bool SettingsManager::load()
                                  : 1;  // Default to Windowed mode
     settings.tracking_window_ms = doc.containsKey("tracking_window_ms")
                                       ? doc["tracking_window_ms"].as<int>()
-                                      : 5000;  // Default 5 seconds
+                                      : 3000;  // Default 3 seconds
     settings.tracking_ewma_alpha = doc.containsKey("tracking_ewma_alpha")
                                        ? doc["tracking_ewma_alpha"].as<float>()
                                        : 0.3f;  // Default 0.3
@@ -394,6 +400,11 @@ int SettingsManager::getUiRefreshIntervalMs()
 int SettingsManager::getLogLevel()
 {
     return getSettings().log_level;
+}
+
+bool SettingsManager::getSuppressPauseCommands()
+{
+    return getSettings().suppress_pause_commands;
 }
 
 bool SettingsManager::getDevMode()
@@ -634,6 +645,13 @@ void SettingsManager::setLogLevel(int level)
     logger.setLogLevel((LogLevel)level);
 }
 
+void SettingsManager::setSuppressPauseCommands(bool suppress)
+{
+    if (!isLoaded)
+        load();
+    settings.suppress_pause_commands = suppress;
+}
+
 void SettingsManager::setDevMode(bool devMode)
 {
     // DEPRECATED: Sets log level to 3 (Dev) if true, preserves current level if false
@@ -713,6 +731,7 @@ String SettingsManager::toJson(bool includePassword)
     doc["start_print_timeout"] = settings.start_print_timeout;
     doc["enabled"]             = settings.enabled;
     doc["has_connected"]       = settings.has_connected;
+    doc["detection_length_mm"]        = settings.detection_length_mm;
     doc["detection_grace_period_ms"]  = settings.detection_grace_period_ms;
     doc["detection_min_start_mm"]     = settings.detection_min_start_mm;
     doc["purge_filament_mm"]          = settings.purge_filament_mm;
@@ -727,6 +746,7 @@ String SettingsManager::toJson(bool includePassword)
     doc["flow_telemetry_stale_ms"]    = settings.flow_telemetry_stale_ms;
     doc["ui_refresh_interval_ms"]     = settings.ui_refresh_interval_ms;
     doc["log_level"]                  = settings.log_level;  // Unified logging level
+    doc["suppress_pause_commands"]    = settings.suppress_pause_commands;
     doc["movement_mm_per_pulse"]      = settings.movement_mm_per_pulse;
     doc["auto_calibrate_sensor"]      = settings.auto_calibrate_sensor;
 

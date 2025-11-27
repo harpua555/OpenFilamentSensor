@@ -1384,7 +1384,7 @@
                     <div class="status-label">Filament Stopped</div>
                     <div class="status-value">
                         <span class="status-badge ${filamentStopped ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
-                            ${filamentStopped ? 'Stopped' : 'Moving'}
+                            ${filamentStopped ? 'Stopped' : 'Normal'}
                         </span>
                     </div>
                 </div>
@@ -1501,33 +1501,27 @@
                     <h3 class="section-title">Detection Settings</h3>
 
                     <div class="form-group">
-                        <label class="form-label">Detection Length (mm)</label>
-                        <input type="number" step="0.5" class="form-input" id="detection_length_mm" value="${currentSettings.detection_length_mm || 10.0}" min="1" max="30">
-                        <p class="form-help">Distance threshold for jam detection. Recommended: 7-15mm. Klipper default is 7mm.</p>
-                    </div>
-
-                    <div class="form-group">
                         <label class="form-label">Filament Movement per Pulse (mm)</label>
                         <input type="number" step="0.01" class="form-input" id="movement_mm_per_pulse" value="${currentSettings.movement_mm_per_pulse || 2.88}" min="0.1" max="10">
-                        <p class="form-help">Default: 2.88mm (SFS 2.0 spec). Adjust only if calibration shows different values.</p>
+                        <p class="form-help">Distance filament moves per sensor rotation. Default: 2.88mm per the SFS 2.0 specification. Enable 'Auto-calibrate sensor at print end' to automatically adjust this value, or manually calibrate by measuring actual vs. expected filament usage over a test print. Different sensor batches may vary slightly.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Detection Grace Period (ms)</label>
-                        <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 500}" min="0" max="2000" step="100">
-                        <p class="form-help">Time to wait after move command before checking for jams. Default: 500ms.</p>
+                        <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 8000}" min="0" max="15000" step="100">
+                        <p class="form-help">Time to wait after receiving extrusion commands before checking for sensor pulses. This accounts for communication delays and prevents false alarms during rapid toolhead movements. Increase if you get false jam detections. Default: 8000ms.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Minimum Extrusion Before Checking (mm)</label>
                         <input type="number" class="form-input" id="detection_min_start_mm" value="${currentSettings.detection_min_start_mm !== undefined ? currentSettings.detection_min_start_mm : 12}" min="0" step="0.5">
-                        <p class="form-help">Jam detection stays disabled until this much commanded extrusion has accumulated. Default: 12mm.</p>
+                        <p class="form-help">Minimum filament that must be commanded before jam detection activates. Combined with 'Purge Line Filament', jam checks won't start until (Purge + Minimum) mm have been extruded. This prevents false alarms during print startup. Default: 12mm.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Purge Line Filament (mm)</label>
                         <input type="number" class="form-input" id="purge_filament_mm" value="${currentSettings.purge_filament_mm !== undefined ? currentSettings.purge_filament_mm : 47}" min="0" step="0.5">
-                        <p class="form-help">Amount of filament consumed by your purge line or start sequence. Jam checks stay off until this plus the minimum extrusion above is reached.</p>
+                        <p class="form-help">Amount of filament consumed by your slicer's purge/prime sequence at print start. Jam detection will not activate until this amount PLUS 'Minimum Extrusion Before Checking' (above) has been extruded. This prevents false alarms during print startup. Default: 47mm.</p>
                     </div>
 
                     <h3 class="section-title">Tracking Algorithm</h3>
@@ -1544,14 +1538,14 @@
 
                     <div class="form-group">
                         <label class="form-label">Windowed Mode: Window Size (ms)</label>
-                        <input type="number" class="form-input" id="tracking_window_ms" value="${currentSettings.tracking_window_ms || 5000}" min="1000" max="10000" step="1000">
-                        <p class="form-help">Sliding window size for Mode 1. Default: 5000ms (5 seconds).</p>
+                        <input type="number" class="form-input" id="tracking_window_ms" value="${currentSettings.tracking_window_ms || 3000}" min="3000" max="10000" step="1000">
+                        <p class="form-help">Sliding window size for Mode 1 (Windowed tracking). Larger windows = slower to detect jams but fewer false positives. Smaller windows = faster detection but more sensitive. Default: 3000ms (3 seconds). Range: 3000-10000ms.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">EWMA Alpha (smoothing factor)</label>
                         <input type="number" step="0.05" class="form-input" id="tracking_ewma_alpha" value="${currentSettings.tracking_ewma_alpha || 0.3}" min="0.1" max="0.5">
-                        <p class="form-help">For Mode 2 (EWMA). Default: 0.3. Lower = smoother, Higher = more responsive.</p>
+                        <p class="form-help">Smoothing factor for EWMA mode. Lower values (0.1-0.2) = smoother, ignores brief flow changes. Higher values (0.4-0.5) = more responsive to changes, faster jam detection. Default: 0.3.</p>
                     </div>
 
                     <h3 class="section-title">Jam Detection Thresholds</h3>
@@ -1559,25 +1553,25 @@
                     <div class="form-group">
                         <label class="form-label">Soft Jam Ratio Threshold (%)</label>
                         <input type="number" class="form-input" id="detection_ratio_threshold" value="${(currentSettings.detection_ratio_threshold * 100 || 25)}" min="5" max="50">
-                        <p class="form-help">Minimum pass ratio before triggering. Default: 25%. Lower = more sensitive.</p>
+                        <p class="form-help">Percentage of expected filament movement that must actually occur to be considered normal. For example, 25% means if only 25% of expected filament moves through the sensor (75% deficit), a soft jam is triggered after the time threshold. Lower = more sensitive.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Soft Jam Time Threshold (seconds)</label>
                         <input type="number" class="form-input" id="detection_soft_jam_time_ms" value="${(currentSettings.detection_soft_jam_time_ms / 1000 || 10)}" min="3" max="30">
-                        <p class="form-help">How long soft jam must persist before pausing. Default: 10 seconds.</p>
+                        <p class="form-help">How long the flow ratio must stay below the threshold before triggering a pause. Longer delays prevent false positives from temporary under-extrusion (like bridges or overhangs), but slower to catch real clogs. Default: 10 seconds.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Hard Jam Distance Threshold (mm)</label>
                         <input type="number" step="0.5" class="form-input" id="detection_hard_jam_mm" value="${currentSettings.detection_hard_jam_mm || 5.0}" min="1" max="15">
-                        <p class="form-help">Minimum expected movement with zero sensor pulses. Default: 5mm.</p>
+                        <p class="form-help">If the printer commands at least this much filament movement but the sensor detects zero pulses for the hard jam time threshold, a hard jam is triggered. Lower = more sensitive to complete blockages. Increase if you have extruder slippage or very soft filament. Default: 5mm.</p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Hard Jam Time Threshold (seconds)</label>
                         <input type="number" class="form-input" id="detection_hard_jam_time_ms" value="${(currentSettings.detection_hard_jam_time_ms / 1000 || 5)}" min="2" max="15">
-                        <p class="form-help">How long hard jam must persist before pausing. Default: 5 seconds.</p>
+                        <p class="form-help">How long a hard jam condition (zero sensor pulses despite commanded extrusion) must persist before triggering a pause. This delay prevents false positives from momentary sensor glitches or brief retraction events. Default: 5 seconds.</p>
                     </div>
 
                     <h3 class="section-title">Behavior Settings</h3>
@@ -1585,7 +1579,7 @@
                     <div class="form-group">
                         <label class="form-label">Start Print Timeout (seconds)</label>
                         <input type="number" class="form-input" id="start_print_timeout" value="${(currentSettings.start_print_timeout / 1000 || 10)}" min="1" max="60">
-                        <p class="form-help">Time to wait after print starts before allowing pause on runout.</p>
+                        <p class="form-help">Delay before filament runout detection becomes active after print starts. Prevents false triggers during initial purge/prime moves.</p>
                     </div>
 
                     <div class="form-group checkbox-group">
@@ -1601,6 +1595,7 @@
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="auto_calibrate_sensor" ${currentSettings.auto_calibrate_sensor ? 'checked' : ''}>
                         <label class="form-label" for="auto_calibrate_sensor" style="margin: 0;">Auto-calibrate sensor at print end</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Automatically adjusts the 'Filament Movement per Pulse' value based on actual print data when a print completes. Enable this to fine-tune sensor accuracy over time. Requires at least one complete print to calibrate.</p>
                     </div>
 
                     <h3 class="section-title">Logging Settings</h3>
@@ -1608,7 +1603,7 @@
                     <div class="form-group">
                         <label class="form-label">Log Level</label>
                         <select class="form-select" id="log_level">
-                            <option value="0" ${(currentSettings.log_level === 0 || currentSettings.log_level === undefined) ? 'selected' : ''}>Normal (Production)</option>
+                            <option value="0" ${(currentSettings.log_level === 0 || currentSettings.log_level === undefined) ? 'selected' : ''}>Normal</option>
                             <option value="1" ${currentSettings.log_level == 1 ? 'selected' : ''}>Debug (Periodic stats)</option>
                             <option value="2" ${currentSettings.log_level == 2 ? 'selected' : ''}>Verbose (Detailed info)</option>
                             <option value="3" ${currentSettings.log_level == 3 ? 'selected' : ''}>Dev (Maximum verbosity)</option>
@@ -1617,20 +1612,22 @@
                     </div>
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="dev_mode" ${currentSettings.dev_mode ? 'checked' : ''}>
-                        <label class="form-label" for="dev_mode" style="margin: 0;">Developer Mode (suppress pause commands)</label>
+                        <input type="checkbox" id="suppress_pause_commands" ${currentSettings.suppress_pause_commands ? 'checked' : ''}>
+                        <label class="form-label" for="suppress_pause_commands" style="margin: 0;">Suppress Cancel Messages</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Prevent the sensor from sending pause/cancel commands to the printer. Useful for testing and development. When enabled, pause attempts will be logged but not sent.</p>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">SDCP Loss Behavior</label>
+                        <label class="form-label">Printer Connection Loss Behavior</label>
                         <select class="form-select" id="sdcp_loss_behavior">
-                            <option value="1" ${currentSettings.sdcp_loss_behavior == 1 ? 'selected' : ''}>Pause print when SDCP replies stop</option>
-                            <option value="2" ${currentSettings.sdcp_loss_behavior == 2 ? 'selected' : ''}>Disable detection until SDCP replies return</option>
+                            <option value="1" ${currentSettings.sdcp_loss_behavior == 1 ? 'selected' : ''}>Pause print if connection to printer is lost</option>
+                            <option value="2" ${currentSettings.sdcp_loss_behavior == 2 ? 'selected' : ''}>Disable jam detection if connection to printer is lost</option>
                         </select>
+                        <p class="form-help">Controls behavior when the device loses communication with the printer's telemetry system.</p>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">SDCP Connection Lost Timeout (ms)</label>
+                        <label class="form-label">Printer Connection Timeout (ms)</label>
                         <input type="number" class="form-input" id="flow_telemetry_stale_ms" value="${currentSettings.flow_telemetry_stale_ms || 1000}" min="250" max="60000" step="250">
                         <p class="form-help">Time without telemetry before considering connection lost.</p>
                     </div>
@@ -1638,7 +1635,7 @@
                     <div class="form-group">
                         <label class="form-label">Web UI Refresh Interval (ms)</label>
                         <input type="number" class="form-input" id="ui_refresh_interval_ms" value="${currentSettings.ui_refresh_interval_ms || 1000}" min="250" max="5000" step="250">
-                        <p class="form-help">How often the Status page polls for updates.</p>
+                        <p class="form-help">How often the Status page updates sensor data. Lower values = more responsive display but higher CPU usage. Recommended: 500-1000ms for active monitoring, 2000-5000ms for passive monitoring.</p>
                     </div>
 
                     <div class="btn-group">
@@ -1662,7 +1659,6 @@
                     pause_on_runout: document.getElementById('pause_on_runout').checked,
                     start_print_timeout: parseInt(document.getElementById('start_print_timeout').value) * 1000,
                     enabled: document.getElementById('enabled').checked,
-                    detection_length_mm: parseFloat(document.getElementById('detection_length_mm').value),
                     detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
                     detection_min_start_mm: parseFloat(document.getElementById('detection_min_start_mm').value),
                     purge_filament_mm: parseFloat(document.getElementById('purge_filament_mm').value),
@@ -1677,7 +1673,7 @@
                     flow_telemetry_stale_ms: parseInt(document.getElementById('flow_telemetry_stale_ms').value),
                     ui_refresh_interval_ms: parseInt(document.getElementById('ui_refresh_interval_ms').value),
                     log_level: parseInt(document.getElementById('log_level').value),
-                    dev_mode: document.getElementById('dev_mode').checked,
+                    suppress_pause_commands: document.getElementById('suppress_pause_commands').checked,
                     movement_mm_per_pulse: parseFloat(document.getElementById('movement_mm_per_pulse').value),
                     auto_calibrate_sensor: document.getElementById('auto_calibrate_sensor').checked,
                 };

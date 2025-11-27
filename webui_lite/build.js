@@ -40,6 +40,8 @@ function copyRecursive(src, dest) {
 }
 
 console.log('\n=== Building lightweight WebUI ===\n');
+// Clear staging directory to ensure clean build
+fs.rmSync(STAGING_DIR, { recursive: true, force: true });
 ensureDir(STAGING_DIR);
 
 files.forEach(file => {
@@ -55,13 +57,16 @@ files.forEach(file => {
 
     const destPath = path.join(STAGING_DIR, file.dest);
     const content = fs.readFileSync(srcPath);
-    fs.writeFileSync(destPath, content);
-    console.log(`Copied ${file.src} -> ${file.dest}`);
 
     if (!file.skipGzip) {
+        // For gzipped files, only create the .gz version to save space
         const gzipped = zlib.gzipSync(content, { level: 9 });
         fs.writeFileSync(destPath + '.gz', gzipped);
-        console.log(`  Gzipped ${file.dest}.gz (${gzipped.length} bytes)`);
+        console.log(`Gzipped ${file.src} -> ${file.dest}.gz (${gzipped.length} bytes)`);
+    } else {
+        // For non-gzipped files (e.g., favicon), copy as-is
+        fs.writeFileSync(destPath, content);
+        console.log(`Copied ${file.src} -> ${file.dest}`);
     }
 });
 

@@ -27,9 +27,10 @@ struct user_settings
     int    sdcp_loss_behavior;
     int    flow_telemetry_stale_ms;
     int    ui_refresh_interval_ms;
-    int    log_level;              // 0=Normal, 1=Debug, 2=Verbose, 3=Dev
-    bool   dev_mode;               // DEPRECATED: use log_level >= 3 instead
-    bool   verbose_logging;        // DEPRECATED: use log_level >= 2 instead
+    int    log_level;                 // 0=Normal, 1=Debug, 2=Verbose, 3=Dev
+    bool   suppress_pause_commands;   // Suppress pause/cancel commands (for testing/development)
+    bool   dev_mode;                  // DEPRECATED: use log_level >= 3 instead
+    bool   verbose_logging;           // DEPRECATED: use log_level >= 2 instead
     bool   flow_summary_logging;   // DEPRECATED: use log_level >= 1 instead
     bool   pin_debug_logging;      // DEPRECATED: use log_level >= 3 instead
     float  movement_mm_per_pulse;
@@ -93,6 +94,7 @@ class SettingsManager
     int    getFlowTelemetryStaleMs();
     int    getUiRefreshIntervalMs();
     int    getLogLevel();                      // Get current log level (0-3)
+    bool   getSuppressPauseCommands();         // Get pause command suppression state
     bool   getDevMode();                       // DEPRECATED: returns (log_level >= 3)
     bool   getVerboseLogging();                // DEPRECATED: returns (log_level >= 2)
     bool   getFlowSummaryLogging();            // DEPRECATED: returns (log_level >= 1)
@@ -127,6 +129,7 @@ class SettingsManager
     void setFlowTelemetryStaleMs(int staleMs);
     void setUiRefreshIntervalMs(int intervalMs);
     void setLogLevel(int level);                   // Set log level (0-3), updates logger
+    void setSuppressPauseCommands(bool suppress);  // Set pause command suppression
     void setDevMode(bool devMode);                 // DEPRECATED: sets log_level to 3 if true
     void setVerboseLogging(bool verbose);          // DEPRECATED: sets log_level to 2 if true
     void setFlowSummaryLogging(bool enabled);      // DEPRECATED: sets log_level to 1 if true

@@ -940,16 +940,29 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     bool baseGraceActive = (gracePeriod > 0) && motionSensor.isWithinGracePeriod(gracePeriod);
     bool withinGrace = baseGraceActive || resumeGraceActive;
 
+    // NOTE: Extrusion-based grace REMOVED. Windowed tracking handles purge lines and
+    // heavy up-front SDCP reporting correctly without needing a grace period.
+    // Grace period should ONLY protect against false positives during:
+    // (1) Print start (time-based grace handles this)
+    // (2) Resume from pause (resumeGraceActive handles this)
+    // (3) Ironing/low-flow moves (windowed tracking handles via passRatio thresholds)
+    //
+    // Previous code kept grace active until 59mm extruded, creating a large vulnerability
+    // window where jams couldn't be detected. This was overly conservative.
+    //
+    // float minExtrusionBeforeDetect =
+    //     settingsManager.getDetectionMinStartMm() + settingsManager.getPurgeFilamentMm();
+    // if (minExtrusionBeforeDetect < 0.0f)
+    // {
+    //     minExtrusionBeforeDetect = 0.0f;
+    // }
+    // if (expectedFilamentMM < minExtrusionBeforeDetect)
+    // {
+    //     withinGrace = true;
+    // }
+
     float minExtrusionBeforeDetect =
         settingsManager.getDetectionMinStartMm() + settingsManager.getPurgeFilamentMm();
-    if (minExtrusionBeforeDetect < 0.0f)
-    {
-        minExtrusionBeforeDetect = 0.0f;
-    }
-    if (expectedFilamentMM < minExtrusionBeforeDetect)
-    {
-        withinGrace = true;
-    }
 
     // Log grace period transitions
     static bool lastGraceState = true;  // Start true to avoid log spam on first eval

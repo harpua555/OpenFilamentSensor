@@ -27,12 +27,12 @@ SettingsManager::SettingsManager()
     settings.enabled             = true;
     settings.has_connected       = false;
     settings.detection_length_mm        = 10.0f;  // DEPRECATED: Use ratio-based detection
-    settings.detection_grace_period_ms  = 8000;   // 8000ms grace period for communication delays
+    settings.detection_grace_period_ms  = 5000;   // 5000ms grace period for print start (reduced from 8s)
     settings.detection_min_start_mm     = 12.0f;  // Minimum total extrusion before jam detection
     settings.detection_ratio_threshold  = 0.25f;  // 25% passing threshold (~75% deficit)
     settings.detection_hard_jam_mm      = 5.0f;   // 5mm expected with zero movement = hard jam
-    settings.detection_soft_jam_time_ms = 10000;  // 10 seconds to signal slow clog
-    settings.detection_hard_jam_time_ms = 5000;   // 5 seconds of negligible flow
+    settings.detection_soft_jam_time_ms = 7000;   // 7 seconds to signal slow clog (balanced for quick detection)
+    settings.detection_hard_jam_time_ms = 3000;   // 3 seconds of negligible flow (quick response to complete jams)
     settings.tracking_mode              = 1;      // 1 = Windowed (Klipper-style)
     settings.tracking_window_ms         = 3000;   // 3 second sliding window
     settings.tracking_ewma_alpha        = 0.3f;   // 30% weight on new samples

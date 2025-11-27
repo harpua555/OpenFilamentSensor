@@ -953,6 +953,18 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
 
     // Log grace period transitions
     static bool lastGraceState = true;  // Start true to avoid log spam on first eval
+    static unsigned long lastGraceDebugMs = 0;
+
+    // Log grace status every 5 seconds when active
+    if (withinGrace && debugFlow && (currentTime - lastGraceDebugMs) >= 5000)
+    {
+        lastGraceDebugMs = currentTime;
+        logger.logf("Grace ACTIVE: baseGrace=%d resumeGrace=%d extrusionCheck=%d | expected=%.2f min=%.2f",
+                   baseGraceActive ? 1 : 0, resumeGraceActive ? 1 : 0,
+                   (expectedFilamentMM < minExtrusionBeforeDetect) ? 1 : 0,
+                   expectedFilamentMM, minExtrusionBeforeDetect);
+    }
+
     if (withinGrace != lastGraceState && debugFlow)
     {
         if (withinGrace)
@@ -1025,9 +1037,12 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
                 hardJamAccumulatedMs = hardJamTimeMs;
             }
         }
-        else if (newPulseSinceLastEval || passRatio >= HARD_RECOVERY_RATIO ||
+        else if (passRatio >= HARD_RECOVERY_RATIO ||
                  expectedDistance < (minHardWindowMm * 0.5f))
         {
+            // NOTE: Removed newPulseSinceLastEval check - occasional pulses during
+            // partial jams should not reset the accumulator. Recovery requires
+            // sustained good flow (passRatio >= 35%).
             hardJamAccumulatedMs = 0;
         }
 
@@ -1040,8 +1055,11 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
                 softJamAccumulatedMs = softJamTimeMs;
             }
         }
-        else if (passRatio >= ratioThreshold * 0.85f || newPulseSinceLastEval)
+        else if (passRatio >= ratioThreshold * 0.85f)
         {
+            // NOTE: Removed newPulseSinceLastEval check - occasional pulses during
+            // partial jams should not reset the accumulator. Recovery requires
+            // sustained good flow (passRatio >= 85% of threshold).
             softJamAccumulatedMs = 0;
         }
     }

@@ -27,7 +27,13 @@
 
 const char* firmwareVersion = GET_VERSION_STRING(FIRMWARE_VERSION_RAW, "dev");
 const char* chipFamily      = GET_VERSION_STRING(CHIP_FAMILY_RAW, "Unknown");
+
+// Use BUILD_DATE and BUILD_TIME if available (set by build script), otherwise fall back to __DATE__ and __TIME__
+#ifdef BUILD_DATE
+const char* buildTimestamp  = BUILD_DATE " " BUILD_TIME;
+#else
 const char* buildTimestamp  = __DATE__ " " __TIME__;
+#endif
 
 #define WIFI_CHECK_INTERVAL 30000     // Check WiFi every 30 seconds
 #define WIFI_RECONNECT_TIMEOUT 10000  // Wait 10 seconds for reconnection

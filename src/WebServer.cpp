@@ -319,12 +319,21 @@ void WebServer::begin()
     server.on("/version", HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
+                  // Use BUILD_DATE and BUILD_TIME if set by build script, otherwise fall back to __DATE__ and __TIME__
+                  #ifdef BUILD_DATE
+                      const char* buildDate = BUILD_DATE;
+                      const char* buildTime = BUILD_TIME;
+                  #else
+                      const char* buildDate = __DATE__;
+                      const char* buildTime = __TIME__;
+                  #endif
+
                   DynamicJsonDocument jsonDoc(512);
                   jsonDoc["firmware_version"] = firmwareVersion;
                   jsonDoc["chip_family"]      = chipFamily;
-                  jsonDoc["build_date"]       = __DATE__;
-                  jsonDoc["build_time"]       = __TIME__;
-                  jsonDoc["firmware_thumbprint"] = getBuildThumbprint(__DATE__, __TIME__);
+                  jsonDoc["build_date"]       = buildDate;
+                  jsonDoc["build_time"]       = buildTime;
+                  jsonDoc["firmware_thumbprint"] = getBuildThumbprint(buildDate, buildTime);
                   jsonDoc["filesystem_thumbprint"] = getFilesystemThumbprint();
                   jsonDoc["build_version"] = getBuildVersion();
 

@@ -95,7 +95,10 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
     if (totalExtrusionMm < expectedPositionMm)
     {
         // Retraction detected - resync everything
-        lastExpectedUpdateMs  = currentTime;
+        // NOTE: Do NOT reset lastExpectedUpdateMs here! Retractions during normal
+        // printing should not restart the grace period timer, otherwise jam detection
+        // never activates (grace period keeps resetting every few seconds).
+        // Grace period should only start on: (1) print start, (2) resume from pause
 
         // Reset cumulative tracking
         baselinePositionMm   = totalExtrusionMm;
@@ -115,15 +118,10 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
     // Calculate deltas for windowed/EWMA modes
     float expectedDelta = totalExtrusionMm - expectedPositionMm;
 
-    // Telemetry gap detection: If no updates for >2 seconds, reset grace period
-    // This handles sparse infill, travel moves, print pauses, speed changes
-    // Grace period applies after: (1) initialization, (2) retractions, (3) telemetry gaps
-    unsigned long timeSinceLastUpdate = currentTime - lastExpectedUpdateMs;
-    if (timeSinceLastUpdate > 2000 && expectedDelta > 0.01f)
-    {
-        // Telemetry gap detected - reset grace period timer when extrusion resumes
-        lastExpectedUpdateMs = currentTime;
-    }
+    // NOTE: Telemetry gap grace reset removed - it was preventing grace period from
+    // ever expiring during normal printing. Grace period now only resets on:
+    // (1) initialization, (2) retractions
+    // Windowed tracking handles sparse infill/travel moves correctly without grace reset.
 
     // Only track expected position changes after first pulse received
     // This skips priming/purge moves at print start

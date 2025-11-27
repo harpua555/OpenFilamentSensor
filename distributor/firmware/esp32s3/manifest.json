@@ -7,9 +7,7 @@
     {
       "chipFamily": "ESP32-S3",
       "parts": [
-        { "path": "bootloader.bin", "offset": 4096 },
-        { "path": "partitions.bin", "offset": 32768 },
-        { "path": "firmware.bin", "offset": 65536 }
+        { "path": "firmware_merged.bin", "offset": 0 }
       ]
     }
   ]

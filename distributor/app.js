@@ -119,7 +119,7 @@ const hydrateBoardDetails = (board) => {
     selectors.heroDate.textContent = formatDate(board.released);
     renderFiles(board.files);
     renderNotes(board.notes);
-    selectors.installButton?.setAttribute('manifest', board.manifest);
+    selectors.flashTrigger?.setAttribute('manifest', board.manifest);
 };
 
 const fetchBoards = async () => {

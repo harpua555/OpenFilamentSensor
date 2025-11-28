@@ -115,6 +115,7 @@ private:
     // Resume grace tracking
     unsigned long resumeGracePulseBaseline;
     float resumeGraceActualBaseline;
+    unsigned long resumeGraceStartTimeMs;
 
     // Flags (bit fields to save RAM)
     bool jamPauseRequested : 1;
@@ -142,7 +143,9 @@ private:
     static constexpr float MIN_HARD_WINDOW_MM = 1.0f;         // Min expected for hard jam
     static constexpr float MIN_SOFT_WINDOW_MM = 1.0f;         // Min expected for soft jam
     static constexpr float MIN_SOFT_DEFICIT_MM = 0.25f;       // Min deficit for soft jam
-    static constexpr float RESUME_GRACE_MIN_MOVEMENT_MM = 1.0f;  // Min movement to clear resume grace
+    static constexpr float RESUME_GRACE_MIN_MOVEMENT_MM = 5.0f;  // Min movement to clear resume grace
+    static constexpr float RESUME_GRACE_15MM_THRESHOLD = 15.0f;  // 15mm expected to clear resume grace
+    static constexpr uint16_t RESUME_GRACE_6SEC_TIMEOUT = 6000; // 6 seconds to clear resume grace
     static constexpr float RATIO_SMOOTHING_ALPHA = 0.1f;      // EWMA smoothing factor
 };
 

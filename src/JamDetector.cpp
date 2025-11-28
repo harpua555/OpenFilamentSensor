@@ -49,6 +49,7 @@ void JamDetector::onResume(unsigned long currentTimeMs, unsigned long currentPul
     state.graceActive = true;
     resumeGracePulseBaseline = currentPulseCount;
     resumeGraceActualBaseline = currentActualMm;
+    resumeGraceStartTimeMs = currentTimeMs;
     jamPauseRequested = false;
 
     // Reset jam accumulators on resume
@@ -83,15 +84,22 @@ bool JamDetector::evaluateGraceState(unsigned long currentTimeMs, unsigned long 
         }
 
         case GraceState::RESUME_GRACE: {
-            // Wait for movement after resume
-            bool pulsesSeen = (movementPulseCount > resumeGracePulseBaseline);
-            bool expectedBuilt = (expectedDistance >= RESUME_GRACE_MIN_MOVEMENT_MM);
+            // Check if we've seen 3 pulses since resume
+            bool fivePulsesSeen = (movementPulseCount >= resumeGracePulseBaseline + 5);
 
-            if (pulsesSeen || expectedBuilt) {
-                // Movement detected, clear resume grace
+            // Check if 15mm expected has built up since resume
+            bool expected15mmBuilt = (expectedDistance >= RESUME_GRACE_15MM_THRESHOLD);
+
+            // Check if 6 seconds has passed since resume
+            unsigned long timeSinceResume = currentTimeMs - resumeGraceStartTimeMs;
+            bool sixSecondsPassed = (timeSinceResume >= RESUME_GRACE_6SEC_TIMEOUT);
+
+            // Clear grace if five pulses seen (filament is moving) or 15mm expected built and 6 seconds passed (filament should have been moving, need to reevaluate)
+            if (fivePulsesSeen || expected15mmBuilt && sixSecondsPassed) {
                 state.graceState = GraceState::ACTIVE;
                 return false;
             }
+
             return true;  // Still in resume grace
         }
 

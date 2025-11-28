@@ -17,7 +17,7 @@ struct LogEntry
 {
     char          uuid[37];        // UUID string (36 chars + null terminator)
     unsigned long timestamp;       // Unix timestamp
-    char          message[96];     // Fixed-size message buffer
+    char          message[256];    // Fixed-size message buffer
     LogLevel      level;           // Log level for this entry
 };
 

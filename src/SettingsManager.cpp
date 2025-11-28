@@ -28,7 +28,6 @@ SettingsManager::SettingsManager()
     settings.has_connected       = false;
     settings.detection_length_mm        = 10.0f;  // DEPRECATED: Use ratio-based detection
     settings.detection_grace_period_ms  = 5000;   // 5000ms grace period for print start (reduced from 8s)
-    settings.detection_min_start_mm     = 12.0f;  // Minimum total extrusion before jam detection
     settings.detection_ratio_threshold  = 0.25f;  // 25% passing threshold (~75% deficit)
     settings.detection_hard_jam_mm      = 5.0f;   // 5mm expected with zero movement = hard jam
     settings.detection_soft_jam_time_ms = 7000;   // 7 seconds to signal slow clog (balanced for quick detection)
@@ -110,26 +109,10 @@ bool SettingsManager::load()
     settings.detection_grace_period_ms = doc.containsKey("detection_grace_period_ms")
                                              ? doc["detection_grace_period_ms"].as<int>()
                                              : 8000;  // Default 8000ms
-    settings.detection_min_start_mm = 12.0f;
-    if (doc.containsKey("detection_min_start_mm"))
-    {
-        float minStartMm = doc["detection_min_start_mm"].as<float>();
-        if (isnan(minStartMm) || minStartMm < 0.0f || minStartMm > 999.0f)
-        {
-            minStartMm = 12.0f;
-        }
-        settings.detection_min_start_mm = minStartMm;
-    }
-    settings.purge_filament_mm = 47.0f;
-    if (doc.containsKey("purge_filament_mm"))
-    {
-        float purgeMm = doc["purge_filament_mm"].as<float>();
-        if (isnan(purgeMm) || purgeMm < 0.0f || purgeMm > 999.0f)
-        {
-            purgeMm = 47.0f;
-        }
-        settings.purge_filament_mm = purgeMm;
-    }
+    // Keep purge_filament_mm in settings for potential future use, but don't expose getters/setters
+    settings.purge_filament_mm = doc.containsKey("purge_filament_mm")
+                                     ? doc["purge_filament_mm"].as<float>()
+                                     : 47.0f;
     settings.detection_ratio_threshold = doc.containsKey("detection_ratio_threshold")
                                              ? doc["detection_ratio_threshold"].as<float>()
                                              : 0.25f;  // Default 25% passing deficit
@@ -244,19 +227,9 @@ int SettingsManager::getDetectionGracePeriodMs()
     return getSettings().detection_grace_period_ms;
 }
 
-float SettingsManager::getDetectionMinStartMm()
-{
-    return getSettings().detection_min_start_mm;
-}
-
 float SettingsManager::getDetectionRatioThreshold()
 {
     return getSettings().detection_ratio_threshold;
-}
-
-float SettingsManager::getPurgeFilamentMm()
-{
-    return getSettings().purge_filament_mm;
 }
 
 float SettingsManager::getDetectionHardJamMm()
@@ -421,28 +394,6 @@ void SettingsManager::setDetectionGracePeriodMs(int periodMs)
     settings.detection_grace_period_ms = periodMs;
 }
 
-void SettingsManager::setDetectionMinStartMm(float minMm)
-{
-    if (!isLoaded)
-        load();
-    if (isnan(minMm) || minMm < 0.0f || minMm > 999.0f)
-    {
-        minMm = 12.0f;
-    }
-    settings.detection_min_start_mm = minMm;
-}
-
-void SettingsManager::setPurgeFilamentMm(float purgeMm)
-{
-    if (!isLoaded)
-        load();
-    if (isnan(purgeMm) || purgeMm < 0.0f || purgeMm > 999.0f)
-    {
-        purgeMm = 47.0f;
-    }
-    settings.purge_filament_mm = purgeMm;
-}
-
 void SettingsManager::setDetectionRatioThreshold(float threshold)
 {
     if (!isLoaded)
@@ -550,8 +501,7 @@ String SettingsManager::toJson(bool includePassword)
     doc["enabled"]             = settings.enabled;
     doc["has_connected"]       = settings.has_connected;
     doc["detection_grace_period_ms"]  = settings.detection_grace_period_ms;
-    doc["detection_min_start_mm"]     = settings.detection_min_start_mm;
-    doc["purge_filament_mm"]          = settings.purge_filament_mm;
+    doc["purge_filament_mm"]          = settings.purge_filament_mm;  // Keep for future use
     doc["detection_ratio_threshold"]  = settings.detection_ratio_threshold;
     doc["detection_hard_jam_mm"]      = settings.detection_hard_jam_mm;
     doc["detection_soft_jam_time_ms"] = settings.detection_soft_jam_time_ms;

@@ -101,16 +101,7 @@ void WebServer::begin()
                 settingsManager.setDetectionGracePeriodMs(
                     jsonObj["detection_grace_period_ms"].as<int>());
             }
-            if (jsonObj.containsKey("detection_min_start_mm"))
-            {
-                settingsManager.setDetectionMinStartMm(
-                    jsonObj["detection_min_start_mm"].as<float>());
-            }
-            if (jsonObj.containsKey("purge_filament_mm"))
-            {
-                settingsManager.setPurgeFilamentMm(
-                    jsonObj["purge_filament_mm"].as<float>());
-            }
+            // detection_min_start_mm and purge_filament_mm removed - no longer used
             if (jsonObj.containsKey("detection_ratio_threshold"))
             {
                 settingsManager.setDetectionRatioThreshold(

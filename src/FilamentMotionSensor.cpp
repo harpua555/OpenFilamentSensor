@@ -99,14 +99,45 @@ void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
         nextSampleIndex = 0;
     }
 
-    // Update windowed tracking - add actual distance to most recent sample
+    // Update windowed tracking - add actual distance to samples within current time window
     if (sampleCount > 0)
     {
-        // Find most recent sample and add actual distance
-        int mostRecentIndex = (nextSampleIndex - 1 + MAX_SAMPLES) % MAX_SAMPLES;
-        if (mostRecentIndex >= 0 && mostRecentIndex < sampleCount)
+        unsigned long currentTime = millis();
+        unsigned long windowStart = currentTime - windowSizeMs;
+
+        // Find the most recent sample within the time window
+        int mostRecentIndex = -1;
+        unsigned long mostRecentTime = 0;
+
+        for (int i = 0; i < sampleCount; i++)
+        {
+            int idx = (nextSampleIndex - sampleCount + i + MAX_SAMPLES) % MAX_SAMPLES;
+            if (samples[idx].timestampMs >= windowStart && samples[idx].timestampMs > mostRecentTime)
+            {
+                mostRecentTime = samples[idx].timestampMs;
+                mostRecentIndex = idx;
+            }
+        }
+
+        // If we found a recent sample, add the pulse to it
+        // Otherwise, create a new sample for this pulse
+        if (mostRecentIndex >= 0)
         {
             samples[mostRecentIndex].actualMm += mmPerPulse;
+        }
+        else if (firstPulseReceived)
+        {
+            // No recent sample found, but we're tracking - add pulse to current time window
+            pruneOldSamples();
+            if (sampleCount < MAX_SAMPLES)
+            {
+                samples[nextSampleIndex].timestampMs = currentTime;
+                samples[nextSampleIndex].expectedMm = 0.0f;  // No expected movement for this pulse alone
+                samples[nextSampleIndex].actualMm = mmPerPulse;
+
+                nextSampleIndex = (nextSampleIndex + 1) % MAX_SAMPLES;
+                sampleCount++;
+            }
         }
     }
 }

@@ -16,7 +16,6 @@ struct user_settings
     bool   has_connected;
     float  detection_length_mm;          // DEPRECATED: Use ratio-based detection instead
     int    detection_grace_period_ms;    // Grace period after move command before checking jams
-    float  detection_min_start_mm;       // Minimum total expected extrusion before jam logic
     float  detection_ratio_threshold;    // Soft jam: pass ratio threshold (0.25 = 25% actual allowed before alert)
     float  detection_hard_jam_mm;        // Hard jam: mm expected with zero movement to trigger
     int    detection_soft_jam_time_ms;   // Soft jam: how long ratio must stay bad (ms, e.g., 3000 = 3 sec)
@@ -66,8 +65,6 @@ class SettingsManager
     bool   getHasConnected();
     float  getDetectionLengthMM();          // DEPRECATED: Use ratio-based detection
     int    getDetectionGracePeriodMs();     // Grace period for look-ahead moves
-    float  getDetectionMinStartMm();        // Minimum total extrusion before jam detection
-    float  getPurgeFilamentMm();            // Purge line extrusion length
     float  getDetectionRatioThreshold();    // Soft jam ratio threshold
     float  getDetectionHardJamMm();         // Hard jam threshold
     int    getDetectionSoftJamTimeMs();     // Soft jam duration threshold
@@ -94,8 +91,6 @@ class SettingsManager
     void setHasConnected(bool hasConnected);
     void setDetectionLengthMM(float value);            // DEPRECATED: Use ratio-based detection
     void setDetectionGracePeriodMs(int periodMs);      // Grace period setter
-    void setDetectionMinStartMm(float minMm);          // Extrusion threshold setter
-    void setPurgeFilamentMm(float purgeMm);
     void setDetectionRatioThreshold(float threshold);  // Soft jam ratio threshold setter
     void setDetectionHardJamMm(float mmThreshold);     // Hard jam threshold setter
     void setDetectionSoftJamTimeMs(int timeMs);        // Soft jam duration setter

@@ -21,3 +21,4 @@ tools/.venv/
 tools/.platformio/
 test/nul
 data/.version
+CLAUDE.md

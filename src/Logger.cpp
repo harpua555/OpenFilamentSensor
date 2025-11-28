@@ -124,7 +124,7 @@ void Logger::log(const char *message, LogLevel level)
 void Logger::log(const __FlashStringHelper *message, LogLevel level)
 {
     // Convert F() string to char buffer
-    char buffer[96];
+    char buffer[256];
     PGM_P p = reinterpret_cast<PGM_P>(message);
     strncpy_P(buffer, p, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = '\0';
@@ -139,7 +139,7 @@ void Logger::logf(LogLevel level, const char *format, ...)
         return;
     }
 
-    char buffer[96];
+    char buffer[256];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
@@ -150,7 +150,7 @@ void Logger::logf(LogLevel level, const char *format, ...)
 void Logger::logf(const char *format, ...)
 {
     // Backward-compatible version: defaults to LOG_NORMAL
-    char buffer[96];
+    char buffer[256];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
@@ -160,7 +160,7 @@ void Logger::logf(const char *format, ...)
 
 void Logger::logNormal(const char *format, ...)
 {
-    char buffer[96];
+    char buffer[256];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
@@ -172,7 +172,7 @@ void Logger::logVerbose(const char *format, ...)
 {
     if (LOG_VERBOSE > currentLogLevel) return;
 
-    char buffer[96];
+    char buffer[256];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
@@ -184,7 +184,7 @@ void Logger::logPinValues(const char *format, ...)
 {
     if (LOG_PIN_VALUES > currentLogLevel) return;
 
-    char buffer[96];
+    char buffer[256];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);

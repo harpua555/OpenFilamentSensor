@@ -6,6 +6,7 @@
 #include <WebSocketsClient.h>
 
 #include "FilamentMotionSensor.h"
+#include "JamDetector.h"
 #include "UUID.h"
 
 #define CARBON_CENTAURI_PORT 3030
@@ -136,20 +137,10 @@ class ElegooCC
     unsigned long       lastTelemetryReceiveMs;
     unsigned long       lastStatusReceiveMs;
     bool                telemetryAvailableLastStatus;
-    float               currentDeficitMm;
-    float               deficitThresholdMm;
-    float               deficitRatio;
-    float               smoothedDeficitRatio;  // EWMA smoothed for display (reduces transient spikes)
-    float               hardJamPercent;
-    float               softJamPercent;
-    unsigned long       hardJamAccumulatedMs;
-    unsigned long       softJamAccumulatedMs;
-    unsigned long       lastJamEvalMs;
-    unsigned long       lastJamDebugMs;
-    unsigned long       lastHardJamPulseCount;
 
     unsigned long startedAt;
-    FilamentMotionSensor motionSensor;  // New simplified sensor (Klipper-style)
+    FilamentMotionSensor motionSensor;  // Windowed sensor tracking (Klipper-style)
+    JamDetector         jamDetector;    // Consolidated jam detection logic
     unsigned long       movementPulseCount;
     unsigned long       lastFlowLogMs;
     unsigned long       lastSummaryLogMs;
@@ -163,12 +154,8 @@ class ElegooCC
     int           lastLoggedLayer;
     int           lastLoggedTotalLayer;
 
-    // Jam / pause tracking
-    bool          jamPauseRequested;
+    // Tracking state (for UI freeze on pause)
     bool          trackingFrozen;
-    bool          resumeGraceActive;
-    unsigned long resumeGracePulseBaseline;
-    float         resumeGraceActualBaseline;
 
     // Acknowledgment tracking
     bool          waitingForAck;
@@ -182,7 +169,6 @@ class ElegooCC
     static constexpr unsigned long STATUS_ACTIVE_INTERVAL_MS     = 250;
     static constexpr unsigned long STATUS_POST_PRINT_COOLDOWN_MS = 20000;
     static constexpr unsigned long JAM_DEBUG_INTERVAL_MS         = 1000;
-    static constexpr float        RESUME_GRACE_MIN_MOVEMENT_MM   = 1.0f;
 
     ElegooCC();
 
@@ -200,7 +186,6 @@ class ElegooCC
     void continuePrint();
 
     void resetFilamentTracking();
-    void resetJamTracking();
     bool processFilamentTelemetry(JsonObject& printInfo, unsigned long currentTime);
     bool tryReadExtrusionValue(JsonObject& printInfo, const char* key, const char* hexKey,
                                float& output);

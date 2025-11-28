@@ -55,17 +55,6 @@ ElegooCC::ElegooCC()
     lastTelemetryReceiveMs     = 0;
     lastStatusReceiveMs          = 0;
     telemetryAvailableLastStatus = false;
-    currentDeficitMm             = 0.0f;
-    deficitThresholdMm           = 0.0f;
-    deficitRatio                 = 0.0f;
-    smoothedDeficitRatio         = 0.0f;
-    hardJamPercent               = 0.0f;
-    softJamPercent               = 0.0f;
-    hardJamAccumulatedMs         = 0;
-    softJamAccumulatedMs         = 0;
-    lastJamEvalMs                = 0;
-    lastJamDebugMs               = 0;
-    lastHardJamPulseCount        = 0;
     movementPulseCount           = 0;
     lastFlowLogMs                = 0;
     lastSummaryLogMs             = 0;
@@ -76,11 +65,7 @@ ElegooCC::ElegooCC()
     lastLoggedPrintStatus        = -1;
     lastLoggedLayer              = -1;
     lastLoggedTotalLayer         = -1;
-    jamPauseRequested            = false;
     trackingFrozen               = false;
-    resumeGraceActive            = false;
-    resumeGracePulseBaseline     = 0;
-    resumeGraceActualBaseline    = 0.0f;
     motionSensor.reset();
 
     waitingForAck       = false;
@@ -260,7 +245,7 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                 // If we previously issued a jam-driven pause, treat the next
                 // PRINTING state as a resume regardless of any intermediate
                 // statuses (e.g. HEATING or other transitional codes).
-                if (jamPauseRequested ||
+                if (jamDetector.isPauseRequested() ||
                     printStatus == SDCP_PRINT_STATUS_PAUSED ||
                     printStatus == SDCP_PRINT_STATUS_PAUSING)
                 {
@@ -268,14 +253,8 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                     trackingFrozen = false;
                     // On resume, reset the motion sensor so jam detection starts fresh
                     motionSensor.reset();
-                    currentDeficitMm        = 0.0f;
-                    deficitRatio            = 0.0f;
-                    smoothedDeficitRatio    = 0.0f;
-                    jamPauseRequested       = false;
-                    filamentStopped         = false;
-                    resumeGraceActive       = true;
-                    resumeGracePulseBaseline = movementPulseCount;
-                    resumeGraceActualBaseline = actualFilamentMM;
+                    jamDetector.onResume(statusTimestamp, movementPulseCount, actualFilamentMM);
+                    filamentStopped = false;
                     if (settingsManager.getVerboseLogging())
                     {
                         logger.log("Motion sensor reset (resume after pause)");
@@ -286,7 +265,7 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                 {
                     // Treat all other transitions into PRINTING as a new print.
                     logger.log("Print status changed to printing");
-                    startedAt = millis();
+                    startedAt = statusTimestamp;
                     resetFilamentTracking();
 
                     // Log active settings for this print (excluding network config)
@@ -309,7 +288,7 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                     // pause due to a filament jam, freeze tracking so the
                     // displayed values stay at the moment of pause.
                     logger.log("Print status changed to paused");
-                    if (jamPauseRequested)
+                    if (jamDetector.isPauseRequested())
                     {
                         trackingFrozen = true;
                         logger.log("Freezing filament tracking while paused after jam");
@@ -319,45 +298,64 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                 {
                     // Print has ended (stopped/completed/etc). Log a summary and
                     // fully reset tracking for the next job.
+                    float finalDeficit = expectedFilamentMM - actualFilamentMM;
+                    if (finalDeficit < 0.0f) finalDeficit = 0.0f;
+
                     logger.logf(
                         "Print summary: status=%d progress=%d layer=%d/%d ticks=%d/%d "
                         "expected=%.2fmm actual=%.2fmm deficit=%.2fmm pulses=%lu",
                         (int) newStatus, progress, currentLayer, totalLayer, currentTicks,
-                        totalTicks, expectedFilamentMM, actualFilamentMM, currentDeficitMm,
+                        totalTicks, expectedFilamentMM, actualFilamentMM, finalDeficit,
                         movementPulseCount);
 
                     // Auto-calibration: calculate mm_per_pulse from print data
+                    // IMPORTANT: Only calibrate on prints with good flow quality (>90%)
+                    // to avoid learning from jammed/under-extruding prints
                     if (settingsManager.getAutoCalibrateSensor() && movementPulseCount > 0 &&
                         expectedFilamentMM > 50.0f)
                     {
                         // Minimum thresholds: 50+ pulses and 50+mm expected for reliable calibration
                         if (movementPulseCount >= 50)
                         {
-                            float calculatedMmPerPulse = expectedFilamentMM / (float) movementPulseCount;
+                            // Health check: only calibrate if flow quality was good (>90%)
+                            float flowQuality = actualFilamentMM / expectedFilamentMM;
 
-                            // Sanity check: should be between 2.5-3.5mm (reasonable range for SFS 2.0)
-                            if (calculatedMmPerPulse >= 2.5f && calculatedMmPerPulse <= 3.5f)
+                            if (flowQuality >= 0.90f)
                             {
-                                float oldValue = settingsManager.getMovementMmPerPulse();
-                                settingsManager.setMovementMmPerPulse(calculatedMmPerPulse);
+                                float calculatedMmPerPulse = expectedFilamentMM / (float) movementPulseCount;
 
-                                // Disable auto-calibration after successful calibration
-                                // Only needs to run once to determine the correct value
-                                settingsManager.setAutoCalibrateSensor(false);
-                                settingsManager.save();
+                                // Sanity check: should be between 2.5-3.5mm (reasonable range for SFS 2.0)
+                                if (calculatedMmPerPulse >= 2.5f && calculatedMmPerPulse <= 3.5f)
+                                {
+                                    float oldValue = settingsManager.getMovementMmPerPulse();
+                                    settingsManager.setMovementMmPerPulse(calculatedMmPerPulse);
 
-                                logger.logf(
-                                    "Auto-calibration: Updated mm_per_pulse from %.3f to %.3f "
-                                    "(based on %.2fmm expected / %lu pulses)",
-                                    oldValue, calculatedMmPerPulse, expectedFilamentMM, movementPulseCount);
-                                logger.log("Auto-calibration: Disabled after successful calibration");
+                                    // Disable auto-calibration after successful calibration
+                                    // Only needs to run once to determine the correct value
+                                    settingsManager.setAutoCalibrateSensor(false);
+                                    settingsManager.save();
+
+                                    logger.logf(
+                                        "Auto-calibration: Updated mm_per_pulse from %.3f to %.3f "
+                                        "(based on %.2fmm expected / %lu pulses, flow quality %.1f%%)",
+                                        oldValue, calculatedMmPerPulse, expectedFilamentMM,
+                                        movementPulseCount, flowQuality * 100.0f);
+                                    logger.log("Auto-calibration: Disabled after successful calibration");
+                                }
+                                else
+                                {
+                                    logger.logf(
+                                        "Auto-calibration: Calculated value %.3f is outside valid range "
+                                        "(2.5-3.5mm), keeping current setting",
+                                        calculatedMmPerPulse);
+                                }
                             }
                             else
                             {
                                 logger.logf(
-                                    "Auto-calibration: Calculated value %.3f is outside valid range "
-                                    "(2.5-3.5mm), keeping current setting",
-                                    calculatedMmPerPulse);
+                                    "Auto-calibration: Skipped - flow quality %.1f%% < 90%% threshold "
+                                    "(print may have had jams/under-extrusion)",
+                                    flowQuality * 100.0f);
                             }
                         }
                         else
@@ -424,8 +422,10 @@ void ElegooCC::handleStatus(JsonDocument &doc)
 
 void ElegooCC::resetFilamentTracking()
 {
+    unsigned long currentTime = millis();
+
     lastMovementValue          = -1;
-    lastChangeTime             = millis();
+    lastChangeTime             = currentTime;
     actualFilamentMM           = 0;
     expectedFilamentMM         = 0;
     lastExpectedDeltaMM        = 0;
@@ -434,37 +434,17 @@ void ElegooCC::resetFilamentTracking()
     filamentStopped            = false;
     lastTelemetryReceiveMs     = 0;
     movementPulseCount         = 0;
-    currentDeficitMm           = 0.0f;
-    deficitThresholdMm         = 0.0f;
-    deficitRatio               = 0.0f;
-    smoothedDeficitRatio       = 0.0f;
     lastFlowLogMs              = 0;
-    jamPauseRequested          = false;
     trackingFrozen             = false;
-    resumeGraceActive          = false;
-    resumeGracePulseBaseline   = movementPulseCount;
-    resumeGraceActualBaseline  = actualFilamentMM;
 
-    resetJamTracking();
-
-    // Reset the motion sensor
+    // Reset the motion sensor and jam detector
     motionSensor.reset();
+    jamDetector.reset(currentTime);
 
     if (settingsManager.getVerboseLogging())
     {
         logger.log("Filament tracking reset - Mode: Windowed");
     }
-}
-
-void ElegooCC::resetJamTracking()
-{
-    hardJamAccumulatedMs  = 0;
-    softJamAccumulatedMs  = 0;
-    hardJamPercent        = 0.0f;
-    softJamPercent        = 0.0f;
-    lastJamEvalMs         = 0;
-    lastJamDebugMs        = 0;
-    lastHardJamPulseCount = movementPulseCount;
 }
 
 bool ElegooCC::tryReadExtrusionValue(JsonObject &printInfo, const char *key, const char *hexKey,
@@ -543,7 +523,7 @@ void ElegooCC::pausePrint()
         logger.logf("Pause command suppressed: printer websocket not connected");
         return;
     }
-    jamPauseRequested   = true;
+    jamDetector.setPauseRequested();
     trackingFrozen      = false;
     lastPauseRequestMs = millis();
     logger.logf("Pause command sent to printer");
@@ -855,325 +835,73 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
         if (!shouldCountPulses)
         {
             filamentStopped = false;
-            resumeGraceActive = false;
         }
         return;
     }
 
-    // Get ratio-based detection thresholds
-    float ratioThreshold = settingsManager.getDetectionRatioThreshold();
-    if (ratioThreshold <= 0.0f || ratioThreshold > 1.0f)
-    {
-        ratioThreshold = 0.70f;  // Default 70% deficit threshold
+    // Build jam configuration from settings
+    JamConfig jamConfig;
+    jamConfig.ratioThreshold = settingsManager.getDetectionRatioThreshold();
+    if (jamConfig.ratioThreshold <= 0.0f || jamConfig.ratioThreshold > 1.0f) {
+        jamConfig.ratioThreshold = 0.70f;  // Default 70% pass ratio threshold
     }
-
-    float hardJamThresholdMm = settingsManager.getDetectionHardJamMm();
-    if (hardJamThresholdMm <= 0.0f)
-    {
-        hardJamThresholdMm = 5.0f;  // Default 5mm
+    jamConfig.hardJamMm = settingsManager.getDetectionHardJamMm();
+    if (jamConfig.hardJamMm <= 0.0f) {
+        jamConfig.hardJamMm = 5.0f;  // Default 5mm
     }
-
-    int softJamTimeMs = settingsManager.getDetectionSoftJamTimeMs();
-    if (softJamTimeMs <= 0)
-    {
-        softJamTimeMs = 3000;  // Default 3 seconds
+    jamConfig.softJamTimeMs = settingsManager.getDetectionSoftJamTimeMs();
+    if (jamConfig.softJamTimeMs <= 0) {
+        jamConfig.softJamTimeMs = 3000;  // Default 3 seconds
     }
-
-    int hardJamTimeMs = settingsManager.getDetectionHardJamTimeMs();
-    if (hardJamTimeMs <= 0)
-    {
-        hardJamTimeMs = 2000;  // Default 2 seconds
+    jamConfig.hardJamTimeMs = settingsManager.getDetectionHardJamTimeMs();
+    if (jamConfig.hardJamTimeMs <= 0) {
+        jamConfig.hardJamTimeMs = 2000;  // Default 2 seconds
     }
+    jamConfig.graceTimeMs = settingsManager.getDetectionGracePeriodMs();
+    jamConfig.startTimeoutMs = settingsManager.getStartPrintTimeout();
 
-    // Get grace period setting (handles SDCP look-ahead behavior)
-    // Calculate deficit and ratio for UI/logging
+    // Get windowed distances from motion sensor
     float expectedDistance = motionSensor.getExpectedDistance();
     float actualDistance = motionSensor.getSensorDistance();
-    float deficit = expectedDistance - actualDistance;
-    if (deficit < 0.0f) deficit = 0.0f;
 
-    float passRatio = (expectedDistance > 0.0f) ? (actualDistance / expectedDistance) : 1.0f;
-    if (passRatio < 0.0f)
-    {
-        passRatio = 0.0f;
-    }
+    // Update jam detector and get current state
+    JamState jamState = jamDetector.update(
+        expectedDistance, actualDistance, movementPulseCount,
+        currentlyPrinting, expectedTelemetryAvailable,
+        currentTime, startedAt, jamConfig
+    );
 
-    float deficitRatioValue = (expectedDistance > 1.0f) ? (deficit / expectedDistance) : 0.0f;
-
-    // Apply EWMA smoothing to deficit ratio for display (reduces transient spikes in UI)
-    // Jam detection uses raw values with hysteresis, so smoothing doesn't affect safety
-    // Alpha = 0.1 means 10% weight on new value, 90% on history
-    const float RATIO_SMOOTHING_ALPHA = 0.1f;
-    smoothedDeficitRatio = RATIO_SMOOTHING_ALPHA * deficitRatioValue + (1.0f - RATIO_SMOOTHING_ALPHA) * smoothedDeficitRatio;
-
-    // Update metrics for UI/logging
-    currentDeficitMm   = deficit;
-    deficitThresholdMm = ratioThreshold * expectedDistance;  // Convert ratio to mm for UI
-    deficitRatio       = deficitRatioValue;  // Raw value (internal use only)
-
-    if (resumeGraceActive)
-    {
-        bool pulsesSeen = (movementPulseCount > resumeGracePulseBaseline);
-        bool actualMoved = (actualFilamentMM - resumeGraceActualBaseline) >= RESUME_GRACE_MIN_MOVEMENT_MM;
-        bool expectedBuilt = (expectedDistance >= RESUME_GRACE_MIN_MOVEMENT_MM);
-        if (pulsesSeen || actualMoved || expectedBuilt)
-        {
-            resumeGraceActive = false;
-            if (debugFlow)
-            {
-                logger.log("Post-resume grace cleared; jam detection re-enabled");
-            }
-        }
-    }
-
-    unsigned long gracePeriod = settingsManager.getDetectionGracePeriodMs();
-    bool baseGraceActive = (gracePeriod > 0) && motionSensor.isWithinGracePeriod(gracePeriod);
-    bool withinGrace = baseGraceActive || resumeGraceActive;
-
-    // NOTE: Extrusion-based grace REMOVED. Windowed tracking handles purge lines and
-    // heavy up-front SDCP reporting correctly without needing a grace period.
-    // Grace period should ONLY protect against false positives during:
-    // (1) Print start (time-based grace handles this)
-    // (2) Resume from pause (resumeGraceActive handles this)
-    // (3) Ironing/low-flow moves (windowed tracking handles via passRatio thresholds)
-    //
-    // Previous code kept grace active until 59mm extruded, creating a large vulnerability
-    // window where jams couldn't be detected. This was overly conservative.
-    //
-    // float minExtrusionBeforeDetect =
-    //     settingsManager.getDetectionMinStartMm() + settingsManager.getPurgeFilamentMm();
-    // if (minExtrusionBeforeDetect < 0.0f)
-    // {
-    //     minExtrusionBeforeDetect = 0.0f;
-    // }
-    // if (expectedFilamentMM < minExtrusionBeforeDetect)
-    // {
-    //     withinGrace = true;
-    // }
-
-    float minExtrusionBeforeDetect =
-        settingsManager.getDetectionMinStartMm() + settingsManager.getPurgeFilamentMm();
-
-    // Log grace period transitions
-    static bool lastGraceState = true;  // Start true to avoid log spam on first eval
-    static unsigned long lastGraceDebugMs = 0;
-
-    // Log grace status every 5 seconds when active
-    if (withinGrace && debugFlow && (currentTime - lastGraceDebugMs) >= 5000)
-    {
-        lastGraceDebugMs = currentTime;
-        logger.logf("Grace ACTIVE: baseGrace=%d resumeGrace=%d extrusionCheck=%d | expected=%.2f min=%.2f",
-                   baseGraceActive ? 1 : 0, resumeGraceActive ? 1 : 0,
-                   (expectedFilamentMM < minExtrusionBeforeDetect) ? 1 : 0,
-                   expectedFilamentMM, minExtrusionBeforeDetect);
-    }
-
-    if (withinGrace != lastGraceState && debugFlow)
-    {
-        if (withinGrace)
-        {
-            logger.logf("Grace period ACTIVE (baseGrace=%d resumeGrace=%d minExtrusion=%.2f/%.2f)",
-                       baseGraceActive ? 1 : 0, resumeGraceActive ? 1 : 0,
-                       expectedFilamentMM, minExtrusionBeforeDetect);
-        }
-        else
-        {
-            logger.log("Grace period CLEARED - jam detection ENABLED");
-        }
-        lastGraceState = withinGrace;
-    }
-
-    unsigned long elapsedMs;
-    if (lastJamEvalMs == 0)
-    {
-        elapsedMs = EXPECTED_FILAMENT_SAMPLE_MS;
-    }
-    else
-    {
-        elapsedMs = currentTime - lastJamEvalMs;
-        if (elapsedMs > EXPECTED_FILAMENT_SAMPLE_MS)
-        {
-            elapsedMs = EXPECTED_FILAMENT_SAMPLE_MS;
-        }
-    }
-    if (elapsedMs == 0)
-    {
-        elapsedMs = 1;
-    }
-    lastJamEvalMs = currentTime;
-
-    bool newPulseSinceLastEval = (movementPulseCount != lastHardJamPulseCount);
-    lastHardJamPulseCount      = movementPulseCount;
-
-    const float HARD_PASS_THRESHOLD = 0.10f;
-    const float HARD_RECOVERY_RATIO = 0.35f;
-    float       minHardWindowMm     = hardJamThresholdMm;
-    if (minHardWindowMm < 1.0f)
-    {
-        minHardWindowMm = 1.0f;
-    }
-    const float MIN_SOFT_WINDOW_MM  = 1.0f;
-    const float MIN_SOFT_DEFICIT_MM = 0.25f;
-
-    // Evaluate jam conditions (for logging and detection)
-    bool hardCondition = (expectedDistance >= minHardWindowMm) &&
-                         (passRatio < HARD_PASS_THRESHOLD);
-    bool softCondition = (expectedDistance >= MIN_SOFT_WINDOW_MM) &&
-                         (deficit >= MIN_SOFT_DEFICIT_MM) &&
-                         (passRatio < ratioThreshold);
-
-    // Only accumulate jam detection time when NOT in grace period
-    if (withinGrace)
-    {
-        // Reset accumulators during grace period
-        hardJamAccumulatedMs = 0;
-        softJamAccumulatedMs = 0;
-    }
-    else
-    {
-        // Hard jam accumulation (near-zero movement)
-        if (hardCondition)
-        {
-            hardJamAccumulatedMs += elapsedMs;
-            if (hardJamAccumulatedMs > (unsigned long)hardJamTimeMs)
-            {
-                hardJamAccumulatedMs = hardJamTimeMs;
-            }
-        }
-        else if (passRatio >= HARD_RECOVERY_RATIO ||
-                 expectedDistance < (minHardWindowMm * 0.5f))
-        {
-            // NOTE: Removed newPulseSinceLastEval check - occasional pulses during
-            // partial jams should not reset the accumulator. Recovery requires
-            // sustained good flow (passRatio >= 35%).
-            hardJamAccumulatedMs = 0;
-        }
-
-        // Soft jam accumulation (poor pass ratio)
-        if (softCondition)
-        {
-            softJamAccumulatedMs += elapsedMs;
-            if (softJamAccumulatedMs > (unsigned long)softJamTimeMs)
-            {
-                softJamAccumulatedMs = softJamTimeMs;
-            }
-        }
-        else if (passRatio >= ratioThreshold * 0.85f)
-        {
-            // NOTE: Removed newPulseSinceLastEval check - occasional pulses during
-            // partial jams should not reset the accumulator. Recovery requires
-            // sustained good flow (passRatio >= 85% of threshold).
-            softJamAccumulatedMs = 0;
-        }
-    }
-
-    if (hardJamTimeMs > 0)
-    {
-        hardJamPercent = (100.0f * (float)hardJamAccumulatedMs) / (float)hardJamTimeMs;
-        if (hardJamPercent > 100.0f) hardJamPercent = 100.0f;
-    }
-    else
-    {
-        hardJamPercent = 0.0f;
-    }
-
-    if (softJamTimeMs > 0)
-    {
-        softJamPercent = (100.0f * (float)softJamAccumulatedMs) / (float)softJamTimeMs;
-        if (softJamPercent > 100.0f) softJamPercent = 100.0f;
-    }
-    else
-    {
-        softJamPercent = 0.0f;
-    }
-
-    bool hardJamTriggered = false;
-    bool softJamTriggered = false;
-    bool jammed = false;
-
-    // Check if jam thresholds are met (only possible when not in grace period)
-    if (!withinGrace)
-    {
-        hardJamTriggered = (hardJamTimeMs > 0) &&
-                           (hardJamAccumulatedMs >= (unsigned long)hardJamTimeMs);
-        softJamTriggered = (softJamTimeMs > 0) &&
-                           (softJamAccumulatedMs >= (unsigned long)softJamTimeMs);
-        jammed = hardJamTriggered || softJamTriggered;
-    }
-
-    // Periodic logging with BOTH windowed and cumulative values + memory monitoring
+    // Periodic logging with windowed and cumulative values + memory monitoring
     if (debugFlow && currentlyPrinting && (currentTime - lastFlowLogMs) >= EXPECTED_FILAMENT_SAMPLE_MS)
     {
         lastFlowLogMs = currentTime;
-
-        // Show windowed values (for tracking algo) AND cumulative values (for debugging)
-        float windowedExpected = motionSensor.getExpectedDistance();
-        float windowedSensor = motionSensor.getSensorDistance();
-        float cumulativeSensor = actualFilamentMM;  // Cumulative sensor total
-        uint32_t freeHeap = ESP.getFreeHeap();      // Monitor memory
+        uint32_t freeHeap = ESP.getFreeHeap();
 
         logger.logf(
-            "Flow: win_exp=%.2f win_sns=%.2f deficit=%.2f | cumul=%.2f pulses=%lu | thr=%.2f ratio=%.2f jam=%d hard=%.2f soft=%.2f pass=%.2f heap=%lu",
-            windowedExpected, windowedSensor, currentDeficitMm,
-            cumulativeSensor, movementPulseCount,
-            deficitThresholdMm, smoothedDeficitRatio, jammed ? 1 : 0,
-            hardJamPercent, softJamPercent, passRatio, freeHeap);
-    }
-
-    if (debugFlow && (hardCondition || softCondition ||
-                      hardJamAccumulatedMs > 0 || softJamAccumulatedMs > 0 || withinGrace) &&
-        (currentTime - lastJamDebugMs) >= JAM_DEBUG_INTERVAL_MS)
-    {
-        lastJamDebugMs = currentTime;
-        logger.logf(
-            "Jam eval: hardCond=%d softCond=%d hardMs=%lu/%d softMs=%lu/%d pass=%.2f win=%.2f sns=%.2f pulses=%lu grace=%d",
-            hardCondition ? 1 : 0, softCondition ? 1 : 0,
-            hardJamAccumulatedMs, hardJamTimeMs,
-            softJamAccumulatedMs, softJamTimeMs,
-            passRatio, expectedDistance, actualDistance, movementPulseCount,
-            withinGrace ? 1 : 0);
+            "Flow: win_exp=%.2f win_sns=%.2f deficit=%.2f | cumul=%.2f pulses=%lu | "
+            "jam=%d hard=%.2f soft=%.2f pass=%.2f grace=%d heap=%lu",
+            expectedDistance, actualDistance, jamState.deficit,
+            actualFilamentMM, movementPulseCount,
+            jamState.jammed ? 1 : 0,
+            jamState.hardJamPercent, jamState.softJamPercent, jamState.passRatio,
+            jamState.graceActive ? 1 : 0, freeHeap);
     }
 
     if (summaryFlow && currentlyPrinting && !debugFlow && (currentTime - lastSummaryLogMs) >= 1000)
     {
         lastSummaryLogMs = currentTime;
         logger.logf("Flow summary: expected=%.2fmm sensor=%.2fmm deficit=%.2fmm "
-                    "threshold=%.2fmm ratio=%.2f hard=%.2f soft=%.2f pass=%.2f pulses=%lu",
-                    motionSensor.getExpectedDistance(), motionSensor.getSensorDistance(),
-                    currentDeficitMm, deficitThresholdMm, smoothedDeficitRatio,
-                    hardJamPercent, softJamPercent, passRatio, movementPulseCount);
+                    "ratio=%.2f hard=%.2f%% soft=%.2f%% pass=%.2f pulses=%lu",
+                    expectedDistance, actualDistance, jamState.deficit,
+                    jamState.deficit / (expectedDistance > 0.1f ? expectedDistance : 1.0f),
+                    jamState.hardJamPercent, jamState.softJamPercent, jamState.passRatio,
+                    movementPulseCount);
     }
 
-    // Jam state change detection and logging
-    if (jammed && !filamentStopped)
+    // Update jam state (unless latched by pause/tracking freeze)
+    if (!jamDetector.isPauseRequested() && !trackingFrozen)
     {
-        const char *jamType = "soft";
-        if (hardJamTriggered && softJamTriggered)
-        {
-            jamType = "hard+soft";
-        }
-        else if (hardJamTriggered)
-        {
-            jamType = "hard";
-        }
-        logger.logf("Filament jam detected (%s)! Expected %.2fmm, sensor %.2fmm, deficit %.2fmm ratio=%.2f (thr=%.2f)",
-                    jamType, expectedDistance, actualDistance,
-                    deficit, deficitRatioValue, ratioThreshold);
-    }
-    else if (!jammed && filamentStopped)
-    {
-        // Keep jam latched until pause/resume cycle completes
-        if (!jamPauseRequested && !trackingFrozen)
-        {
-            logger.log("Filament flow resumed");
-            filamentStopped = false;
-        }
-    }
-
-    // Update jam state (unless latched by pause request)
-    if (!jamPauseRequested && !trackingFrozen)
-    {
-        filamentStopped = jammed;
+        filamentStopped = jamState.jammed;
     }
 }
 
@@ -1232,10 +960,11 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
     logger.logf("Print status: %d", printStatus);
     if (settingsManager.getVerboseLogging())
     {
+        JamState jamState = jamDetector.getState();
         logger.logf("Flow state: expected=%.2fmm actual=%.2fmm deficit=%.2fmm "
-                    "threshold=%.2fmm ratio=%.2f pulses=%lu",
-                    expectedFilamentMM, actualFilamentMM, currentDeficitMm,
-                    deficitThresholdMm, deficitRatio, movementPulseCount);
+                    "pass_ratio=%.2f pulses=%lu",
+                    expectedFilamentMM, actualFilamentMM, jamState.deficit,
+                    jamState.passRatio, movementPulseCount);
     }
 
     return true;
@@ -1278,6 +1007,7 @@ void ElegooCC::setMachineStatuses(const int *statusArray, int arraySize)
 printer_info_t ElegooCC::getCurrentInformation()
 {
     printer_info_t info;
+    JamState jamState = jamDetector.getState();
 
     info.filamentStopped      = filamentStopped;
     info.filamentRunout       = filamentRunout;
@@ -1297,12 +1027,12 @@ printer_info_t ElegooCC::getCurrentInformation()
     info.actualFilamentMM     = actualFilamentMM;
     info.lastExpectedDeltaMM  = lastExpectedDeltaMM;
     info.telemetryAvailable   = telemetryAvailableLastStatus;
-    // Expose deficit metrics for UI/debugging (using smoothed ratio for cleaner display)
-    info.currentDeficitMm     = currentDeficitMm;
-    info.deficitThresholdMm   = deficitThresholdMm;
-    info.deficitRatio         = smoothedDeficitRatio;  // Smoothed for UI display
-    info.hardJamPercent       = hardJamPercent;
-    info.softJamPercent       = softJamPercent;
+    // Expose deficit metrics for UI from jam detector
+    info.currentDeficitMm     = jamState.deficit;
+    info.deficitThresholdMm   = 0.0f;  // No longer used (was ratioThreshold * expectedDistance)
+    info.deficitRatio         = jamState.deficit / (motionSensor.getExpectedDistance() > 0.1f ? motionSensor.getExpectedDistance() : 1.0f);
+    info.hardJamPercent       = jamState.hardJamPercent;
+    info.softJamPercent       = jamState.softJamPercent;
     info.movementPulseCount   = movementPulseCount;
 
     return info;

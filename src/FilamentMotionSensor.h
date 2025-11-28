@@ -51,25 +51,25 @@ class FilamentMotionSensor
      */
     bool isJammed(float ratioThreshold, float hardJamThresholdMm,
                   int softJamTimeMs, int hardJamTimeMs, int checkIntervalMs,
-                  unsigned long gracePeriodMs = 0) const;
+                  unsigned long gracePeriodMs = 0);
 
     /**
      * Get current deficit (how much expected exceeds actual)
      * @return Deficit in mm (0 or positive value)
      */
-    float getDeficit() const;
+    float getDeficit();
 
     /**
      * Get the expected extrusion distance since last reset/window
      * @return Expected distance in mm
      */
-    float getExpectedDistance() const;
+    float getExpectedDistance();
 
     /**
      * Get the actual sensor distance since last reset/window
      * @return Actual distance in mm
      */
-    float getSensorDistance() const;
+    float getSensorDistance();
 
     /**
      * Check if tracking has been initialized with first telemetry
@@ -87,7 +87,7 @@ class FilamentMotionSensor
      * Get ratio of actual to expected (for calibration/debugging)
      * @return Ratio (0.0 to 1.0+), or 0 if not initialized
      */
-    float getFlowRatio() const;
+    float getFlowRatio();
     float getHardJamProgressPercent() const;
     float getSoftJamProgressPercent() const;
 
@@ -104,8 +104,8 @@ class FilamentMotionSensor
     int              nextSampleIndex;
     unsigned long    windowSizeMs;
 
-    // Jam detection trackers
-    mutable float  lastWindowDeficitMm;     // Last deficit used to compute growth rate
+    // Jam detection trackers (some may be reported in WebUI)
+    mutable float         lastWindowDeficitMm;     // Last deficit used to compute growth rate
     mutable unsigned long lastDeficitTimestampMs;
     mutable unsigned long lastJamEvaluationMs;
     mutable unsigned long hardJamAccumulatedMs;
@@ -122,7 +122,7 @@ class FilamentMotionSensor
     // Helper methods for windowed tracking
     void addSample(float expectedDeltaMm, float actualDeltaMm);
     void pruneOldSamples();
-    void getWindowedDistances(float &expectedMm, float &actualMm) const;
+    void getWindowedDistances(float &expectedMm, float &actualMm);
 };
 
 #endif  // FILAMENT_MOTION_SENSOR_H

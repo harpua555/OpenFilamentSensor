@@ -163,44 +163,45 @@ void FilamentMotionSensor::addSample(float expectedDeltaMm, float actualDeltaMm)
 
 void FilamentMotionSensor::pruneOldSamples()
 {
+    if (sampleCount == 0)
+    {
+        return;
+    }
+
     unsigned long currentTime = millis();
     unsigned long cutoffTime  = currentTime - windowSizeMs;
 
-    // Remove samples older than window
-    int newCount = 0;
+    // Find the first sample in the window
+    int firstKeptIndex = sampleCount; // assume none
     for (int i = 0; i < sampleCount; i++)
     {
         int idx = (nextSampleIndex - sampleCount + i + MAX_SAMPLES) % MAX_SAMPLES;
         if (samples[idx].timestampMs >= cutoffTime)
         {
-            // Keep this sample
-            if (newCount != i)
-            {
-                // Compact array
-                int newIdx = (nextSampleIndex - sampleCount + newCount + MAX_SAMPLES) % MAX_SAMPLES;
-                samples[newIdx] = samples[idx];
-            }
-            newCount++;
+            firstKeptIndex = i;
+            break;
         }
     }
 
-    sampleCount = newCount;
-    // Update nextSampleIndex to point after the last valid sample
-    // This ensures mostRecentIndex calculation works correctly after pruning
-    if (sampleCount > 0)
+    if (firstKeptIndex == sampleCount)
     {
-        nextSampleIndex = sampleCount;
+        // All samples are too old
+        sampleCount = 0;
+        return;
     }
-    else
-    {
-        nextSampleIndex = 0;
-    }
+
+    int keptCount = sampleCount - firstKeptIndex;
+    sampleCount   = keptCount;
+
+    // nextSampleIndex stays the same; base for readers moves forward because sampleCount shrank
 }
 
-void FilamentMotionSensor::getWindowedDistances(float &expectedMm, float &actualMm) const
+void FilamentMotionSensor::getWindowedDistances(float &expectedMm, float &actualMm)
 {
     expectedMm = 0.0f;
     actualMm   = 0.0f;
+
+    pruneOldSamples();
 
     // Sum all samples in window
     for (int i = 0; i < sampleCount; i++)
@@ -213,12 +214,15 @@ void FilamentMotionSensor::getWindowedDistances(float &expectedMm, float &actual
 
 bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThresholdMm,
                                     int softJamTimeMs, int hardJamTimeMs, int checkIntervalMs,
-                                    unsigned long gracePeriodMs) const
+                                    unsigned long gracePeriodMs)
 {
     if (!initialized || checkIntervalMs <= 0)
     {
         return false;
     }
+
+    // Make sure window is “relative to now”
+    pruneOldSamples();
 
     if (ratioThreshold <= 0.0f)
     {
@@ -279,7 +283,7 @@ bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThreshold
     lastJamEvaluationMs = currentTime;
 
     const float HARD_PASS_RATIO_THRESHOLD      = 0.35f;  // Trigger if <35% passing (severe jam/slippage)
-    const float MIN_HARD_WINDOW_EXPECTED_MM    = 1.0f;
+    const float MIN_HARD_WINDOW_EXPECTED_MM    = 5.0f;
     const int   MIN_HARD_WINDOW_SAMPLES        = 3;  // Require 3+ samples to prevent false positives after retractions
     unsigned int requiredHardChecks            = (hardJamTimeMs + checkIntervalMs - 1) / checkIntervalMs;
     if (requiredHardChecks == 0)
@@ -347,7 +351,8 @@ bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThreshold
 
     // Use windowed deficit for per-check threshold
     // windowDeficit is already calculated above from expectedDistance - actualDistance
-    bool softCondition = passingRatio < ratioThreshold && windowDeficit >= MIN_SOFT_PER_CHECK_MM;
+    bool softCondition = (passingRatio < ratioThreshold) &&
+                         (windowDeficit >= MIN_SOFT_PER_CHECK_MM);
 
     if (softCondition)
     {
@@ -357,12 +362,15 @@ bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThreshold
         {
             softJamAccumulatedMs = softJamTimeMs;
         }
-        softJamDeficitAccumMm += windowDeficit;
+
+        // Accumulate deficit, but cap per-check contribution to avoid runaway
+        float cappedDeficit = (windowDeficit < 1.0f) ? windowDeficit : 1.0f;
+        softJamDeficitAccumMm += cappedDeficit;
     }
     else
     {
-        softJamActive = false;
-        softJamAccumulatedMs = 0;
+        softJamActive         = false;
+        softJamAccumulatedMs  = 0;
         softJamDeficitAccumMm = 0.0f;
     }
     lastSoftJamTimeMs = softJamTimeMs;
@@ -403,7 +411,7 @@ float FilamentMotionSensor::getSoftJamProgressPercent() const
     return percent;
 }
 
-float FilamentMotionSensor::getDeficit() const
+float FilamentMotionSensor::getDeficit()
 {
     if (!initialized)
     {
@@ -417,7 +425,7 @@ float FilamentMotionSensor::getDeficit() const
     return deficit > 0.0f ? deficit : 0.0f;
 }
 
-float FilamentMotionSensor::getExpectedDistance() const
+float FilamentMotionSensor::getExpectedDistance()
 {
     if (!initialized)
     {
@@ -429,7 +437,7 @@ float FilamentMotionSensor::getExpectedDistance() const
     return expectedMm;
 }
 
-float FilamentMotionSensor::getSensorDistance() const
+float FilamentMotionSensor::getSensorDistance()
 {
     if (!initialized)
     {
@@ -456,7 +464,7 @@ bool FilamentMotionSensor::isWithinGracePeriod(unsigned long gracePeriodMs) cons
     return (currentTime - lastExpectedUpdateMs) < gracePeriodMs;
 }
 
-float FilamentMotionSensor::getFlowRatio() const
+float FilamentMotionSensor::getFlowRatio()
 {
     if (!initialized)
     {

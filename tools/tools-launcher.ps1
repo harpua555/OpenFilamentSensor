@@ -18,9 +18,22 @@ if ($PSScriptRoot) {
 }
 
 # Scripts (relative to BaseDir)
+# --- Build & Flash Tools ---
 $BuildScript        = Join-Path $BaseDir "build_and_flash.py"
+$BuildLocalScript   = Join-Path $BaseDir "build_local.py"
+
+
+# --- Development & Analysis Tools ---
+$ElegooStatusScript = Join-Path $BaseDir "elegoo_status_cli.py"
+$ExtractLogDataScript = Join-Path $BaseDir "extract_log_data.py"
+
+# --- Log Management Tools ---
 $CaptureLogsScript  = Join-Path $BaseDir "capture_logs.ps1"
 $StreamLogsScript   = Join-Path $BaseDir "stream_logs.ps1"
+
+# --- Test Tools ---
+$TestBuildScript    = Join-Path $BaseDir "..\test\build_tests.sh"
+$TestBuildScriptWin = Join-Path $BaseDir "..\test\build_tests.bat"
 
 # Python executable (change if you want a specific venv)
 $PythonExe = "python"
@@ -67,6 +80,15 @@ $BuildModeMap = @{
 
 # --- capture_logs.ps1 defaults ---
 $Global:CaptureLogsIP = "192.168.0.153"
+
+# --- elegoo_status_cli.py defaults ---
+$Global:ElegooIP = "192.168.0.153"
+$Global:ElegooTimeout = 5
+
+
+# --- extract_log_data.py defaults ---
+$Global:LogFile = "log.txt"
+$Global:OutputFile = "extracted_data.csv"
 
 # =========================
 # 2) HELPERS
@@ -259,6 +281,22 @@ function Invoke-BuildCommand {
     Wait-ReturnToMenu
 }
 
+function Invoke-BuildLocalCommand {
+    if (-not (Test-ScriptPath -Path $BuildLocalScript)) { return }
+
+    Clear-Host
+    Write-Host "Running build_local.py..." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host ("Command: {0} {1}" -f $PythonExe, $BuildLocalScript)
+    Write-Host "===================================================="
+    Write-Host ""
+
+    & $PythonExe $BuildLocalScript
+
+    Write-Host ""
+    Wait-ReturnToMenu
+}
+
 # =========================
 # 4) CAPTURE LOGS SUB-MENU
 # =========================
@@ -370,7 +408,250 @@ function Invoke-StreamCommand {
 }
 
 # =========================
-# 6) MAIN MENU
+# 6) ENVIRONMENT & SETUP SUB-MENU
+# =========================
+
+
+# =========================
+# 7) DEVELOPMENT TOOLS SUB-MENU
+# =========================
+
+function Show-DevelopmentMenu {
+    while ($true) {
+        Clear-Host
+        Write-Host "==============================="
+        Write-Host "  Development & Analysis Tools"
+        Write-Host "==============================="
+        Write-Host ""
+        Write-Host " [1] Elegoo Status CLI (elegoo_status_cli.py)"
+        Write-Host " [2] Extract Log Data (extract_log_data.py)"
+        Write-Host " [B] Back to main menu"
+        Write-Host ""
+
+        $choice = Read-Host "Select an option"
+
+        switch -Regex ($choice.Trim()) {
+            "^[Bb]$" { return }
+
+            "^1$" { Show-ElegooStatusMenu }
+
+            "^2$" { Show-ExtractLogMenu }
+
+            default {
+                Write-Host "Invalid option." -ForegroundColor Red
+                Start-Sleep -Seconds 1.2
+            }
+        }
+    }
+}
+
+
+function Show-ElegooStatusMenu {
+    while ($true) {
+        Clear-Host
+        Write-Host "==============================="
+        Write-Host "  Elegoo Status CLI"
+        Write-Host "==============================="
+        Write-Host ""
+        Write-Host (" [1] IP Address    : {0}" -f $Global:ElegooIP)
+        Write-Host (" [2] Timeout (s)   : {0}" -f $Global:ElegooTimeout)
+        Write-Host ""
+        Write-Host " [R] Run with above settings"
+        Write-Host " [B] Back to development menu"
+        Write-Host ""
+
+        $choice = Read-Host "Select an option"
+
+        switch -Regex ($choice.Trim()) {
+            "^[Bb]$" { return }
+
+            "^[Rr]$" {
+                Invoke-ElegooStatusCommand
+            }
+
+            "^1$" {
+                $ip = Read-Host "Enter IP address (blank to keep current)"
+                if ($ip.Trim()) {
+                    $Global:ElegooIP = $ip.Trim()
+                }
+            }
+
+            "^2$" {
+                $timeout = Read-Host "Enter timeout in seconds (blank to keep current)"
+                if ($timeout.Trim() -and $timeout.Trim() -match '^\d+$') {
+                    $Global:ElegooTimeout = [int]$timeout.Trim()
+                }
+            }
+
+            default {
+                Write-Host "Invalid option." -ForegroundColor Red
+                Start-Sleep -Seconds 1.2
+            }
+        }
+    }
+}
+
+function Invoke-ElegooStatusCommand {
+    if (-not (Test-ScriptPath -Path $ElegooStatusScript)) { return }
+
+    $args = @($Global:ElegooIP)
+    $args += "--timeout"
+    $args += $Global:ElegooTimeout.ToString()
+
+    Clear-Host
+    Write-Host "Running elegoo_status_cli.py with:" -ForegroundColor Cyan
+    Write-Host "  IP Address : $Global:ElegooIP"
+    Write-Host "  Timeout (s): $Global:ElegooTimeout"
+    Write-Host ""
+    Write-Host ("Command: {0} {1} {2}" -f $PythonExe, $ElegooStatusScript, ($args -join " "))
+    Write-Host "===================================================="
+    Write-Host ""
+
+    & $PythonExe $ElegooStatusScript @args
+
+    Write-Host ""
+    Wait-ReturnToMenu
+}
+
+function Show-ExtractLogMenu {
+    while ($true) {
+        Clear-Host
+        Write-Host "==============================="
+        Write-Host "  Extract Log Data"
+        Write-Host "==============================="
+        Write-Host ""
+        Write-Host (" [1] Log File     : {0}" -f $Global:LogFile)
+        Write-Host (" [2] Output File  : {0}" -f $Global:OutputFile)
+        Write-Host ""
+        Write-Host " [R] Run with above settings"
+        Write-Host " [B] Back to development menu"
+        Write-Host ""
+
+        $choice = Read-Host "Select an option"
+
+        switch -Regex ($choice.Trim()) {
+            "^[Bb]$" { return }
+
+            "^[Rr]$" {
+                Invoke-ExtractLogCommand
+            }
+
+            "^1$" {
+                $file = Read-Host "Enter log file path (blank to keep current)"
+                if ($file.Trim()) {
+                    $Global:LogFile = $file.Trim()
+                }
+            }
+
+            "^2$" {
+                $file = Read-Host "Enter output file path (blank to keep current)"
+                if ($file.Trim()) {
+                    $Global:OutputFile = $file.Trim()
+                }
+            }
+
+            default {
+                Write-Host "Invalid option." -ForegroundColor Red
+                Start-Sleep -Seconds 1.2
+            }
+        }
+    }
+}
+
+function Invoke-ExtractLogCommand {
+    if (-not (Test-ScriptPath -Path $ExtractLogDataScript)) { return }
+
+    $args = @($Global:LogFile)
+    $args += "--output"
+    $args += $Global:OutputFile
+
+    Clear-Host
+    Write-Host "Running extract_log_data.py with:" -ForegroundColor Cyan
+    Write-Host "  Log File    : $Global:LogFile"
+    Write-Host "  Output File : $Global:OutputFile"
+    Write-Host ""
+    Write-Host ("Command: {0} {1} {2}" -f $PythonExe, $ExtractLogDataScript, ($args -join " "))
+    Write-Host "===================================================="
+    Write-Host ""
+
+    & $PythonExe $ExtractLogDataScript @args
+
+    Write-Host ""
+    Wait-ReturnToMenu
+}
+
+
+# =========================
+# 8) TESTING SUB-MENU
+# =========================
+
+function Show-TestingMenu {
+    while ($true) {
+        Clear-Host
+        Write-Host "==============================="
+        Write-Host "  Testing Tools"
+        Write-Host "==============================="
+        Write-Host ""
+        Write-Host " [1] Run Build Tests (Linux/WSL)"
+        Write-Host " [2] Run Build Tests (Windows)"
+        Write-Host " [B] Back to main menu"
+        Write-Host ""
+
+        $choice = Read-Host "Select an option"
+
+        switch -Regex ($choice.Trim()) {
+            "^[Bb]$" { return }
+
+            "^1$" {
+                Invoke-TestBuildCommand
+            }
+
+            "^2$" {
+                Invoke-TestBuildCommandWin
+            }
+
+            default {
+                Write-Host "Invalid option." -ForegroundColor Red
+                Start-Sleep -Seconds 1.2
+            }
+        }
+    }
+}
+
+function Invoke-TestBuildCommand {
+    if (-not (Test-ScriptPath -Path $TestBuildScript)) { return }
+
+    Clear-Host
+    Write-Host "Running build tests (Linux/WSL)..." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host ("Command: bash {0}" -f $TestBuildScript)
+    Write-Host "===================================================="
+    Write-Host ""
+
+    & bash $TestBuildScript
+
+    Write-Host ""
+    Wait-ReturnToMenu
+}
+
+function Invoke-TestBuildCommandWin {
+    if (-not (Test-ScriptPath -Path $TestBuildScriptWin)) { return }
+
+    Clear-Host
+    Write-Host "Running build tests (Windows)..." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host ("Command: {0}" -f $TestBuildScriptWin)
+    Write-Host "===================================================="
+    Write-Host ""
+
+    & cmd /c $TestBuildScriptWin
+
+    Write-Host ""
+    Wait-ReturnToMenu
+}
+
+# =========================
+# 9) MAIN MENU
 # =========================
 
 function Show-MainMenu {
@@ -382,9 +663,19 @@ function Show-MainMenu {
         Write-Host ""
         Write-Host (" Base dir: {0}" -f $BaseDir)
         Write-Host ""
+        Write-Host " Build & Flash Tools:"
         Write-Host " [1] Build & Flash Firmware (build_and_flash.py)"
-        Write-Host " [2] Capture Logs (capture_logs.ps1)"
-        Write-Host " [3] Stream Logs (stream_logs.ps1)"
+        Write-Host " [2] Local Build (build_local.py)"
+        Write-Host ""
+        Write-Host " Development & Analysis:"
+        Write-Host " [3] Development & Analysis Tools"
+        Write-Host ""
+        Write-Host " Log Management:"
+        Write-Host " [4] Capture Logs (capture_logs.ps1)"
+        Write-Host " [5] Stream Logs (stream_logs.ps1)"
+        Write-Host ""
+        Write-Host " Testing:"
+        Write-Host " [6] Testing Tools"
         Write-Host ""
         Write-Host " [Q] Quit"
         Write-Host ""
@@ -396,9 +687,15 @@ function Show-MainMenu {
 
             "^1$" { Show-BuildMenu }
 
-            "^2$" { Show-CaptureMenu }
+            "^2$" { Invoke-BuildLocalCommand }
 
-            "^3$" { Show-StreamMenu }
+            "^3$" { Show-DevelopmentMenu }
+
+            "^4$" { Show-CaptureMenu }
+
+            "^5$" { Show-StreamMenu }
+
+            "^6$" { Show-TestingMenu }
 
             default {
                 Write-Host "Invalid option." -ForegroundColor Red
@@ -409,7 +706,7 @@ function Show-MainMenu {
 }
 
 # =========================
-# 7) ENTRY POINT
+# 10) ENTRY POINT
 # =========================
 
 Show-MainMenu

@@ -387,7 +387,7 @@ void loop()
         // Calculate fragmentation: if maxAlloc << freeHeap, heap is fragmented
         float fragmentation = 100.0f * (1.0f - ((float)maxAlloc / (float)freeHeap));
 
-        logger.logf(LOG_DEBUG, "Heap: free=%lu min=%lu maxAlloc=%lu frag=%.1f%%",
+        logger.logf(LOG_VERBOSE, "Heap: free=%lu min=%lu maxAlloc=%lu frag=%.1f%%",
                    freeHeap, minHeap, maxAlloc, fragmentation);
 
         if (fragmentation > 30.0f)

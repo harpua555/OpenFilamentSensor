@@ -4,9 +4,7 @@ static const unsigned long INVALID_SAMPLE_TIMESTAMP = ~0UL;
 
 FilamentMotionSensor::FilamentMotionSensor()
 {
-    trackingMode = TRACKING_MODE_WINDOWED;  // Default to windowed mode
     windowSizeMs = 5000;  // 5 second window
-    ewmaAlpha = 0.3f;     // 30% weight on new samples
     reset();
 }
 
@@ -15,11 +13,6 @@ void FilamentMotionSensor::reset()
     initialized           = false;
     firstPulseReceived    = false;  // Reset pulse tracking
     lastExpectedUpdateMs  = millis();
-
-    // Reset cumulative state
-    baselinePositionMm    = 0.0f;
-    expectedPositionMm    = 0.0f;
-    sensorDistanceMm      = 0.0f;
 
     // Reset windowed state
     sampleCount           = 0;
@@ -30,12 +23,6 @@ void FilamentMotionSensor::reset()
         samples[i].expectedMm  = 0.0f;
         samples[i].actualMm    = 0.0f;
     }
-
-    // Reset EWMA state
-    ewmaExpectedMm        = 0.0f;
-    ewmaActualMm          = 0.0f;
-    ewmaLastExpectedMm    = 0.0f;
-    ewmaLastActualMm      = 0.0f;
 
     // Reset jam tracking
     lastWindowDeficitMm     = 0.0f;
@@ -50,99 +37,47 @@ void FilamentMotionSensor::reset()
     softJamDeficitAccumMm   = 0.0f;
     hardJamAccumExpectedMm  = 0.0f;
     hardJamAccumActualMm    = 0.0f;
-    lastCumulativeExpectedPositionMm = 0.0f;
-    lastCumulativeSensorDistanceMm   = 0.0f;
     lastSensorPulseMs       = millis();  // Initialize to current time
-}
-
-void FilamentMotionSensor::setTrackingMode(FilamentTrackingMode mode, unsigned long windowMs,
-                                           float alpha)
-{
-    trackingMode = mode;
-    windowSizeMs = windowMs;
-    ewmaAlpha    = alpha;
-
-    // Clamp EWMA alpha to valid range
-    if (ewmaAlpha < 0.01f) ewmaAlpha = 0.01f;
-    if (ewmaAlpha > 1.0f) ewmaAlpha = 1.0f;
 }
 
 void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
 {
     unsigned long currentTime = millis();
+    static float lastTotalExtrusionMm = 0.0f;
 
     if (!initialized)
     {
-        // First telemetry received - establish baseline for all modes
+        // First telemetry received - establish baseline
         initialized           = true;
         lastExpectedUpdateMs  = currentTime;
-
-        // Cumulative mode init
-        baselinePositionMm    = totalExtrusionMm;
-        expectedPositionMm    = totalExtrusionMm;
-        sensorDistanceMm      = 0.0f;
-
-        // EWMA mode init
-        ewmaLastExpectedMm    = totalExtrusionMm;
-        ewmaLastActualMm      = 0.0f;
-        ewmaExpectedMm        = 0.0f;
-        ewmaActualMm          = 0.0f;
-
+        lastTotalExtrusionMm  = totalExtrusionMm;
         return;
     }
 
-    // Handle retractions: reset tracking for all modes
-    if (totalExtrusionMm < expectedPositionMm)
+    // Handle retractions: reset windowed tracking
+    if (totalExtrusionMm < lastTotalExtrusionMm)
     {
-        // Retraction detected - resync everything
+        // Retraction detected - clear window
         // NOTE: Do NOT reset lastExpectedUpdateMs here! Retractions during normal
         // printing should not restart the grace period timer, otherwise jam detection
         // never activates (grace period keeps resetting every few seconds).
         // Grace period should only start on: (1) print start, (2) resume from pause
-
-        // Reset cumulative tracking
-        baselinePositionMm   = totalExtrusionMm;
-        sensorDistanceMm     = 0.0f;
-
-        // Reset windowed tracking
         sampleCount          = 0;
         nextSampleIndex      = 0;
-
-        // Reset EWMA tracking
-        ewmaLastExpectedMm   = totalExtrusionMm;
-        ewmaLastActualMm     = sensorDistanceMm;
-        ewmaExpectedMm       = 0.0f;
-        ewmaActualMm         = 0.0f;
     }
 
-    // Calculate deltas for windowed/EWMA modes
-    float expectedDelta = totalExtrusionMm - expectedPositionMm;
-
-    // NOTE: Telemetry gap grace reset removed - it was preventing grace period from
-    // ever expiring during normal printing. Grace period now only resets on:
-    // (1) initialization, (2) retractions
-    // Windowed tracking handles sparse infill/travel moves correctly without grace reset.
+    // Calculate delta for windowed tracking
+    float expectedDelta = totalExtrusionMm - lastTotalExtrusionMm;
 
     // Only track expected position changes after first pulse received
     // This skips priming/purge moves at print start
-    if (firstPulseReceived)
+    if (firstPulseReceived && expectedDelta > 0.01f)
     {
-        if (trackingMode == TRACKING_MODE_WINDOWED && expectedDelta > 0.01f)
-        {
-            // Add sample with zero actual (will be updated by sensor pulses)
-            addSample(expectedDelta, 0.0f);
-        }
-        else if (trackingMode == TRACKING_MODE_EWMA && expectedDelta > 0.01f)
-        {
-            // Update EWMA with new expected distance (actual updated by sensor)
-            float newExpected = totalExtrusionMm - ewmaLastExpectedMm;
-            ewmaExpectedMm = ewmaAlpha * newExpected + (1.0f - ewmaAlpha) * ewmaExpectedMm;
-            ewmaLastExpectedMm = totalExtrusionMm;
-        }
+        // Add sample with zero actual (will be updated by sensor pulses)
+        addSample(expectedDelta, 0.0f);
     }
 
-    // Update cumulative tracking
-    expectedPositionMm = totalExtrusionMm;
+    lastTotalExtrusionMm = totalExtrusionMm;
 }
 
 void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
@@ -155,30 +90,17 @@ void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
     unsigned long currentTime = millis();
     lastSensorPulseMs = currentTime;  // Track when last pulse was detected
 
-    // First pulse received - sync baseline to current expected position
+    // First pulse received - clear any pre-pulse samples
     // This discards pre-prime/purge extrusion that happens before sensor detects movement
     if (!firstPulseReceived)
     {
         firstPulseReceived = true;
-        baselinePositionMm = expectedPositionMm;  // Sync baseline to current position
-        sensorDistanceMm = 0.0f;  // Reset cumulative sensor distance
-
-        // Clear any pre-pulse windowed samples
         sampleCount = 0;
         nextSampleIndex = 0;
-
-        // Reset EWMA to start fresh
-        ewmaExpectedMm = 0.0f;
-        ewmaActualMm = 0.0f;
-        ewmaLastExpectedMm = expectedPositionMm;
-        ewmaLastActualMm = 0.0f;
     }
 
-    // Update cumulative tracking
-    sensorDistanceMm += mmPerPulse;
-
     // Update windowed tracking - add actual distance to most recent sample
-    if (trackingMode == TRACKING_MODE_WINDOWED && sampleCount > 0)
+    if (sampleCount > 0)
     {
         // Find most recent sample and add actual distance
         int mostRecentIndex = (nextSampleIndex - 1 + MAX_SAMPLES) % MAX_SAMPLES;
@@ -186,13 +108,6 @@ void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
         {
             samples[mostRecentIndex].actualMm += mmPerPulse;
         }
-    }
-
-    // Update EWMA tracking
-    if (trackingMode == TRACKING_MODE_EWMA)
-    {
-        float actualDelta = mmPerPulse;
-        ewmaActualMm = ewmaAlpha * actualDelta + (1.0f - ewmaAlpha) * ewmaActualMm;
     }
 }
 
@@ -332,8 +247,9 @@ bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThreshold
     }
     lastJamEvaluationMs = currentTime;
 
-    const float HARD_PASS_RATIO_THRESHOLD      = 0.10f;
+    const float HARD_PASS_RATIO_THRESHOLD      = 0.35f;  // Trigger if <35% passing (severe jam/slippage)
     const float MIN_HARD_WINDOW_EXPECTED_MM    = 1.0f;
+    const int   MIN_HARD_WINDOW_SAMPLES        = 3;  // Require 3+ samples to prevent false positives after retractions
     unsigned int requiredHardChecks            = (hardJamTimeMs + checkIntervalMs - 1) / checkIntervalMs;
     if (requiredHardChecks == 0)
     {
@@ -343,9 +259,11 @@ bool FilamentMotionSensor::isJammed(float ratioThreshold, float hardJamThreshold
 
     // Hard jam condition (per evaluation):
     //  - windowed expected distance is at least 1mm, and
-    //  - less than 10% of filament is passing.
+    //  - less than 35% of filament is passing (severe jam/heavy slippage), and
+    //  - we have at least 3 samples in the window (prevents false positives right after retractions)
     bool hardCondition = (expectedDistance >= MIN_HARD_WINDOW_EXPECTED_MM) &&
-                         (passingRatio < HARD_PASS_RATIO_THRESHOLD);
+                         (passingRatio < HARD_PASS_RATIO_THRESHOLD) &&
+                         (sampleCount >= MIN_HARD_WINDOW_SAMPLES);
 
     // Only reset hard-jam accumulation when we see real movement after we have
     // started counting. Transient ratio improvements without pulses should not
@@ -475,24 +393,9 @@ float FilamentMotionSensor::getExpectedDistance() const
         return 0.0f;
     }
 
-    switch (trackingMode)
-    {
-        case TRACKING_MODE_CUMULATIVE:
-            return expectedPositionMm - baselinePositionMm;
-
-        case TRACKING_MODE_WINDOWED:
-        {
-            float expectedMm, actualMm;
-            getWindowedDistances(expectedMm, actualMm);
-            return expectedMm;
-        }
-
-        case TRACKING_MODE_EWMA:
-            return ewmaExpectedMm;
-
-        default:
-            return 0.0f;
-    }
+    float expectedMm, actualMm;
+    getWindowedDistances(expectedMm, actualMm);
+    return expectedMm;
 }
 
 float FilamentMotionSensor::getSensorDistance() const
@@ -502,24 +405,9 @@ float FilamentMotionSensor::getSensorDistance() const
         return 0.0f;
     }
 
-    switch (trackingMode)
-    {
-        case TRACKING_MODE_CUMULATIVE:
-            return sensorDistanceMm;
-
-        case TRACKING_MODE_WINDOWED:
-        {
-            float expectedMm, actualMm;
-            getWindowedDistances(expectedMm, actualMm);
-            return actualMm;
-        }
-
-        case TRACKING_MODE_EWMA:
-            return ewmaActualMm;
-
-        default:
-            return 0.0f;
-    }
+    float expectedMm, actualMm;
+    getWindowedDistances(expectedMm, actualMm);
+    return actualMm;
 }
 
 bool FilamentMotionSensor::isInitialized() const

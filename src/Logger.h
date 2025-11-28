@@ -7,10 +7,9 @@
 // Log levels - each level includes all previous levels
 enum LogLevel : uint8_t
 {
-    LOG_NORMAL  = 0,  // Production: startup, successes, failures (not chatty)
-    LOG_DEBUG   = 1,  // Adds: second-by-second stats, flow summaries
-    LOG_VERBOSE = 2,  // Adds: detailed flow state, sensor resets, telemetry details
-    LOG_DEV     = 3   // Adds: per-pulse logging, raw pin states (very verbose)
+    LOG_NORMAL      = 0,  // Production: startup, successes, failures, basic stats
+    LOG_VERBOSE     = 1,  // Adds: detailed flow state, sensor resets, telemetry details
+    LOG_PIN_VALUES  = 2   // Adds: raw pin states (very verbose - emergency debugging only)
 };
 
 // Fixed-size log entry to avoid heap fragmentation
@@ -70,9 +69,8 @@ class Logger
 
     // Convenience functions for specific levels
     void logNormal(const char *format, ...);
-    void logDebug(const char *format, ...);
     void logVerbose(const char *format, ...);
-    void logDev(const char *format, ...);
+    void logPinValues(const char *format, ...);
 
     String getLogsAsJson();
     String getLogsAsText();

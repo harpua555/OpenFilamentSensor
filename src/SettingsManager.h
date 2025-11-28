@@ -21,31 +21,15 @@ struct user_settings
     float  detection_hard_jam_mm;        // Hard jam: mm expected with zero movement to trigger
     int    detection_soft_jam_time_ms;   // Soft jam: how long ratio must stay bad (ms, e.g., 3000 = 3 sec)
     int    detection_hard_jam_time_ms;   // Hard jam: how long zero movement required (ms, e.g., 2000 = 2 sec)
-    int    tracking_mode;                // 0=Cumulative, 1=Windowed, 2=EWMA
-    int    tracking_window_ms;           // Window size for windowed mode (milliseconds)
-    float  tracking_ewma_alpha;          // EWMA smoothing factor (0.0-1.0)
     int    sdcp_loss_behavior;
     int    flow_telemetry_stale_ms;
     int    ui_refresh_interval_ms;
-    int    log_level;                 // 0=Normal, 1=Debug, 2=Verbose, 3=Dev
+    int    log_level;                 // 0=Normal, 1=Verbose, 2=Pin Values
     bool   suppress_pause_commands;   // Suppress pause/cancel commands (for testing/development)
-    bool   dev_mode;                  // DEPRECATED: use log_level >= 3 instead
-    bool   verbose_logging;           // DEPRECATED: use log_level >= 2 instead
-    bool   flow_summary_logging;   // DEPRECATED: use log_level >= 1 instead
-    bool   pin_debug_logging;      // DEPRECATED: use log_level >= 3 instead
     float  movement_mm_per_pulse;
     bool   auto_calibrate_sensor;  // Auto-calibrate mm_per_pulse at print end
     float  purge_filament_mm;
     bool   test_recording_mode;    // Enable CSV test data recording to ./condensed directory
-
-    // Deprecated settings (kept for backwards compatibility during migration)
-    float  expected_deficit_mm;        // DEPRECATED: use detection_length_mm
-    int    expected_flow_window_ms;    // DEPRECATED: distance-based detection only
-    bool   zero_deficit_logging;       // DEPRECATED: simplified logging
-    bool   use_total_extrusion_deficit;    // DEPRECATED: only total mode supported
-    bool   total_vs_delta_logging;         // DEPRECATED: delta mode removed
-    bool   packet_flow_logging;            // DEPRECATED: use verbose_logging
-    bool   use_total_extrusion_backlog;    // DEPRECATED: always enabled now
 };
 
 class SettingsManager
@@ -88,25 +72,17 @@ class SettingsManager
     float  getDetectionHardJamMm();         // Hard jam threshold
     int    getDetectionSoftJamTimeMs();     // Soft jam duration threshold
     int    getDetectionHardJamTimeMs();     // Hard jam duration threshold
-    int    getTrackingMode();               // Tracking algorithm mode
-    int    getTrackingWindowMs();           // Window size for windowed mode
-    float  getTrackingEwmaAlpha();          // EWMA smoothing factor
     int    getSdcpLossBehavior();
     int    getFlowTelemetryStaleMs();
     int    getUiRefreshIntervalMs();
-    int    getLogLevel();                      // Get current log level (0-3)
+    int    getLogLevel();                      // Get current log level (0-2)
     bool   getSuppressPauseCommands();         // Get pause command suppression state
-    bool   getDevMode();                       // DEPRECATED: returns (log_level >= 3)
-    bool   getVerboseLogging();                // DEPRECATED: returns (log_level >= 2)
-    bool   getFlowSummaryLogging();            // DEPRECATED: returns (log_level >= 1)
-    bool   getPinDebugLogging();               // DEPRECATED: returns (log_level >= 3)
+    bool   getVerboseLogging();                // Returns true if log level >= 1
+    bool   getFlowSummaryLogging();            // Returns true if log level >= 1
+    bool   getPinDebugLogging();               // Returns true if log level >= 2
     float  getMovementMmPerPulse();
     bool   getAutoCalibrateSensor();
     bool   getTestRecordingMode();             // Get test recording mode state
-
-    // Deprecated getters (for backwards compatibility)
-    float  getExpectedDeficitMM();     // DEPRECATED: use getDetectionLengthMM()
-    int    getExpectedFlowWindowMs();  // DEPRECATED: returns 0
 
     void setSSID(const String &ssid);
     void setPassword(const String &password);
@@ -124,24 +100,14 @@ class SettingsManager
     void setDetectionHardJamMm(float mmThreshold);     // Hard jam threshold setter
     void setDetectionSoftJamTimeMs(int timeMs);        // Soft jam duration setter
     void setDetectionHardJamTimeMs(int timeMs);        // Hard jam duration setter
-    void setTrackingMode(int mode);                    // Tracking algorithm setter
-    void setTrackingWindowMs(int windowMs);        // Window size setter
-    void setTrackingEwmaAlpha(float alpha);        // EWMA alpha setter
     void setSdcpLossBehavior(int behavior);
     void setFlowTelemetryStaleMs(int staleMs);
     void setUiRefreshIntervalMs(int intervalMs);
-    void setLogLevel(int level);                   // Set log level (0-3), updates logger
+    void setLogLevel(int level);                   // Set log level (0-2), updates logger
     void setSuppressPauseCommands(bool suppress);  // Set pause command suppression
-    void setDevMode(bool devMode);                 // DEPRECATED: sets log_level to 3 if true
-    void setVerboseLogging(bool verbose);          // DEPRECATED: sets log_level to 2 if true
-    void setFlowSummaryLogging(bool enabled);      // DEPRECATED: sets log_level to 1 if true
-    void setPinDebugLogging(bool enabled);         // DEPRECATED: sets log_level to 3 if true
     void setMovementMmPerPulse(float mmPerPulse);
     void setAutoCalibrateSensor(bool autoCal);
     void setTestRecordingMode(bool enabled);       // Enable/disable test recording mode
-
-    // Deprecated setters (for backwards compatibility)
-    void setExpectedDeficitMM(float value);    // DEPRECATED: use setDetectionLengthMM()
 
     String toJson(bool includePassword = true);
 };

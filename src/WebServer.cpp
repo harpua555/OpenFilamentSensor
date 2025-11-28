@@ -92,15 +92,9 @@ void WebServer::begin()
             settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
             settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
             settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
-            // Handle both new and deprecated settings names for backwards compatibility
             if (jsonObj.containsKey("detection_length_mm"))
             {
                 settingsManager.setDetectionLengthMM(jsonObj["detection_length_mm"].as<float>());
-            }
-            else if (jsonObj.containsKey("expected_deficit_mm"))
-            {
-                // Deprecated: redirect to new setting
-                settingsManager.setDetectionLengthMM(jsonObj["expected_deficit_mm"].as<float>());
             }
             if (jsonObj.containsKey("detection_grace_period_ms"))
             {
@@ -116,19 +110,6 @@ void WebServer::begin()
             {
                 settingsManager.setPurgeFilamentMm(
                     jsonObj["purge_filament_mm"].as<float>());
-            }
-            if (jsonObj.containsKey("tracking_mode"))
-            {
-                settingsManager.setTrackingMode(jsonObj["tracking_mode"].as<int>());
-            }
-            if (jsonObj.containsKey("tracking_window_ms"))
-            {
-                settingsManager.setTrackingWindowMs(jsonObj["tracking_window_ms"].as<int>());
-            }
-            if (jsonObj.containsKey("tracking_ewma_alpha"))
-            {
-                settingsManager.setTrackingEwmaAlpha(
-                    jsonObj["tracking_ewma_alpha"].as<float>());
             }
             if (jsonObj.containsKey("detection_ratio_threshold"))
             {
@@ -150,7 +131,6 @@ void WebServer::begin()
                 settingsManager.setDetectionHardJamTimeMs(
                     jsonObj["detection_hard_jam_time_ms"].as<int>());
             }
-            // expected_flow_window_ms is deprecated and ignored (no longer used)
             if (jsonObj.containsKey("sdcp_loss_behavior"))
             {
                 settingsManager.setSdcpLossBehavior(jsonObj["sdcp_loss_behavior"].as<int>());
@@ -170,29 +150,10 @@ void WebServer::begin()
             {
                 settingsManager.setSuppressPauseCommands(jsonObj["suppress_pause_commands"].as<bool>());
             }
-            // Unified log level (replaces deprecated boolean flags)
+            // Unified log level
             if (jsonObj.containsKey("log_level"))
             {
                 settingsManager.setLogLevel(jsonObj["log_level"].as<int>());
-            }
-            // Deprecated settings - accepted but ignored for backwards compatibility
-            // zero_deficit_logging - removed (use verbose_logging)
-            // use_total_extrusion_deficit - removed (always use total mode)
-            // total_vs_delta_logging - removed (only one mode now)
-            // packet_flow_logging - removed (use verbose_logging)
-            // use_total_extrusion_backlog - removed (always enabled)
-            if (jsonObj.containsKey("dev_mode"))
-            {
-                settingsManager.setDevMode(jsonObj["dev_mode"].as<bool>());
-            }
-            if (jsonObj.containsKey("verbose_logging"))
-            {
-                settingsManager.setVerboseLogging(jsonObj["verbose_logging"].as<bool>());
-            }
-            if (jsonObj.containsKey("flow_summary_logging"))
-            {
-                settingsManager.setFlowSummaryLogging(
-                    jsonObj["flow_summary_logging"].as<bool>());
             }
             if (jsonObj.containsKey("movement_mm_per_pulse"))
             {
@@ -271,14 +232,14 @@ void WebServer::begin()
                   jsonResponse.reserve(576);  // Pre-allocate to prevent fragmentation
                   serializeJson(jsonDoc, jsonResponse);
 
-                  // DEV: Check if approaching allocation limit
-                  if (settingsManager.getLogLevel() >= LOG_DEV)
+                  // Pin Values level: Check if approaching allocation limit
+                  if (settingsManager.getLogLevel() >= LOG_PIN_VALUES)
                   {
                       size_t actualSize = measureJson(jsonDoc);
                       static bool logged = false;
                       if (!logged && actualSize > 490)  // >85% of 576 bytes
                       {
-                          logger.logf(LOG_DEV, "WebServer sensor_status JSON size: %zu / 576 bytes (%.1f%%)",
+                          logger.logf(LOG_PIN_VALUES, "WebServer sensor_status JSON size: %zu / 576 bytes (%.1f%%)",
                                      actualSize, (actualSize * 100.0f / 576.0f));
                           logged = true;  // Only log once per session
                       }
@@ -428,14 +389,14 @@ void WebServer::broadcastStatusUpdate()
     payload.reserve(576);  // Pre-allocate to prevent fragmentation
     serializeJson(jsonDoc, payload);
 
-    // DEV: Check if approaching allocation limit
-    if (settingsManager.getLogLevel() >= LOG_DEV)
+    // Pin Values level: Check if approaching allocation limit
+    if (settingsManager.getLogLevel() >= LOG_PIN_VALUES)
     {
         size_t actualSize = measureJson(jsonDoc);
         static bool logged = false;
         if (!logged && actualSize > 490)  // >85% of 576 bytes
         {
-            logger.logf(LOG_DEV, "WebServer broadcastStatusUpdate JSON size: %zu / 576 bytes (%.1f%%)",
+            logger.logf(LOG_PIN_VALUES, "WebServer broadcastStatusUpdate JSON size: %zu / 576 bytes (%.1f%%)",
                        actualSize, (actualSize * 100.0f / 576.0f));
             logged = true;  // Only log once per session
         }

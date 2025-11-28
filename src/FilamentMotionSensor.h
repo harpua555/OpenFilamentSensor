@@ -3,14 +3,6 @@
 
 #include <Arduino.h>
 
-// Tracking algorithm modes
-enum FilamentTrackingMode
-{
-    TRACKING_MODE_CUMULATIVE = 0,  // Simple cumulative (legacy, has drift issues)
-    TRACKING_MODE_WINDOWED = 1,    // Sliding time window (Klipper-style)
-    TRACKING_MODE_EWMA = 2         // Exponentially weighted moving average
-};
-
 // Sample for windowed tracking
 struct FilamentSample
 {
@@ -20,12 +12,9 @@ struct FilamentSample
 };
 
 /**
- * Filament motion sensor with multiple tracking algorithms
+ * Filament motion sensor with windowed tracking algorithm
  *
- * Supports three modes:
- * 1. Cumulative: Simple tracking from baseline (has calibration drift)
- * 2. Windowed: Sliding time window like Klipper (handles drift)
- * 3. EWMA: Exponentially weighted moving average (simpler, handles drift)
+ * Uses sliding time window (Klipper-style) to handle calibration drift
  */
 class FilamentMotionSensor
 {
@@ -37,15 +26,6 @@ class FilamentMotionSensor
      * Call when: print starts, print resumes after pause, or print ends
      */
     void reset();
-
-    /**
-     * Set tracking mode
-     * @param mode Algorithm to use for tracking
-     * @param windowMs Window size for windowed mode (default 5000ms)
-     * @param ewmaAlpha Smoothing factor for EWMA mode (default 0.3)
-     */
-    void setTrackingMode(FilamentTrackingMode mode, unsigned long windowMs = 5000,
-                        float ewmaAlpha = 0.3f);
 
     /**
      * Update the expected extrusion position from printer telemetry
@@ -115,27 +95,14 @@ class FilamentMotionSensor
     // Common state
     bool                 initialized;
     bool                 firstPulseReceived;  // Track if first pulse detected (skip pre-prime extrusion)
-    FilamentTrackingMode trackingMode;
     unsigned long        lastExpectedUpdateMs;
 
-    // Cumulative mode state
-    float baselinePositionMm;
-    float expectedPositionMm;
-    float sensorDistanceMm;
-
-    // Windowed mode state
+    // Windowed tracking state
     static const int MAX_SAMPLES = 20;  // Store up to 20 samples (covers 5sec at 250ms poll rate)
     FilamentSample   samples[MAX_SAMPLES];
     int              sampleCount;
     int              nextSampleIndex;
     unsigned long    windowSizeMs;
-
-    // EWMA mode state
-    float ewmaExpectedMm;
-    float ewmaActualMm;
-    float ewmaAlpha;  // Smoothing factor (0.0-1.0, higher = more weight on recent)
-    float ewmaLastExpectedMm;
-    float ewmaLastActualMm;
 
     // Jam detection trackers
     mutable float  lastWindowDeficitMm;     // Last deficit used to compute growth rate
@@ -150,9 +117,8 @@ class FilamentMotionSensor
     mutable float         softJamDeficitAccumMm;
     mutable float         hardJamAccumExpectedMm;
     mutable float         hardJamAccumActualMm;
-    mutable float         lastCumulativeExpectedPositionMm;
-    mutable float         lastCumulativeSensorDistanceMm;
     unsigned long         lastSensorPulseMs;  // Track when last pulse was detected
+
     // Helper methods for windowed tracking
     void addSample(float expectedDeltaMm, float actualDeltaMm);
     void pruneOldSamples();

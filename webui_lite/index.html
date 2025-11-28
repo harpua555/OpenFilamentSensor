@@ -1528,30 +1528,6 @@
                         <p class="form-help">Amount of filament consumed by your slicer's purge/prime sequence at print start. Jam detection will not activate until this amount PLUS 'Minimum Extrusion Before Checking' (above) has been extruded. This prevents false alarms during print startup. Default: 47mm.</p>
                     </div>
 
-                    <h3 class="section-title">Tracking Algorithm</h3>
-
-                    <div class="form-group">
-                        <label class="form-label">Tracking Mode</label>
-                        <select class="form-select" id="tracking_mode">
-                            <option value="0" ${currentSettings.tracking_mode == 0 ? 'selected' : ''}>Mode 0: Cumulative (Legacy)</option>
-                            <option value="1" ${currentSettings.tracking_mode == 1 ? 'selected' : ''}>Mode 1: Windowed (Recommended)</option>
-                            <option value="2" ${currentSettings.tracking_mode == 2 ? 'selected' : ''}>Mode 2: EWMA</option>
-                        </select>
-                        <p class="form-help">Mode 1 (Windowed) is recommended for production use.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Windowed Mode: Window Size (ms)</label>
-                        <input type="number" class="form-input" id="tracking_window_ms" value="${currentSettings.tracking_window_ms || 3000}" min="3000" max="10000" step="1000">
-                        <p class="form-help">Sliding window size for Mode 1 (Windowed tracking). Larger windows = slower to detect jams but fewer false positives. Smaller windows = faster detection but more sensitive. Default: 3000ms (3 seconds). Range: 3000-10000ms.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">EWMA Alpha (smoothing factor)</label>
-                        <input type="number" step="0.05" class="form-input" id="tracking_ewma_alpha" value="${currentSettings.tracking_ewma_alpha || 0.3}" min="0.1" max="0.5">
-                        <p class="form-help">Smoothing factor for EWMA mode. Lower values (0.1-0.2) = smoother, ignores brief flow changes. Higher values (0.4-0.5) = more responsive to changes, faster jam detection. Default: 0.3.</p>
-                    </div>
-
                     <h3 class="section-title">Jam Detection Thresholds</h3>
 
                     <div class="form-group">
@@ -1608,11 +1584,10 @@
                         <label class="form-label">Log Level</label>
                         <select class="form-select" id="log_level">
                             <option value="0" ${(currentSettings.log_level === 0 || currentSettings.log_level === undefined) ? 'selected' : ''}>Normal</option>
-                            <option value="1" ${currentSettings.log_level == 1 ? 'selected' : ''}>Debug (Periodic stats)</option>
-                            <option value="2" ${currentSettings.log_level == 2 ? 'selected' : ''}>Verbose (Detailed info)</option>
-                            <option value="3" ${currentSettings.log_level == 3 ? 'selected' : ''}>Dev (Maximum verbosity)</option>
+                            <option value="1" ${currentSettings.log_level == 1 ? 'selected' : ''}>Verbose</option>
+                            <option value="2" ${currentSettings.log_level == 2 ? 'selected' : ''}>Pin Values (Emergency Debug)</option>
                         </select>
-                        <p class="form-help">Normal = minimal logging. Debug = periodic flow stats. Verbose = detailed telemetry. Dev = per-pulse logging (very chatty).</p>
+                        <p class="form-help">Normal = production logging (startup, successes, failures, basic stats). Verbose = detailed flow state and telemetry. Pin Values = raw pin states (very chatty, emergency debugging only).</p>
                     </div>
 
                     <div class="form-group checkbox-group">
@@ -1666,9 +1641,6 @@
                     detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
                     detection_min_start_mm: parseFloat(document.getElementById('detection_min_start_mm').value),
                     purge_filament_mm: parseFloat(document.getElementById('purge_filament_mm').value),
-                    tracking_mode: parseInt(document.getElementById('tracking_mode').value),
-                    tracking_window_ms: parseInt(document.getElementById('tracking_window_ms').value),
-                    tracking_ewma_alpha: parseFloat(document.getElementById('tracking_ewma_alpha').value),
                     detection_ratio_threshold: parseFloat(document.getElementById('detection_ratio_threshold').value) / 100,
                     detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
                     detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,

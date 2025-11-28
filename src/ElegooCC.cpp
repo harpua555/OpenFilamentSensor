@@ -290,10 +290,8 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                     resetFilamentTracking();
 
                     // Log active settings for this print (excluding network config)
-                    logger.logf("Print settings: pulse=%.2fmm mode=%d window=%dms grace=%dms ratio_thr=%.2f hard_jam=%.1fmm soft_time=%dms hard_time=%dms",
+                    logger.logf("Print settings: pulse=%.2fmm grace=%dms ratio_thr=%.2f hard_jam=%.1fmm soft_time=%dms hard_time=%dms",
                                settingsManager.getMovementMmPerPulse(),
-                               settingsManager.getTrackingMode(),
-                               settingsManager.getTrackingWindowMs(),
                                settingsManager.getDetectionGracePeriodMs(),
                                settingsManager.getDetectionRatioThreshold(),
                                settingsManager.getDetectionHardJamMm(),
@@ -449,20 +447,12 @@ void ElegooCC::resetFilamentTracking()
 
     resetJamTracking();
 
-    // Configure and reset the motion sensor
-    int trackingMode = settingsManager.getTrackingMode();
-    int windowMs = settingsManager.getTrackingWindowMs();
-    float ewmaAlpha = settingsManager.getTrackingEwmaAlpha();
-
-    motionSensor.setTrackingMode((FilamentTrackingMode)trackingMode, windowMs, ewmaAlpha);
+    // Reset the motion sensor
     motionSensor.reset();
 
     if (settingsManager.getVerboseLogging())
     {
-        const char* modeNames[] = {"Cumulative", "Windowed", "EWMA"};
-        const char* modeName = (trackingMode >= 0 && trackingMode <= 2) ? modeNames[trackingMode] : "Unknown";
-        logger.logf("Filament tracking reset - Mode: %s, Window: %dms, EWMA Alpha: %.2f",
-                   modeName, windowMs, ewmaAlpha);
+        logger.log("Filament tracking reset - Mode: Windowed");
     }
 }
 
@@ -630,13 +620,13 @@ void ElegooCC::sendCommand(int command, bool waitForAck)
     jsonPayload.reserve(384);  // Pre-allocate to prevent fragmentation
     serializeJson(doc, jsonPayload);
 
-    // DEV: Check if approaching allocation limit
-    if (settingsManager.getLogLevel() >= LOG_DEV)
+    // Pin Values level: Check if approaching allocation limit
+    if (settingsManager.getLogLevel() >= LOG_PIN_VALUES)
     {
         size_t actualSize = measureJson(doc);
         if (actualSize > 326)  // >85% of 384 bytes
         {
-            logger.logf(LOG_DEV, "ElegooCC sendCommand JSON size: %zu / 384 bytes (%.1f%%)",
+            logger.logf(LOG_PIN_VALUES, "ElegooCC sendCommand JSON size: %zu / 384 bytes (%.1f%%)",
                        actualSize, (actualSize * 100.0f / 384.0f));
         }
     }

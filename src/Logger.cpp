@@ -168,18 +168,6 @@ void Logger::logNormal(const char *format, ...)
     logInternal(buffer, LOG_NORMAL);
 }
 
-void Logger::logDebug(const char *format, ...)
-{
-    if (LOG_DEBUG > currentLogLevel) return;
-
-    char buffer[96];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    logInternal(buffer, LOG_DEBUG);
-}
-
 void Logger::logVerbose(const char *format, ...)
 {
     if (LOG_VERBOSE > currentLogLevel) return;
@@ -192,16 +180,16 @@ void Logger::logVerbose(const char *format, ...)
     logInternal(buffer, LOG_VERBOSE);
 }
 
-void Logger::logDev(const char *format, ...)
+void Logger::logPinValues(const char *format, ...)
 {
-    if (LOG_DEV > currentLogLevel) return;
+    if (LOG_PIN_VALUES > currentLogLevel) return;
 
     char buffer[96];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
-    logInternal(buffer, LOG_DEV);
+    logInternal(buffer, LOG_PIN_VALUES);
 }
 
 String Logger::getLogsAsJson()

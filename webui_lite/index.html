@@ -1016,10 +1016,6 @@
                     <span class="info-value" id="firmwareVersion">Loading...</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Build Date</span>
-                    <span class="info-value" id="buildDate">Loading...</span>
-                </div>
-                <div class="info-row">
                     <span class="info-label">Firmware Thumbprint</span>
                     <span class="info-value" id="firmwareThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
@@ -1032,24 +1028,14 @@
                     <span class="info-value" id="buildVersion" style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
 
-                <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Hardware</h3>
+                <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Hardware / Network</h3>
                 <div class="info-row">
                     <span class="info-label">Chip Model</span>
-                    <span class="info-value">ESP32-S3</span>
+                    <span class="info-value" id="chipModel">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">MAC Address</span>
                     <span class="info-value" id="macAddress">Loading...</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Free Heap</span>
-                    <span class="info-value" id="freeHeap">Loading...</span>
-                </div>
-
-                <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Network</h3>
-                <div class="info-row">
-                    <span class="info-label">WiFi Status</span>
-                    <span class="info-value" id="wifiStatus">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">IP Address</span>
@@ -1786,32 +1772,20 @@
                 const data = await response.json();
 
                 document.getElementById('firmwareVersion').textContent = data.firmware_version || 'Unknown';
-                // Format both build date and thumbprints nicely
-                document.getElementById('buildDate').textContent = formatThumbprint(data.firmware_thumbprint);
                 document.getElementById('firmwareThumbprint').textContent = formatThumbprint(data.firmware_thumbprint);
                 document.getElementById('filesystemThumbprint').textContent = formatThumbprint(data.filesystem_thumbprint);
                 document.getElementById('buildVersion').textContent = 'v' + (data.build_version || '0.0.0');
+                document.getElementById('chipModel').textContent = data.chip_family || 'Unknown';
 
                 const statusResponse = await fetch('/sensor_status');
                 const statusData = await statusResponse.json();
 
                 document.getElementById('macAddress').textContent = statusData.mac || 'Unknown';
-                document.getElementById('freeHeap').textContent = formatBytes(statusData.free_heap || 0);
-                document.getElementById('wifiStatus').textContent = statusData.rssi ? 'Connected' : 'Disconnected';
                 document.getElementById('ipAddress').textContent = statusData.ip || 'Unknown';
 
             } catch (error) {
                 console.error('Failed to load about info:', error);
             }
-        }
-
-        // Utility functions
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
         }
 
         // Format thumbprint from MMDDYYHHMMSS to MM.DD.YY-HH:MM

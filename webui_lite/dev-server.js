@@ -23,9 +23,7 @@ app.get('/sensor_status', (req, res) => {
         pulse_count: Math.floor(Math.random() * 10000),
         pulse_rate: Math.floor(Math.random() * 100),
         distance_mm: Math.random() * 500,
-        rssi: -50 - Math.floor(Math.random() * 30),
         uptime_ms: Date.now() - (Math.random() * 86400000),
-        free_heap: 200000 + Math.floor(Math.random() * 50000),
         mac: '24:0A:C4:XX:XX:XX',
         ip: '192.168.1.100'
     });
@@ -87,9 +85,23 @@ app.get('/api/logs_text', (req, res) => {
 
 // Mock version info
 app.get('/version', (req, res) => {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, '0');
+    const thumbprint = [
+        pad(now.getMonth() + 1),
+        pad(now.getDate()),
+        pad(now.getFullYear() % 100),
+        pad(now.getHours()),
+        pad(now.getMinutes()),
+        pad(now.getSeconds())
+    ].join('');
+
     res.json({
-        version: 'v1.0.0-lite',
-        build_date: new Date().toISOString().split('T')[0]
+        firmware_version: 'v1.0.0-lite',
+        firmware_thumbprint: thumbprint,
+        filesystem_thumbprint: thumbprint,
+        build_version: '1.0.0',
+        chip_family: 'ESP32-S3'
     });
 });
 

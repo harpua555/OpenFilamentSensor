@@ -336,10 +336,8 @@ void WebServer::buildStatusJson(DynamicJsonDocument &jsonDoc, const printer_info
     jsonDoc["stopped"]        = elegooStatus.filamentStopped;
     jsonDoc["filamentRunout"] = elegooStatus.filamentRunout;
 
-    jsonDoc["mac"]       = WiFi.macAddress();
-    jsonDoc["ip"]        = WiFi.localIP().toString();
-    jsonDoc["rssi"]      = WiFi.RSSI();
-    jsonDoc["free_heap"] = ESP.getFreeHeap();
+    jsonDoc["mac"] = WiFi.macAddress();
+    jsonDoc["ip"]  = WiFi.localIP().toString();
 
     JsonObject elegoo = jsonDoc["elegoo"].to<JsonObject>();
     elegoo["mainboardID"]          = elegooStatus.mainboardID;

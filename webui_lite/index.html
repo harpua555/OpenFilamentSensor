@@ -1103,6 +1103,7 @@
             expected: [],
             actual: []
         };
+        let latestStatusSnapshot = null;
         let currentStatusHelpKey = 'default';
         const STATUS_MIN_POLL_MS = 250;
         const STATUS_IDLE_STATES = new Set([0, 8, 9]);
@@ -1169,12 +1170,17 @@
             });
 
             stopStatusPolling();
-            stopStatusStream();
+            const needsStatusStream = (pageName === 'status' || pageName === 'debug');
+            const streamWasActive = Boolean(statusEventSource);
+            if (needsStatusStream && !streamWasActive) {
+                startStatusStream();
+                requestStatusSnapshot(true);
+            } else if (!needsStatusStream && streamWasActive) {
+                stopStatusStream();
+            }
             if (logsInterval) clearInterval(logsInterval);
 
             if (pageName === 'status') {
-                startStatusStream();
-                requestStatusSnapshot(true);
                 initChart();
             } else if (pageName === 'settings') {
                 loadSettings();
@@ -1183,6 +1189,8 @@
                 logsInterval = setInterval(loadLogs, 3000);
             } else if (pageName === 'about') {
                 loadAboutInfo();
+            } else if (pageName === 'debug') {
+                renderDebugData(latestStatusSnapshot);
             }
         }
 
@@ -1341,7 +1349,6 @@
                 const response = await fetch('/sensor_status');
                 const data = await response.json();
                 renderStatusData(data);
-                renderDebugData(data);
                 return data;
             } catch (error) {
                 if (suppressToast) {
@@ -1409,10 +1416,7 @@
         }
 
         function renderStatusData(data) {
-            if (!isStatusPageActive()) return;
-            const grid = document.getElementById('statusGrid');
-            if (!grid) return;
-
+            const statusActive = isStatusPageActive();
             const printerConnected = data.elegoo && data.elegoo.isWebsocketConnected;
             const filamentStopped = data.stopped || false;
             const filamentRunout = data.filamentRunout || false;
@@ -1422,7 +1426,7 @@
             }
 
             const isPrinting = printStatus !== 0 && printStatus !== 9;
-            if (isPrinting) {
+            if (statusActive && isPrinting) {
                 maybeUpdateChart(
                     data.elegoo?.expectedFilament || 0,
                     data.elegoo?.actualFilament || 0
@@ -1435,65 +1439,81 @@
             const ratioThreshold = typeof data.elegoo?.ratioThreshold === 'number' ? data.elegoo.ratioThreshold : 0.25;
             updateJamProximity(hardJamPercent, softJamPercent, passRatio, ratioThreshold);
 
-            grid.innerHTML = `
-                <div class="status-item" data-help-key="printerConnected">
-                    <div class="status-label">Printer Connected</div>
-                    <div class="status-value">
-                        <span class="status-badge ${printerConnected ? 'active' : 'inactive'} no-pulse">
-                            ${printerConnected ? 'Connected' : 'Disconnected'}
-                        </span>
+            const grid = document.getElementById('statusGrid');
+            if (statusActive && grid) {
+                grid.innerHTML = `
+                    <div class="status-item" data-help-key="printerConnected">
+                        <div class="status-label">Printer Connected</div>
+                        <div class="status-value">
+                            <span class="status-badge ${printerConnected ? 'active' : 'inactive'} no-pulse">
+                                ${printerConnected ? 'Connected' : 'Disconnected'}
+                            </span>
+                        </div>
                     </div>
-                </div>
-                <div class="status-item" data-help-key="filamentRunout">
-                    <div class="status-label">Filament Runout</div>
-                    <div class="status-value">
-                        <span class="status-badge ${filamentRunout ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
-                            ${filamentRunout ? 'Runout!' : 'Normal'}
-                        </span>
+                    <div class="status-item" data-help-key="filamentRunout">
+                        <div class="status-label">Filament Runout</div>
+                        <div class="status-value">
+                            <span class="status-badge ${filamentRunout ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
+                                ${filamentRunout ? 'Runout!' : 'Normal'}
+                            </span>
+                        </div>
                     </div>
-                </div>
-                <div class="status-item" data-help-key="filamentStopped">
-                    <div class="status-label">Filament Stopped</div>
-                    <div class="status-value">
-                        <span class="status-badge ${filamentStopped ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
-                            ${filamentStopped ? 'Stopped' : 'Normal'}
-                        </span>
+                    <div class="status-item" data-help-key="filamentStopped">
+                        <div class="status-label">Filament Stopped</div>
+                        <div class="status-value">
+                            <span class="status-badge ${filamentStopped ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
+                                ${filamentStopped ? 'Stopped' : 'Normal'}
+                            </span>
+                        </div>
                     </div>
-                </div>
-                <div class="status-item" data-help-key="movementPulses">
-                    <div class="status-label">Movement Pulses</div>
-                    <div class="status-value">${(data.elegoo?.movementPulses || 0).toLocaleString()}</div>
-                </div>
-                <div class="status-item" data-help-key="expectedFilament">
-                    <div class="status-label">Expected Filament</div>
-                    <div class="status-value">${(data.elegoo?.expectedFilament || 0).toFixed(2)} mm</div>
-                </div>
-                <div class="status-item" data-help-key="actualFilament">
-                    <div class="status-label">Actual Filament</div>
-                    <div class="status-value">${(data.elegoo?.actualFilament || 0).toFixed(2)} mm</div>
-                </div>
-                <div class="status-item" data-help-key="deficit">
-                    <div class="status-label">Deficit</div>
-                    <div class="status-value">${(data.elegoo?.currentDeficitMm || 0).toFixed(2)} mm</div>
-                </div>
-                <div class="status-item" data-help-key="printStatus">
-                    <div class="status-label">Print Status</div>
-                    <div class="status-value" style="font-size: 1.2rem;">${getPrintStatus(data.elegoo?.printStatus)}</div>
-                </div>
-            `;
-            attachStatusHelp();
-            setStatusHelpMessage(currentStatusHelpKey || 'default');
+                    <div class="status-item" data-help-key="movementPulses">
+                        <div class="status-label">Movement Pulses</div>
+                        <div class="status-value">${(data.elegoo?.movementPulses || 0).toLocaleString()}</div>
+                    </div>
+                    <div class="status-item" data-help-key="expectedFilament">
+                        <div class="status-label">Expected Filament</div>
+                        <div class="status-value">${(data.elegoo?.expectedFilament || 0).toFixed(2)} mm</div>
+                    </div>
+                    <div class="status-item" data-help-key="actualFilament">
+                        <div class="status-label">Actual Filament</div>
+                        <div class="status-value">${(data.elegoo?.actualFilament || 0).toFixed(2)} mm</div>
+                    </div>
+                    <div class="status-item" data-help-key="deficit">
+                        <div class="status-label">Deficit</div>
+                        <div class="status-value">${(data.elegoo?.currentDeficitMm || 0).toFixed(2)} mm</div>
+                    </div>
+                    <div class="status-item" data-help-key="printStatus">
+                        <div class="status-label">Print Status</div>
+                        <div class="status-value" style="font-size: 1.2rem;">${getPrintStatus(data.elegoo?.printStatus)}</div>
+                    </div>
+                `;
+                attachStatusHelp();
+                setStatusHelpMessage(currentStatusHelpKey || 'default');
+            }
+
             updateRefreshState(!!printerConnected, printStatus);
+            latestStatusSnapshot = data;
+            if (isDebugPageActive()) {
+                renderDebugData(data);
+            }
         }
 
-        function formatDebugLabel(key) {
-            if (!key) return 'Unknown';
-            const spaced = key
-                .replace(/([A-Z])/g, ' $1')
-                .replace(/_/g, ' ')
-                .trim();
-            return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-        }
+        const DEBUG_FIELDS = [
+            { label: 'Print Halted', key: 'stopped', source: 'top' },
+            { label: 'Filament Runout', key: 'filamentRunout', source: 'top' },
+            { label: 'Filament Stopped', key: 'filamentStopped', source: 'elegoo' },
+            { label: 'Expected Filament (mm)', key: 'expectedFilament', source: 'elegoo' },
+            { label: 'Actual Filament (mm)', key: 'actualFilament', source: 'elegoo' },
+            { label: 'Movement Pulses', key: 'movementPulses', source: 'elegoo' },
+            { label: 'Window Deficit (mm)', key: 'currentDeficitMm', source: 'elegoo' },
+            { label: 'Deficit Ratio', key: 'deficitRatio', source: 'elegoo' },
+            { label: 'Pass Ratio', key: 'passRatio', source: 'elegoo' },
+            { label: 'Hard Jam %', key: 'hardJamPercent', source: 'elegoo' },
+            { label: 'Soft Jam %', key: 'softJamPercent', source: 'elegoo' },
+            { label: 'Expected Rate (mm/s)', key: 'expectedRateMmPerSec', source: 'elegoo' },
+            { label: 'Actual Rate (mm/s)', key: 'actualRateMmPerSec', source: 'elegoo' },
+            { label: 'Grace Active', key: 'graceActive', source: 'elegoo' }
+        ];
 
         function formatDebugValue(value) {
             if (value === null || value === undefined) return '—';
@@ -1508,25 +1528,42 @@
             const grid = document.getElementById('debugGrid');
             if (!grid) return;
 
+            if (!data) {
+                grid.innerHTML = `
+                    <div class="status-item debug-field">
+                        <div class="status-label">Waiting for snapshot</div>
+                        <div class="status-value">Refresh the status tab to populate</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const elegoo = data.elegoo || {};
             const rows = [];
-            const appendRow = (label, value) => {
+            DEBUG_FIELDS.forEach(field => {
+                const value =
+                    field.source === 'top'
+                        ? data[field.key]
+                        : elegoo[field.key];
+                if (value === undefined) {
+                    return;
+                }
                 rows.push(`
                     <div class="status-item debug-field">
-                        <div class="status-label">${formatDebugLabel(label)}</div>
+                        <div class="status-label">${field.label}</div>
                         <div class="status-value">${formatDebugValue(value)}</div>
                     </div>
                 `);
-            };
+            });
 
-            appendRow('mac', data.mac);
-            appendRow('ip', data.ip);
-            appendRow('stopped', data.stopped);
-            appendRow('filamentRunout', data.filamentRunout);
-            if (data.elegoo) {
-                Object.entries(data.elegoo).forEach(([key, value]) => appendRow(key, value));
-            }
-
-            grid.innerHTML = rows.join('');
+            grid.innerHTML = rows.length
+                ? rows.join('')
+                : `
+                    <div class="status-item debug-field">
+                        <div class="status-label">No debug data</div>
+                        <div class="status-value">Snapshot incomplete</div>
+                    </div>
+                `;
         }
 
         function requestStatusSnapshot(force = false) {
@@ -1940,6 +1977,10 @@
         // Initialize
         function isStatusPageActive() {
             return document.getElementById('status')?.classList.contains('active');
+        }
+
+        function isDebugPageActive() {
+            return document.getElementById('debug')?.classList.contains('active');
         }
 
         function handleStatusEvent(event) {

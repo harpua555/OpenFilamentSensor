@@ -102,6 +102,9 @@ typedef struct
     float               passRatio;
     float               hardJamPercent;
     float               softJamPercent;
+    bool                graceActive;
+    float               expectedRateMmPerSec;
+    float               actualRateMmPerSec;
     unsigned long       movementPulseCount;
 } printer_info_t;
 

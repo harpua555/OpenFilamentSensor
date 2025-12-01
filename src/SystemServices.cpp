@@ -340,5 +340,6 @@ void SystemServices::handleWifiReconnectRequest()
 
 unsigned long getTime()
 {
+    // Return epoch time for now - Logger will format it as local time
     return systemServices.currentEpoch();
 }

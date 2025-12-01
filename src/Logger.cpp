@@ -257,7 +257,16 @@ String Logger::getLogsAsText(int maxEntries)
             continue;  // Skip corrupted index
         }
 
-        result += String(logBuffer[bufferIndex].timestamp);
+        // Format timestamp as MM.DD.YY-HH:MM:SS (local time)
+        time_t localTimestamp = logBuffer[bufferIndex].timestamp;
+        struct tm *timeinfo = localtime(&localTimestamp);
+        if (timeinfo != nullptr) {
+            char timeStr[20];
+            strftime(timeStr, sizeof(timeStr), "%m.%d.%y-%H:%M:%S", timeinfo);
+            result += timeStr;
+        } else {
+            result += String(logBuffer[bufferIndex].timestamp);
+        }
         result += " ";
         result += logBuffer[bufferIndex].message;
         result += "\n";

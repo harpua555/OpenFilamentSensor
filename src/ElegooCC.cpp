@@ -564,10 +564,13 @@ bool ElegooCC::processFilamentTelemetry(JsonObject &printInfo, unsigned long cur
                 windowedSensor != lastLoggedActual ||
                 currentDeficit != lastLoggedDeficit)
             {
-                // Show SDCP expected + cumulative sensor (not windowed) for clarity
-                logger.logf("Telemetry: sdcp_exp=%.2fmm cumul_sns=%.2fmm pulses=%lu | win_exp=%.2f win_sns=%.2f deficit=%.2f",
+                // Consolidated telemetry log with jam state info
+                logger.logf("Debug: sdcp_exp=%.2fmm cumul_sns=%.2fmm pulses=%lu | win_exp=%.2f win_sns=%.2f deficit=%.2f | jam=%d hard=%.2f soft=%.2f pass=%.2f grace=%d heap=%lu",
                             expectedFilamentMM, actualFilamentMM, movementPulseCount,
-                            windowedExpected, windowedSensor, currentDeficit);
+                            windowedExpected, windowedSensor, currentDeficit,
+                            jamState.jammed ? 1 : 0,
+                            jamState.hardJamPercent, jamState.softJamPercent, jamState.passRatio,
+                            jamState.graceActive ? 1 : 0, ESP.getFreeHeap());
                 lastLoggedExpected = windowedExpected;
                 lastLoggedActual = windowedSensor;
                 lastLoggedDeficit = currentDeficit;
@@ -1027,17 +1030,16 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
         currentTime, startedAt, jamConfig
     );
 
-    // Periodic logging with windowed and cumulative values + memory monitoring
+    // Periodic consolidated logging with all telemetry data + memory monitoring
     if (debugFlow && currentlyPrinting && (currentTime - lastFlowLogMs) >= EXPECTED_FILAMENT_SAMPLE_MS)
     {
         lastFlowLogMs = currentTime;
         uint32_t freeHeap = ESP.getFreeHeap();
 
         logger.logf(
-            "Flow: win_exp=%.2f win_sns=%.2f deficit=%.2f | cumul=%.2f pulses=%lu | "
-            "jam=%d hard=%.2f soft=%.2f pass=%.2f grace=%d heap=%lu",
+            "Debug: sdcp_exp=%.2fmm cumul_sns=%.2fmm pulses=%lu | win_exp=%.2f win_sns=%.2f deficit=%.2f | jam=%d hard=%.2f soft=%.2f pass=%.2f grace=%d heap=%lu",
+            expectedFilamentMM, actualFilamentMM, movementPulseCount,
             expectedDistance, actualDistance, jamState.deficit,
-            actualFilamentMM, movementPulseCount,
             jamState.jammed ? 1 : 0,
             jamState.hardJamPercent, jamState.softJamPercent, jamState.passRatio,
             jamState.graceActive ? 1 : 0, freeHeap);
@@ -1046,7 +1048,7 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     if (summaryFlow && currentlyPrinting && !debugFlow && (currentTime - lastSummaryLogMs) >= 1000)
     {
         lastSummaryLogMs = currentTime;
-        logger.logf("Flow summary: expected=%.2fmm sensor=%.2fmm deficit=%.2fmm "
+        logger.logf("Debug summary: expected=%.2fmm sensor=%.2fmm deficit=%.2fmm "
                     "ratio=%.2f hard=%.2f%% soft=%.2f%% pass=%.2f pulses=%lu",
                     expectedDistance, actualDistance, jamState.deficit,
                     jamState.deficit / (expectedDistance > 0.1f ? expectedDistance : 1.0f),

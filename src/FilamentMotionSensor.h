@@ -40,20 +40,6 @@ class FilamentMotionSensor
     void addSensorPulse(float mmPerPulse);
 
     /**
-     * Check if jam is detected using ratio-based detection
-     * @param ratioThreshold Soft jam: deficit ratio threshold (0.7 = 70% deficit, < 30% passing)
-     * @param hardJamThresholdMm Hard jam: mm expected with zero movement to trigger
-     * @param softJamTimeMs Soft jam: how long ratio must stay bad (ms, e.g., 3000 = 3 sec)
-     * @param hardJamTimeMs Hard jam: how long zero movement required (ms, e.g., 2000 = 2 sec)
-     * @param checkIntervalMs How often isJammed() is called (ms, e.g., 1000 = every second)
-     * @param gracePeriodMs Grace period in ms after expected position update before checking
-     * @return true if jam detected (either hard or soft)
-     */
-    bool isJammed(float ratioThreshold, float hardJamThresholdMm,
-                  int softJamTimeMs, int hardJamTimeMs, int checkIntervalMs,
-                  unsigned long gracePeriodMs = 0);
-
-    /**
      * Get current deficit (how much expected exceeds actual)
      * @return Deficit in mm (0 or positive value)
      */
@@ -88,8 +74,6 @@ class FilamentMotionSensor
      * @return Ratio (0.0 to 1.0+), or 0 if not initialized
      */
     float getFlowRatio();
-    float getHardJamProgressPercent() const;
-    float getSoftJamProgressPercent() const;
 
    private:
     // Common state
@@ -104,20 +88,8 @@ class FilamentMotionSensor
     int              nextSampleIndex;
     unsigned long    windowSizeMs;
 
-    // Jam detection trackers (some may be reported in WebUI)
-    mutable float         lastWindowDeficitMm;     // Last deficit used to compute growth rate
-    mutable unsigned long lastDeficitTimestampMs;
-    mutable unsigned long lastJamEvaluationMs;
-    mutable unsigned long hardJamAccumulatedMs;
-    mutable unsigned int  hardJamConsecutiveChecks;
-    mutable unsigned int  hardJamRequiredChecks;
-    mutable unsigned long softJamAccumulatedMs;
-    mutable int           lastSoftJamTimeMs;
-    mutable bool          softJamActive;
-    mutable float         softJamDeficitAccumMm;
-    mutable float         hardJamAccumExpectedMm;
-    mutable float         hardJamAccumActualMm;
-    unsigned long         lastSensorPulseMs;  // Track when last pulse was detected
+    // Sensor pulse tracking
+    unsigned long lastSensorPulseMs;  // Track when last pulse was detected
 
     // Helper methods for windowed tracking
     void addSample(float expectedDeltaMm, float actualDeltaMm);

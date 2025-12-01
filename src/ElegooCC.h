@@ -106,12 +106,21 @@ typedef struct
 class ElegooCC
 {
    private:
-    WebSocketsClient webSocket;
-    UUID             uuid;
+    struct TransportState
+    {
+        WebSocketsClient webSocket;
+        String           ipAddress;
+        unsigned long    lastPing            = 0;
+        bool             waitingForAck       = false;
+        int              pendingAckCommand   = -1;
+        String           pendingAckRequestId;
+        unsigned long    ackWaitStartTime    = 0;
+        unsigned long    lastStatusRequestMs = 0;
+    };
 
-    String ipAddress;
-
-    unsigned long lastPing;
+    TransportState        transport;
+    UUID                  uuid;
+    StaticJsonDocument<1200> messageDoc;
     // Variables to track movement sensor state
     int           lastMovementValue;  // Initialize to invalid value
     unsigned long lastChangeTime;
@@ -157,13 +166,8 @@ class ElegooCC
     // Tracking state (for UI freeze on pause)
     bool          trackingFrozen;
 
-    // Acknowledgment tracking
-    bool          waitingForAck;
-    int           pendingAckCommand;
-    String        pendingAckRequestId;
-    unsigned long ackWaitStartTime;
+    // Command tracking
     unsigned long lastPauseRequestMs;
-    unsigned long lastStatusRequestMs;
     unsigned long lastPrintEndMs;
     static constexpr unsigned long STATUS_IDLE_INTERVAL_MS       = 10000;
     static constexpr unsigned long STATUS_ACTIVE_INTERVAL_MS     = 250;
@@ -178,6 +182,7 @@ class ElegooCC
 
     void webSocketEvent(WStype_t type, uint8_t *payload, size_t length);
     void connect();
+    void updateTransport(unsigned long currentTime);
     void handleCommandResponse(JsonDocument &doc);
     void handleStatus(JsonDocument &doc);
     void sendCommand(int command, bool waitForAck = false);

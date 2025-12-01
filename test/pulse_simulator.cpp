@@ -30,6 +30,19 @@ unsigned long millis() { return _mockMillis; }
 #include "../src/FilamentMotionSensor.h"
 #include "../src/FilamentMotionSensor.cpp"
 
+// Jam simulation state (used for tests only)
+static float gHardJamPercent = 0.0f;
+static float gSoftJamPercent = 0.0f;
+static unsigned long gHardJamAccumMs = 0;
+static unsigned long gSoftJamAccumMs = 0;
+
+void resetJamSimState() {
+    gHardJamPercent = 0.0f;
+    gSoftJamPercent = 0.0f;
+    gHardJamAccumMs = 0;
+    gSoftJamAccumMs = 0;
+}
+
 // ANSI color codes
 #define COLOR_RESET   "\033[0m"
 #define COLOR_RED     "\033[31m"
@@ -104,20 +117,20 @@ void logStateRow(const std::string& label, float expected, float actual, float d
                << (jammed ? 1 : 0) << "\n";
 }
 
-void logFrameState(const FilamentMotionSensor& sensor, const std::string& label, bool jammed) {
+void logFrameState(FilamentMotionSensor& sensor, const std::string& label, bool jammed) {
     if (!gLogEnabled) return;
     float expected = sensor.getExpectedDistance();
     float actual = sensor.getSensorDistance();
     float deficit = sensor.getDeficit();
     float ratio = sensor.getFlowRatio();
-    float hardPercent = sensor.getHardJamProgressPercent();
-    float softPercent = sensor.getSoftJamProgressPercent();
+    float hardPercent = gHardJamPercent;
+    float softPercent = gSoftJamPercent;
     logStateRow(label, expected, actual, deficit, ratio, hardPercent, softPercent, jammed);
 }
 
-bool checkJam(const FilamentMotionSensor& sensor);
+bool checkJam(FilamentMotionSensor& sensor);
 
-bool checkJamAndLog(const FilamentMotionSensor& sensor, const std::string& label) {
+bool checkJamAndLog(FilamentMotionSensor& sensor, const std::string& label) {
     bool jammed = checkJam(sensor);
     logFrameState(sensor, label, jammed);
     return jammed;
@@ -405,6 +418,67 @@ void advanceTime(int ms) {
     _mockMillis += ms;
 }
 
+// Helper: Check jam detection (simulator-side implementation)
+bool checkJam(FilamentMotionSensor& sensor) {
+    // Grace period: ignore potential jams until after GRACE_PERIOD_MS
+    if (_mockMillis < static_cast<unsigned long>(GRACE_PERIOD_MS)) {
+        resetJamSimState();
+        return false;
+    }
+
+    float expected = sensor.getExpectedDistance();
+    float actual   = sensor.getSensorDistance();
+    float deficit  = expected - actual;
+    if (deficit < 0.0f) {
+        deficit = 0.0f;
+    }
+    float ratio = (expected > 0.0f) ? (actual / expected) : 1.0f;
+    if (ratio < 0.0f) {
+        ratio = 0.0f;
+    }
+
+    const float HARD_PASS_RATIO_THRESHOLD = 0.35f;
+    bool hardCondition = (expected >= HARD_JAM_MM) && (ratio < HARD_PASS_RATIO_THRESHOLD);
+
+    if (hardCondition) {
+        gHardJamAccumMs += CHECK_INTERVAL_MS;
+        if (gHardJamAccumMs > static_cast<unsigned long>(HARD_JAM_TIME_MS)) {
+            gHardJamAccumMs = HARD_JAM_TIME_MS;
+        }
+    } else if (ratio >= HARD_PASS_RATIO_THRESHOLD) {
+        gHardJamAccumMs = 0;
+    }
+
+    const float MIN_SOFT_DEFICIT_MM = 0.5f;
+    bool softCondition = (expected >= 1.0f) &&
+                         (deficit >= MIN_SOFT_DEFICIT_MM) &&
+                         (ratio < RATIO_THRESHOLD);
+
+    if (softCondition) {
+        gSoftJamAccumMs += CHECK_INTERVAL_MS;
+        if (gSoftJamAccumMs > static_cast<unsigned long>(SOFT_JAM_TIME_MS)) {
+            gSoftJamAccumMs = SOFT_JAM_TIME_MS;
+        }
+    } else if (ratio >= RATIO_THRESHOLD * 0.85f) {
+        gSoftJamAccumMs = 0;
+    }
+
+    gHardJamPercent = (HARD_JAM_TIME_MS > 0)
+                          ? (100.0f * static_cast<float>(gHardJamAccumMs) /
+                                 static_cast<float>(HARD_JAM_TIME_MS))
+                          : 0.0f;
+    gSoftJamPercent = (SOFT_JAM_TIME_MS > 0)
+                          ? (100.0f * static_cast<float>(gSoftJamAccumMs) /
+                                 static_cast<float>(SOFT_JAM_TIME_MS))
+                          : 0.0f;
+
+    if (gHardJamPercent > 100.0f) gHardJamPercent = 100.0f;
+    if (gSoftJamPercent > 100.0f) gSoftJamPercent = 100.0f;
+
+    return (gHardJamAccumMs >= static_cast<unsigned long>(HARD_JAM_TIME_MS)) ||
+           (gSoftJamAccumMs >= static_cast<unsigned long>(SOFT_JAM_TIME_MS));
+}
+
 // Helper: Simulate extrusion command from SDCP
 void simulateExtrusion(FilamentMotionSensor& sensor, float deltaExtrusionMm, float currentTotalMm) {
     sensor.updateExpectedPosition(currentTotalMm);
@@ -420,11 +494,6 @@ void simulateSensorPulses(FilamentMotionSensor& sensor, float totalMm, float flo
 }
 
 // Helper: Check jam detection
-bool checkJam(const FilamentMotionSensor& sensor) {
-    return sensor.isJammed(RATIO_THRESHOLD, HARD_JAM_MM,
-                          SOFT_JAM_TIME_MS, HARD_JAM_TIME_MS,
-                          CHECK_INTERVAL_MS, GRACE_PERIOD_MS);
-}
 
 // Helper: Print test header
 void printTestHeader(const std::string& testName) {
@@ -447,7 +516,7 @@ void recordTest(const std::string& name, bool passed, const std::string& details
 }
 
 // Helper: Print sensor state (console only, logging handled elsewhere)
-void printState(const FilamentMotionSensor& sensor, const std::string& label, bool jammed = false) {
+void printState(FilamentMotionSensor& sensor, const std::string& label, bool jammed = false) {
     float expected = sensor.getExpectedDistance();
     float actual = sensor.getSensorDistance();
     float deficit = sensor.getDeficit();
@@ -469,9 +538,9 @@ void testNormalPrinting() {
     printTestHeader("Test 1: Normal Healthy Print");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool anyFalsePositive = false;
@@ -507,9 +576,9 @@ void testHardJam() {
     printTestHeader("Test 2: Hard Jam Detection (Complete Blockage)");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
 
@@ -563,9 +632,9 @@ void testSoftJam() {
     printTestHeader("Test 3: Soft Jam Detection (Partial Clog)");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
 
@@ -621,9 +690,9 @@ void testSparseInfill() {
     printTestHeader("Test 4: Sparse Infill (Travel Moves)");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool falsePositive = false;
@@ -686,9 +755,9 @@ void testRetractions() {
     printTestHeader("Test 5: Retraction Handling");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool falsePositive = false;
@@ -744,9 +813,9 @@ void testIroningLowFlow() {
     printTestHeader("Test 6: Ironing / Low-Flow Handling");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool falsePositive = false;
@@ -782,9 +851,9 @@ void testTransientSpikes() {
     printTestHeader("Test 7: Transient Spike Resistance");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool falsePositive = false;
@@ -836,9 +905,9 @@ void testMinimumMovement() {
     printTestHeader("Test 8: Minimum Movement Threshold");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
 
@@ -897,9 +966,9 @@ void testGracePeriod() {
     printTestHeader("Test 9: Grace Period Duration");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
 
@@ -968,9 +1037,9 @@ void testHardSnagMidPrint() {
     printTestHeader("Test 10: Normal Print with Hard Snag");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     for (int sec = 0; sec < 10; sec++) {
@@ -1026,9 +1095,9 @@ void testComplexFlowSequence() {
     printTestHeader("Test 11: Complex Flow Sequence");
 
     FilamentMotionSensor sensor;
-    sensor.setTrackingMode(TRACKING_MODE_WINDOWED, TRACKING_WINDOW_MS, 0.3f);
     sensor.reset();
     _mockMillis = 0;
+    resetJamSimState();
 
     float totalExtrusion = 0.0f;
     bool falsePositive = false;

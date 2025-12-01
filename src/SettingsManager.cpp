@@ -3,9 +3,213 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <cstddef>
 #include <stdlib.h>
 
 #include "Logger.h"
+
+namespace
+{
+enum class SettingKind
+{
+    Bool,
+    Int,
+    Float,
+    String
+};
+
+struct SettingField
+{
+    const char* key;
+    SettingKind kind;
+    size_t      offset;
+    bool        trimString;
+    bool        includeInJson;
+    bool        redactWhenRedacted;
+    bool        hasDefault;
+    bool        boolDefault;
+    int         intDefault;
+    float       floatDefault;
+    const char* stringDefault;
+};
+
+SettingField makeBoolField(const char* key, size_t offset, bool defaultValue,
+                           bool includeInJson = true)
+{
+    SettingField field{key, SettingKind::Bool, offset, false, includeInJson, false, true};
+    field.boolDefault = defaultValue;
+    field.intDefault  = 0;
+    field.floatDefault = 0.0f;
+    field.stringDefault = nullptr;
+    return field;
+}
+
+SettingField makeIntField(const char* key, size_t offset, int defaultValue,
+                          bool includeInJson = true)
+{
+    SettingField field{key, SettingKind::Int, offset, false, includeInJson, false, true};
+    field.boolDefault = false;
+    field.intDefault  = defaultValue;
+    field.floatDefault = 0.0f;
+    field.stringDefault = nullptr;
+    return field;
+}
+
+SettingField makeFloatField(const char* key, size_t offset, float defaultValue,
+                            bool includeInJson = true)
+{
+    SettingField field{key, SettingKind::Float, offset, false, includeInJson, false, true};
+    field.boolDefault = false;
+    field.intDefault  = 0;
+    field.floatDefault = defaultValue;
+    field.stringDefault = nullptr;
+    return field;
+}
+
+SettingField makeStringField(const char* key, size_t offset, const char* defaultValue,
+                             bool trim, bool includeInJson = true, bool redact = false)
+{
+    SettingField field{key, SettingKind::String, offset, trim, includeInJson, redact, true};
+    field.boolDefault = false;
+    field.intDefault  = 0;
+    field.floatDefault = 0.0f;
+    field.stringDefault = defaultValue;
+    return field;
+}
+
+static const SettingField kSettingFields[] = {
+    makeBoolField("ap_mode", offsetof(user_settings, ap_mode), false),
+    makeStringField("ssid", offsetof(user_settings, ssid), "", true),
+    makeStringField("passwd", offsetof(user_settings, passwd), "", true, true, true),
+    makeStringField("elegooip", offsetof(user_settings, elegooip), "", true),
+    makeBoolField("pause_on_runout", offsetof(user_settings, pause_on_runout), true),
+    makeIntField("start_print_timeout", offsetof(user_settings, start_print_timeout), 10000),
+    makeBoolField("enabled", offsetof(user_settings, enabled), true),
+    makeBoolField("has_connected", offsetof(user_settings, has_connected), false),
+    makeFloatField("detection_length_mm", offsetof(user_settings, detection_length_mm), 10.0f,
+                   false),
+    makeIntField("detection_grace_period_ms", offsetof(user_settings, detection_grace_period_ms),
+                 8000),
+    makeFloatField("detection_ratio_threshold", offsetof(user_settings, detection_ratio_threshold),
+                   0.25f),
+    makeFloatField("detection_hard_jam_mm", offsetof(user_settings, detection_hard_jam_mm), 5.0f),
+    makeIntField("detection_soft_jam_time_ms",
+                 offsetof(user_settings, detection_soft_jam_time_ms), 10000),
+    makeIntField("detection_hard_jam_time_ms",
+                 offsetof(user_settings, detection_hard_jam_time_ms), 5000),
+    makeIntField("sdcp_loss_behavior", offsetof(user_settings, sdcp_loss_behavior), 2),
+    makeIntField("flow_telemetry_stale_ms", offsetof(user_settings, flow_telemetry_stale_ms), 1000),
+    makeIntField("ui_refresh_interval_ms", offsetof(user_settings, ui_refresh_interval_ms), 1000),
+    makeIntField("log_level", offsetof(user_settings, log_level), 0),
+    makeBoolField("suppress_pause_commands", offsetof(user_settings, suppress_pause_commands),
+                  false),
+    makeFloatField("movement_mm_per_pulse", offsetof(user_settings, movement_mm_per_pulse), 2.88f),
+    makeBoolField("auto_calibrate_sensor", offsetof(user_settings, auto_calibrate_sensor), false),
+    makeFloatField("purge_filament_mm", offsetof(user_settings, purge_filament_mm), 47.0f),
+    makeBoolField("test_recording_mode", offsetof(user_settings, test_recording_mode), false),
+};
+
+constexpr size_t SETTINGS_JSON_CAPACITY = 1152;
+
+template <typename T>
+T& fieldAt(user_settings& settings, size_t offset)
+{
+    return *reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(&settings) + offset);
+}
+
+template <typename T>
+const T& fieldAtConst(const user_settings& settings, size_t offset)
+{
+    return *reinterpret_cast<const T*>(reinterpret_cast<const uint8_t*>(&settings) + offset);
+}
+
+void applyDefault(const SettingField& field, user_settings& settings)
+{
+    if (!field.hasDefault)
+    {
+        return;
+    }
+
+    switch (field.kind)
+    {
+        case SettingKind::Bool:
+            fieldAt<bool>(settings, field.offset) = field.boolDefault;
+            break;
+        case SettingKind::Int:
+            fieldAt<int>(settings, field.offset) = field.intDefault;
+            break;
+        case SettingKind::Float:
+            fieldAt<float>(settings, field.offset) = field.floatDefault;
+            break;
+        case SettingKind::String:
+        {
+            String value = field.stringDefault ? field.stringDefault : "";
+            if (field.trimString)
+            {
+                value.trim();
+            }
+            fieldAt<String>(settings, field.offset) = value;
+            break;
+        }
+    }
+}
+
+void applyVariant(const SettingField& field, JsonVariantConst value, user_settings& settings)
+{
+    switch (field.kind)
+    {
+        case SettingKind::Bool:
+            fieldAt<bool>(settings, field.offset) = value.as<bool>();
+            break;
+        case SettingKind::Int:
+            fieldAt<int>(settings, field.offset) = value.as<int>();
+            break;
+        case SettingKind::Float:
+            fieldAt<float>(settings, field.offset) = value.as<float>();
+            break;
+        case SettingKind::String:
+        {
+            const char* raw = value.as<const char*>();
+            String      str = raw ? raw : "";
+            if (field.trimString)
+            {
+                str.trim();
+            }
+            fieldAt<String>(settings, field.offset) = str;
+            break;
+        }
+    }
+}
+
+void serializeField(const SettingField& field, JsonDocument& doc,
+                    const user_settings& settings, bool includePasswords)
+{
+    if (!field.includeInJson)
+    {
+        return;
+    }
+    if (!includePasswords && field.redactWhenRedacted)
+    {
+        return;
+    }
+
+    switch (field.kind)
+    {
+        case SettingKind::Bool:
+            doc[field.key] = fieldAtConst<bool>(settings, field.offset);
+            break;
+        case SettingKind::Int:
+            doc[field.key] = fieldAtConst<int>(settings, field.offset);
+            break;
+        case SettingKind::Float:
+            doc[field.key] = fieldAtConst<float>(settings, field.offset);
+            break;
+        case SettingKind::String:
+            doc[field.key] = fieldAtConst<String>(settings, field.offset);
+            break;
+    }
+}
+}  // namespace
 
 SettingsManager &SettingsManager::getInstance()
 {
@@ -40,6 +244,7 @@ SettingsManager::SettingsManager()
     settings.movement_mm_per_pulse      = 2.88f;  // Actual sensor spec (2.88mm per pulse)
     settings.auto_calibrate_sensor      = false;  // Disabled by default
     settings.purge_filament_mm          = 47.0f;
+    settings.test_recording_mode        = false;
 }
 
 bool SettingsManager::load()
@@ -52,12 +257,9 @@ bool SettingsManager::load()
         return false;
     }
 
-    // JSON allocation: 1536 bytes stack (increased from 800 for expanded settings)
-    // With 28+ fields, ArduinoJson needs ~900-1200 bytes
-    // Last measured: 2025-11-26
-    // See: .claude/hardcoded-allocations.md for maintenance notes
-    StaticJsonDocument<1536> doc;
-    DeserializationError     error = deserializeJson(doc, file);
+    // JSON allocation: 1152 bytes stack (descriptor-driven, measured <900 bytes used)
+    StaticJsonDocument<SETTINGS_JSON_CAPACITY> doc;
+    DeserializationError                          error = deserializeJson(doc, file);
     file.close();
 
     if (error)
@@ -67,73 +269,29 @@ bool SettingsManager::load()
         return false;
     }
 
-    settings.ap_mode             = doc["ap_mode"] | false;
-    settings.ssid                = (doc["ssid"] | "");
-    settings.ssid.trim();
-    settings.passwd              = (doc["passwd"] | "");
-    settings.passwd.trim();
-    settings.elegooip            = (doc["elegooip"] | "");
-    settings.elegooip.trim();
-    settings.pause_on_runout     = doc["pause_on_runout"] | true;
-    settings.enabled             = doc["enabled"] | true;
-    settings.start_print_timeout = doc["start_print_timeout"] | 10000;
-    settings.has_connected       = doc["has_connected"] | false;
-    settings.detection_length_mm = doc.containsKey("detection_length_mm")
-                                        ? doc["detection_length_mm"].as<float>()
-                                        : 10.0f;  // Default
-    settings.sdcp_loss_behavior =
-        doc.containsKey("sdcp_loss_behavior") ? doc["sdcp_loss_behavior"].as<int>() : 2;
-    settings.flow_telemetry_stale_ms =
-        doc.containsKey("flow_telemetry_stale_ms")
-            ? doc["flow_telemetry_stale_ms"].as<int>()
-            : 1000;
-    settings.ui_refresh_interval_ms =
-        doc.containsKey("ui_refresh_interval_ms")
-            ? doc["ui_refresh_interval_ms"].as<int>()
-            : 1000;
+    for (const auto& field : kSettingFields)
+    {
+        JsonVariantConst value = doc[field.key];
+        if (value.isNull())
+        {
+            applyDefault(field, settings);
+            continue;
+        }
+        applyVariant(field, value, settings);
+    }
 
-    // Load suppress_pause_commands (independent of log_level)
-    settings.suppress_pause_commands = doc.containsKey("suppress_pause_commands")
-                                          ? doc["suppress_pause_commands"].as<bool>()
-                                          : false;
-
-    // Load log_level
-    settings.log_level = doc.containsKey("log_level") ? doc["log_level"].as<int>() : 0;
     // Clamp to valid range (0=Normal, 1=Verbose, 2=Pin Values)
-    if (settings.log_level < 0) settings.log_level = 0;
-    if (settings.log_level > 2) settings.log_level = 2;
-
-    settings.movement_mm_per_pulse = doc.containsKey("movement_mm_per_pulse")
-                                         ? doc["movement_mm_per_pulse"].as<float>()
-                                         : 2.88f;  // Correct sensor spec
-    settings.detection_grace_period_ms = doc.containsKey("detection_grace_period_ms")
-                                             ? doc["detection_grace_period_ms"].as<int>()
-                                             : 8000;  // Default 8000ms
-    // Keep purge_filament_mm in settings for potential future use, but don't expose getters/setters
-    settings.purge_filament_mm = doc.containsKey("purge_filament_mm")
-                                     ? doc["purge_filament_mm"].as<float>()
-                                     : 47.0f;
-    settings.detection_ratio_threshold = doc.containsKey("detection_ratio_threshold")
-                                             ? doc["detection_ratio_threshold"].as<float>()
-                                             : 0.25f;  // Default 25% passing deficit
-    settings.detection_hard_jam_mm = doc.containsKey("detection_hard_jam_mm")
-                                         ? doc["detection_hard_jam_mm"].as<float>()
-                                         : 5.0f;  // Default 5mm
-    settings.detection_soft_jam_time_ms = doc.containsKey("detection_soft_jam_time_ms")
-                                              ? doc["detection_soft_jam_time_ms"].as<int>()
-                                              : 10000;  // Default 10 seconds
-    settings.detection_hard_jam_time_ms = doc.containsKey("detection_hard_jam_time_ms")
-                                              ? doc["detection_hard_jam_time_ms"].as<int>()
-                                              : 5000;  // Default 5 seconds
-    settings.auto_calibrate_sensor = doc.containsKey("auto_calibrate_sensor")
-                                         ? doc["auto_calibrate_sensor"].as<bool>()
-                                         : false;  // Default disabled
-    settings.test_recording_mode = doc.containsKey("test_recording_mode")
-                                       ? doc["test_recording_mode"].as<bool>()
-                                       : false;  // Default disabled
+    if (settings.log_level < 0)
+    {
+        settings.log_level = 0;
+    }
+    else if (settings.log_level > 2)
+    {
+        settings.log_level = 2;
+    }
 
     // Update logger with loaded log level
-    logger.setLogLevel((LogLevel)settings.log_level);
+    logger.setLogLevel(static_cast<LogLevel>(settings.log_level));
 
     isLoaded = true;
     return true;
@@ -485,39 +643,13 @@ void SettingsManager::setTestRecordingMode(bool enabled)
 
 String SettingsManager::toJson(bool includePassword)
 {
-    String                   output;
-    output.reserve(1536);  // Pre-allocate to prevent fragmentation
-    // JSON allocation: 1536 bytes stack (increased from 800 for expanded settings)
-    // With 28+ fields, ArduinoJson needs ~900-1200 bytes
-    // Last measured: 2025-11-26
-    // See: .claude/hardcoded-allocations.md for maintenance notes
-    StaticJsonDocument<1536> doc;
+    String output;
+    output.reserve(SETTINGS_JSON_CAPACITY);
 
-    doc["ap_mode"]             = settings.ap_mode;
-    doc["ssid"]                = settings.ssid;
-    doc["elegooip"]            = settings.elegooip;
-    doc["pause_on_runout"]     = settings.pause_on_runout;
-    doc["start_print_timeout"] = settings.start_print_timeout;
-    doc["enabled"]             = settings.enabled;
-    doc["has_connected"]       = settings.has_connected;
-    doc["detection_grace_period_ms"]  = settings.detection_grace_period_ms;
-    doc["purge_filament_mm"]          = settings.purge_filament_mm;  // Keep for future use
-    doc["detection_ratio_threshold"]  = settings.detection_ratio_threshold;
-    doc["detection_hard_jam_mm"]      = settings.detection_hard_jam_mm;
-    doc["detection_soft_jam_time_ms"] = settings.detection_soft_jam_time_ms;
-    doc["detection_hard_jam_time_ms"] = settings.detection_hard_jam_time_ms;
-    doc["sdcp_loss_behavior"]         = settings.sdcp_loss_behavior;
-    doc["flow_telemetry_stale_ms"]    = settings.flow_telemetry_stale_ms;
-    doc["ui_refresh_interval_ms"]     = settings.ui_refresh_interval_ms;
-    doc["log_level"]                  = settings.log_level;  // Unified logging level
-    doc["suppress_pause_commands"]    = settings.suppress_pause_commands;
-    doc["movement_mm_per_pulse"]      = settings.movement_mm_per_pulse;
-    doc["auto_calibrate_sensor"]      = settings.auto_calibrate_sensor;
-    doc["test_recording_mode"]        = settings.test_recording_mode;
-
-    if (includePassword)
+    StaticJsonDocument<SETTINGS_JSON_CAPACITY> doc;
+    for (const auto& field : kSettingFields)
     {
-        doc["passwd"] = settings.passwd;
+        serializeField(field, doc, settings, includePassword);
     }
 
     serializeJson(doc, output);
@@ -526,10 +658,13 @@ String SettingsManager::toJson(bool includePassword)
     if (getLogLevel() >= LOG_PIN_VALUES)
     {
         size_t actualSize = measureJson(doc);
-        if (actualSize > 1305)  // >85% of 1536 bytes
+        size_t warnThreshold = static_cast<size_t>(SETTINGS_JSON_CAPACITY * 0.85f);
+        if (actualSize > warnThreshold)
         {
-            logger.logf(LOG_PIN_VALUES, "SettingsManager toJson size: %zu / 1536 bytes (%.1f%%)",
-                       actualSize, (actualSize * 100.0f / 1536.0f));
+            logger.logf(LOG_PIN_VALUES,
+                        "SettingsManager toJson size: %zu / %u bytes (%.1f%%)",
+                        actualSize, (unsigned)SETTINGS_JSON_CAPACITY,
+                        (actualSize * 100.0f / SETTINGS_JSON_CAPACITY));
         }
     }
 

@@ -72,7 +72,6 @@ class Logger
     void logVerbose(const char *format, ...);
     void logPinValues(const char *format, ...);
 
-    String getLogsAsJson();
     String getLogsAsText();
     String getLogsAsText(int maxEntries);
     void   clearLogs();

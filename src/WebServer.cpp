@@ -7,6 +7,23 @@
 
 #define SPIFFS LittleFS
 
+namespace
+{
+constexpr const char kRouteGetSettings[]      = "/get_settings";
+constexpr const char kRouteUpdateSettings[]   = "/update_settings";
+constexpr const char kRouteTestCancel[]       = "/test_cancel";
+constexpr const char kRouteDiscoverPrinter[]  = "/discover_printer";
+constexpr const char kRouteSensorStatus[]     = "/sensor_status";
+constexpr const char kRouteLogsText[]         = "/api/logs_text";
+constexpr const char kRouteLogsLive[]         = "/api/logs_live";
+constexpr const char kRouteVersion[]          = "/version";
+constexpr const char kRouteStatusEvents[]     = "/status_events";
+constexpr const char kRouteLiteRoot[]         = "/lite";
+constexpr const char kRouteFavicon[]          = "/favicon.ico";
+constexpr const char kRouteRoot[]             = "/";
+constexpr const char kLiteIndexPath[]         = "/lite/index.htm";
+}  // namespace
+
 // External reference to firmware version from main.cpp
 extern const char *firmwareVersion;
 extern const char *chipFamily;
@@ -63,14 +80,14 @@ String getBuildVersion() {
     return version.length() > 0 ? version : "0.0.0";
 }
 
-WebServer::WebServer(int port) : server(port), statusEvents("/status_events") {}
+WebServer::WebServer(int port) : server(port), statusEvents(kRouteStatusEvents) {}
 
 void WebServer::begin()
 {
     server.begin();
 
     // Get settings endpoint
-    server.on("/get_settings", HTTP_GET,
+    server.on(kRouteGetSettings, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
                   String jsonResponse = settingsManager.toJson(false);
@@ -78,7 +95,7 @@ void WebServer::begin()
               });
 
     server.addHandler(new AsyncCallbackJsonWebHandler(
-        "/update_settings",
+        kRouteUpdateSettings,
         [this](AsyncWebServerRequest *request, JsonVariant &json)
         {
             JsonObject jsonObj = json.as<JsonObject>();
@@ -166,14 +183,14 @@ void WebServer::begin()
             request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
 
-    server.on("/test_cancel", HTTP_POST,
+    server.on(kRouteTestCancel, HTTP_POST,
               [](AsyncWebServerRequest *request)
               {
                   elegooCC.pausePrint();
                   request->send(200, "text/plain", "ok");
               });
 
-    server.on("/discover_printer", HTTP_GET,
+    server.on(kRouteDiscoverPrinter, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
                   String ip;
@@ -207,7 +224,7 @@ void WebServer::begin()
     server.addHandler(&statusEvents);
 
     // Sensor status endpoint
-    server.on("/sensor_status", HTTP_GET,
+    server.on(kRouteSensorStatus, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
                   printer_info_t elegooStatus = elegooCC.getCurrentInformation();
@@ -249,7 +266,7 @@ void WebServer::begin()
     //           });
 
     // Raw text logs endpoint (full logs for download)
-    server.on("/api/logs_text", HTTP_GET,
+    server.on(kRouteLogsText, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
                   String textResponse = logger.getLogsAsText();
@@ -260,7 +277,7 @@ void WebServer::begin()
               });
 
     // Live logs endpoint (last 100 entries for UI display)
-    server.on("/api/logs_live", HTTP_GET,
+    server.on(kRouteLogsLive, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
                   String textResponse = logger.getLogsAsText(100);  // Only last 100 entries
@@ -268,7 +285,7 @@ void WebServer::begin()
               });
 
     // Version endpoint
-    server.on("/version", HTTP_GET,
+    server.on(kRouteVersion, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
                   // Use BUILD_DATE and BUILD_TIME if set by build script, otherwise fall back to __DATE__ and __TIME__
@@ -296,13 +313,13 @@ void WebServer::begin()
 
     // Serve lightweight UI from /lite (if available)
     // Keep explicit /lite path for backwards compatibility
-    server.serveStatic("/lite", SPIFFS, "/lite/").setDefaultFile("index.htm");
+    server.serveStatic(kRouteLiteRoot, SPIFFS, "/lite/").setDefaultFile("index.htm");
 
     // Serve favicon explicitly because the root static handler only matches "/".
-    server.serveStatic("/favicon.ico", SPIFFS, "/lite/favicon.ico");
+    server.serveStatic(kRouteFavicon, SPIFFS, "/lite/favicon.ico");
 
     // Always serve the lightweight UI at the root as well.
-    server.serveStatic("/", SPIFFS, "/lite/").setDefaultFile("index.htm");
+    server.serveStatic(kRouteRoot, SPIFFS, "/lite/").setDefaultFile("index.htm");
 
     // SPA-style routing: for any unknown GET that isn't an API or asset,
     // serve index.htm so that the frontend router can handle the path.
@@ -311,7 +328,7 @@ void WebServer::begin()
             !request->url().startsWith("/api/") &&
             !request->url().startsWith("/assets/"))
         {
-            request->send(SPIFFS, "/lite/index.htm", "text/html");
+            request->send(SPIFFS, kLiteIndexPath, "text/html");
         }
         else
         {

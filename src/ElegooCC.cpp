@@ -6,20 +6,55 @@
 
 #include "FilamentMotionSensor.h"
 #include "Logger.h"
+#include "SDCPProtocol.h"
 #include "SettingsManager.h"
 
-#define ACK_TIMEOUT_MS 5000
-constexpr float        DEFAULT_FILAMENT_DEFICIT_THRESHOLD_MM = 8.4f;
-constexpr unsigned int EXPECTED_FILAMENT_SAMPLE_MS           = 1000;  // Log max once per second to prevent heap exhaustion
-constexpr unsigned int EXPECTED_FILAMENT_STALE_MS            = 1000;
-constexpr unsigned int SDCP_LOSS_TIMEOUT_MS                  = 10000;
-constexpr unsigned int PAUSE_REARM_DELAY_MS                  = 3000;
-static const char*     TOTAL_EXTRUSION_HEX_KEY       = "54 6F 74 61 6C 45 78 74 72 75 73 69 6F 6E 00";
-static const char*     CURRENT_EXTRUSION_HEX_KEY =
-    "43 75 72 72 65 6E 74 45 78 74 72 75 73 69 6F 6E 00";
+#define ACK_TIMEOUT_MS SDCPTiming::ACK_TIMEOUT_MS
+constexpr float        DEFAULT_FILAMENT_DEFICIT_THRESHOLD_MM = SDCPDefaults::FILAMENT_DEFICIT_THRESHOLD_MM;
+constexpr unsigned int EXPECTED_FILAMENT_SAMPLE_MS           = SDCPTiming::EXPECTED_FILAMENT_SAMPLE_MS;  // Log max once per second to prevent heap exhaustion
+constexpr unsigned int EXPECTED_FILAMENT_STALE_MS            = SDCPTiming::EXPECTED_FILAMENT_STALE_MS;
+constexpr unsigned int SDCP_LOSS_TIMEOUT_MS                  = SDCPTiming::SDCP_LOSS_TIMEOUT_MS;
+constexpr unsigned int PAUSE_REARM_DELAY_MS                  = SDCPTiming::PAUSE_REARM_DELAY_MS;
+static const char*     TOTAL_EXTRUSION_HEX_KEY       = SDCPKeys::TOTAL_EXTRUSION_HEX;
+static const char*     CURRENT_EXTRUSION_HEX_KEY     = SDCPKeys::CURRENT_EXTRUSION_HEX;
 // UDP discovery port used by the Elegoo SDCP implementation (matches the
 // Home Assistant integration and printer firmware).
 static const uint16_t  SDCP_DISCOVERY_PORT = 3000;
+
+namespace
+{
+JamConfig buildJamConfigFromSettings()
+{
+    JamConfig config;
+    config.ratioThreshold = settingsManager.getDetectionRatioThreshold();
+    if (config.ratioThreshold <= 0.0f || config.ratioThreshold > 1.0f)
+    {
+        config.ratioThreshold = 0.70f;
+    }
+
+    config.hardJamMm = settingsManager.getDetectionHardJamMm();
+    if (config.hardJamMm <= 0.0f)
+    {
+        config.hardJamMm = 5.0f;
+    }
+
+    config.softJamTimeMs = settingsManager.getDetectionSoftJamTimeMs();
+    if (config.softJamTimeMs <= 0)
+    {
+        config.softJamTimeMs = 3000;
+    }
+
+    config.hardJamTimeMs = settingsManager.getDetectionHardJamTimeMs();
+    if (config.hardJamTimeMs <= 0)
+    {
+        config.hardJamTimeMs = 2000;
+    }
+
+    config.graceTimeMs    = settingsManager.getDetectionGracePeriodMs();
+    config.startTimeoutMs = settingsManager.getStartPrintTimeout();
+    return config;
+}
+}  // namespace
 
 // External function to get current time (from main.cpp)
 extern unsigned long getTime();
@@ -46,42 +81,42 @@ ElegooCC::ElegooCC()
     PrintSpeedPct     = 0;
     filamentStopped   = false;
     filamentRunout    = false;
-    lastPing          = 0;
-    expectedFilamentMM         = 0;
-    actualFilamentMM           = 0;
-    lastExpectedDeltaMM        = 0;
-    expectedTelemetryAvailable = false;
-    lastSuccessfulTelemetryMs  = 0;
-    lastTelemetryReceiveMs     = 0;
-    lastStatusReceiveMs          = 0;
-    telemetryAvailableLastStatus = false;
-    movementPulseCount           = 0;
-    lastFlowLogMs                = 0;
-    lastSummaryLogMs             = 0;
-    lastPinDebugLogMs            = 0;
-    lastLoggedExpected           = -1.0f;
-    lastLoggedActual             = -1.0f;
-    lastLoggedDeficit            = -1.0f;
-    lastLoggedPrintStatus        = -1;
-    lastLoggedLayer              = -1;
-    lastLoggedTotalLayer         = -1;
-    trackingFrozen               = false;
+    transport.lastPing            = 0;
+    transport.waitingForAck       = false;
+    transport.pendingAckCommand   = -1;
+    transport.pendingAckRequestId = "";
+    transport.ackWaitStartTime    = 0;
+    transport.lastStatusRequestMs = 0;
+    expectedFilamentMM            = 0;
+    actualFilamentMM              = 0;
+    lastExpectedDeltaMM           = 0;
+    expectedTelemetryAvailable    = false;
+    lastSuccessfulTelemetryMs     = 0;
+    lastTelemetryReceiveMs        = 0;
+    lastStatusReceiveMs           = 0;
+    telemetryAvailableLastStatus  = false;
+    movementPulseCount            = 0;
+    lastFlowLogMs                 = 0;
+    lastSummaryLogMs              = 0;
+    lastPinDebugLogMs             = 0;
+    lastLoggedExpected            = -1.0f;
+    lastLoggedActual              = -1.0f;
+    lastLoggedDeficit             = -1.0f;
+    lastLoggedPrintStatus         = -1;
+    lastLoggedLayer               = -1;
+    lastLoggedTotalLayer          = -1;
+    trackingFrozen                = false;
     motionSensor.reset();
 
-    waitingForAck       = false;
-    pendingAckCommand   = -1;
-    pendingAckRequestId = "";
-    ackWaitStartTime    = 0;
-    lastPauseRequestMs  = 0;
-    lastStatusRequestMs = 0;
-    lastPrintEndMs      = 0;
+    lastPauseRequestMs = 0;
+    lastPrintEndMs     = 0;
 
     // TODO: send a UDP broadcast, M99999 on Port 30000, maybe using AsyncUDP.h and listen for the
     // result. this will give us the printer IP address.
 
     // event handler - use lambda to capture 'this' pointer
-    webSocket.onEvent([this](WStype_t type, uint8_t *payload, size_t length)
-                      { this->webSocketEvent(type, payload, length); });
+    transport.webSocket.onEvent([this](WStype_t type, uint8_t *payload, size_t length)
+                                { this->webSocketEvent(type, payload, length); });
 }
 
 void ElegooCC::setup()
@@ -100,10 +135,10 @@ void ElegooCC::webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
         case WStype_DISCONNECTED:
             logger.log("Disconnected from Centauri Carbon");
             // Reset acknowledgment state on disconnect
-            waitingForAck       = false;
-            pendingAckCommand   = -1;
-            pendingAckRequestId = "";
-            ackWaitStartTime    = 0;
+            transport.waitingForAck       = false;
+            transport.pendingAckCommand   = -1;
+            transport.pendingAckRequestId = "";
+            transport.ackWaitStartTime    = 0;
             break;
         case WStype_CONNECTED:
             logger.log("Connected to Carbon Centauri");
@@ -112,12 +147,8 @@ void ElegooCC::webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
             break;
         case WStype_TEXT:
         {
-            // JSON allocation: 1200 bytes heap (was 2048 stack)
-            // Measured actual: ~1100 bytes (91% utilization)
-            // Last measured: 2025-11-26
-            // See: .claude/hardcoded-allocations.md for maintenance notes
-            DynamicJsonDocument doc(1200);
-            DeserializationError error = deserializeJson(doc, payload);
+            messageDoc.clear();
+            DeserializationError error = deserializeJson(messageDoc, payload, length);
 
             if (error)
             {
@@ -126,14 +157,14 @@ void ElegooCC::webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
             }
 
             // Check if this is a command acknowledgment response
-            if (doc.containsKey("Id") && doc.containsKey("Data"))
+            if (messageDoc.containsKey("Id") && messageDoc.containsKey("Data"))
             {
-                handleCommandResponse(doc);
+                handleCommandResponse(messageDoc);
             }
             // Check if this is a status response
-            else if (doc.containsKey("Status"))
+            else if (messageDoc.containsKey("Status"))
             {
-                handleStatus(doc);
+                handleStatus(messageDoc);
             }
         }
         break;
@@ -166,13 +197,14 @@ void ElegooCC::handleCommandResponse(JsonDocument &doc)
 
         // Only log acknowledgments for commands we're actively waiting for
         // (skip STATUS commands to avoid log spam - they're sent every 250ms)
-        if (waitingForAck && cmd == pendingAckCommand && requestId == pendingAckRequestId)
+        if (transport.waitingForAck && cmd == transport.pendingAckCommand &&
+            requestId == transport.pendingAckRequestId)
         {
             logger.logf("Received acknowledgment for command %d (Ack: %d)", cmd, ack);
-            waitingForAck       = false;
-            pendingAckCommand   = -1;
-            pendingAckRequestId = "";
-            ackWaitStartTime    = 0;
+            transport.waitingForAck       = false;
+            transport.pendingAckCommand   = -1;
+            transport.pendingAckRequestId = "";
+            transport.ackWaitStartTime    = 0;
         }
 
         // Store mainboard ID if we don't have it yet
@@ -518,7 +550,7 @@ void ElegooCC::pausePrint()
         logger.logf("Pause command suppressed (suppress_pause_commands enabled)");
         return;
     }
-    if (!webSocket.isConnected())
+    if (!transport.webSocket.isConnected())
     {
         logger.logf("Pause command suppressed: printer websocket not connected");
         return;
@@ -537,17 +569,17 @@ void ElegooCC::continuePrint()
 
 void ElegooCC::sendCommand(int command, bool waitForAck)
 {
-    if (!webSocket.isConnected())
+    if (!transport.webSocket.isConnected())
     {
         logger.logf("Can't send command, websocket not connected: %d", command);
         return;
     }
 
     // If this command requires an ack and we're already waiting for one, skip it
-    if (waitForAck && waitingForAck)
+    if (waitForAck && transport.waitingForAck)
     {
         logger.logf("Skipping command %d - already waiting for ack from command %d", command,
-                    pendingAckCommand);
+                    transport.pendingAckCommand);
         return;
     }
 
@@ -558,80 +590,44 @@ void ElegooCC::sendCommand(int command, bool waitForAck)
     // Get current timestamp
     unsigned long timestamp = getTime();
 
-    // JSON allocation: 384 bytes stack (was 512 bytes)
-    // Measured actual: ~280 bytes (73% utilization, 27% margin)
-    // Last measured: 2025-11-26
-    // See: .claude/hardcoded-allocations.md for maintenance notes
-    StaticJsonDocument<384> doc;
-    doc["Id"] = uuidStr;
-    JsonObject data = doc.createNestedObject("Data");
-    data["Cmd"]     = command;
-    data["RequestID"]   = uuidStr;
-    data["MainboardID"] = mainboardID;
-    data["TimeStamp"]   = timestamp;
-    // Match the Home Assistant integration's client identity for SDCP commands.
-    // From = 0 is used there and is known to work reliably for pause/stop.
-    data["From"] = 0;
-
-    // Explicit empty Data object (matches existing payload structure)
-    data.createNestedObject("Data");
-
-    // Include current SDCP print and machine status, mirroring the status payload fields.
-    data["PrintStatus"] = static_cast<int>(printStatus);
-    JsonArray currentStatus = data.createNestedArray("CurrentStatus");
-    for (int s = 0; s <= 4; ++s)
+    // Reuse shared message document for outbound SDCP commands
+    messageDoc.clear();
+    if (!SDCPProtocol::buildCommandMessage(messageDoc,
+                                           command,
+                                           uuidStr,
+                                           mainboardID,
+                                           timestamp,
+                                           static_cast<int>(printStatus),
+                                           machineStatusMask))
     {
-        if (hasMachineStatus(static_cast<sdcp_machine_status_t>(s)))
-        {
-            currentStatus.add(s);
-        }
-    }
-
-    // When we know the MainboardID, include a Topic field that matches the
-    // "sdcp/request/<MainboardID>" pattern used by the Elegoo HA integration.
-    if (!mainboardID.isEmpty())
-    {
-        String topic = "sdcp/request/";
-        topic += mainboardID;
-        doc["Topic"] = topic;
+        logger.logf("Failed to build SDCP command %d: JSON document too small", command);
+        return;
     }
 
     String jsonPayload;
-    jsonPayload.reserve(384);  // Pre-allocate to prevent fragmentation
-    serializeJson(doc, jsonPayload);
-
-    // Pin Values level: Check if approaching allocation limit
-    if (settingsManager.getLogLevel() >= LOG_PIN_VALUES)
-    {
-        size_t actualSize = measureJson(doc);
-        if (actualSize > 326)  // >85% of 384 bytes
-        {
-            logger.logf(LOG_PIN_VALUES, "ElegooCC sendCommand JSON size: %zu / 384 bytes (%.1f%%)",
-                       actualSize, (actualSize * 100.0f / 384.0f));
-        }
-    }
+    serializeJson(messageDoc, jsonPayload);
 
     // If this command requires an ack, set the tracking state
     if (waitForAck)
     {
-        waitingForAck       = true;
-        pendingAckCommand   = command;
-        pendingAckRequestId = uuidStr;
-        ackWaitStartTime    = millis();
+        transport.waitingForAck       = true;
+        transport.pendingAckCommand   = command;
+        transport.pendingAckRequestId = uuidStr;
+        transport.ackWaitStartTime    = millis();
         logger.logf("Waiting for acknowledgment for command %d with request ID %s", command,
                     uuidStr.c_str());
     }
 
-    webSocket.sendTXT(jsonPayload);
+    transport.webSocket.sendTXT(jsonPayload);
     if (command == SDCP_COMMAND_STATUS)
     {
-        lastStatusRequestMs = millis();
+        transport.lastStatusRequestMs = millis();
     }
 }
 
 void ElegooCC::maybeRequestStatus(unsigned long currentTime)
 {
-    if (!webSocket.isConnected())
+    if (!transport.webSocket.isConnected())
     {
         return;
     }
@@ -664,7 +660,8 @@ void ElegooCC::maybeRequestStatus(unsigned long currentTime)
         interval = STATUS_IDLE_INTERVAL_MS;  // 10000ms
     }
 
-    if (lastStatusRequestMs == 0 || currentTime - lastStatusRequestMs >= interval)
+    if (transport.lastStatusRequestMs == 0 ||
+        currentTime - transport.lastStatusRequestMs >= interval)
     {
         sendCommand(SDCP_COMMAND_STATUS);
     }
@@ -672,48 +669,51 @@ void ElegooCC::maybeRequestStatus(unsigned long currentTime)
 
 void ElegooCC::connect()
 {
-    if (webSocket.isConnected())
+    if (transport.webSocket.isConnected())
     {
-        webSocket.disconnect();
+        transport.webSocket.disconnect();
     }
-    webSocket.setReconnectInterval(3000);
-    ipAddress = settingsManager.getElegooIP();
-    logger.logf("Attempting connection to Elegoo CC @ %s", ipAddress.c_str());
-    webSocket.begin(ipAddress, CARBON_CENTAURI_PORT, "/websocket");
+    transport.webSocket.setReconnectInterval(3000);
+    transport.ipAddress = settingsManager.getElegooIP();
+    logger.logf("Attempting connection to Elegoo CC @ %s", transport.ipAddress.c_str());
+    transport.webSocket.begin(transport.ipAddress, CARBON_CENTAURI_PORT, "/websocket");
+}
+
+void ElegooCC::updateTransport(unsigned long currentTime)
+{
+    if (transport.ipAddress != settingsManager.getElegooIP())
+    {
+        connect();  // reconnect if configuration changed
+    }
+
+    if (transport.webSocket.isConnected())
+    {
+        if (transport.waitingForAck &&
+            (currentTime - transport.ackWaitStartTime) >= ACK_TIMEOUT_MS)
+        {
+            logger.logf("Acknowledgment timeout for command %d, resetting ack state",
+                        transport.pendingAckCommand);
+            transport.waitingForAck       = false;
+            transport.pendingAckCommand   = -1;
+            transport.pendingAckRequestId = "";
+            transport.ackWaitStartTime    = 0;
+        }
+        else if (currentTime - transport.lastPing > 29900)
+        {
+            // Keepalive ping every ~30s (sendPing() on this stack is unreliable)
+            transport.webSocket.sendTXT("ping");
+            transport.lastPing = currentTime;
+        }
+    }
+
+    transport.webSocket.loop();
 }
 
 void ElegooCC::loop()
 {
     unsigned long currentTime = millis();
 
-    // websocket IP changed, reconnect
-    if (ipAddress != settingsManager.getElegooIP())
-    {
-        connect();  // this will reconnnect if already connected
-    }
-
-    if (webSocket.isConnected())
-    {
-        // Check for acknowledgment timeout (5 seconds)
-        // TODO: need to check the actual requestId
-        if (waitingForAck && (currentTime - ackWaitStartTime) >= ACK_TIMEOUT_MS)
-        {
-            logger.logf("Acknowledgment timeout for command %d, resetting ack state",
-                        pendingAckCommand);
-            waitingForAck       = false;
-            pendingAckCommand   = -1;
-            pendingAckRequestId = "";
-            ackWaitStartTime    = 0;
-        }
-        else if (currentTime - lastPing > 29900)
-        {
-            // Keepalive ping every 30 seconds - no need to log, only log actual disconnects
-            // For all who venture to this line of code wondering why I didn't use sendPing(), it's
-            // because for some reason that doesn't work. but this does!
-            this->webSocket.sendTXT("ping");
-            lastPing = currentTime;
-        }
-    }
+    updateTransport(currentTime);
 
     // Check filament sensors before determining if we should pause
     checkFilamentMovement(currentTime);
@@ -727,8 +727,6 @@ void ElegooCC::loop()
     }
 
     maybeRequestStatus(currentTime);
-
-    webSocket.loop();
 }
 
 void ElegooCC::checkFilamentRunout(unsigned long currentTime)
@@ -839,26 +837,7 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
         return;
     }
 
-    // Build jam configuration from settings
-    JamConfig jamConfig;
-    jamConfig.ratioThreshold = settingsManager.getDetectionRatioThreshold();
-    if (jamConfig.ratioThreshold <= 0.0f || jamConfig.ratioThreshold > 1.0f) {
-        jamConfig.ratioThreshold = 0.70f;  // Default 70% pass ratio threshold
-    }
-    jamConfig.hardJamMm = settingsManager.getDetectionHardJamMm();
-    if (jamConfig.hardJamMm <= 0.0f) {
-        jamConfig.hardJamMm = 5.0f;  // Default 5mm
-    }
-    jamConfig.softJamTimeMs = settingsManager.getDetectionSoftJamTimeMs();
-    if (jamConfig.softJamTimeMs <= 0) {
-        jamConfig.softJamTimeMs = 3000;  // Default 3 seconds
-    }
-    jamConfig.hardJamTimeMs = settingsManager.getDetectionHardJamTimeMs();
-    if (jamConfig.hardJamTimeMs <= 0) {
-        jamConfig.hardJamTimeMs = 2000;  // Default 2 seconds
-    }
-    jamConfig.graceTimeMs = settingsManager.getDetectionGracePeriodMs();
-    jamConfig.startTimeoutMs = settingsManager.getStartPrintTimeout();
+    const JamConfig jamConfig = buildJamConfigFromSettings();
 
     // Get windowed distances from motion sensor
     float expectedDistance = motionSensor.getExpectedDistance();
@@ -924,7 +903,7 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
     bool           sdcpLoss      = false;
     unsigned long  lastSuccessMs = lastSuccessfulTelemetryMs;
     int            lossBehavior  = settingsManager.getSdcpLossBehavior();
-    if (webSocket.isConnected() && isPrinting() && lastSuccessMs > 0 &&
+    if (transport.webSocket.isConnected() && isPrinting() && lastSuccessMs > 0 &&
         (currentTime - lastSuccessMs) > SDCP_LOSS_TIMEOUT_MS)
     {
         sdcpLoss = true;
@@ -943,7 +922,7 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
     }
 
     if (currentTime - startedAt < settingsManager.getStartPrintTimeout() ||
-        !webSocket.isConnected() || waitingForAck || !isPrinting() ||
+        !transport.webSocket.isConnected() || transport.waitingForAck || !isPrinting() ||
         !pauseCondition ||
         (lastPauseRequestMs != 0 && (currentTime - lastPauseRequestMs) < PAUSE_REARM_DELAY_MS))
     {
@@ -1020,9 +999,9 @@ printer_info_t ElegooCC::getCurrentInformation()
     info.currentTicks         = currentTicks;
     info.totalTicks           = totalTicks;
     info.PrintSpeedPct        = PrintSpeedPct;
-    info.isWebsocketConnected = webSocket.isConnected();
+    info.isWebsocketConnected = transport.webSocket.isConnected();
     info.currentZ             = currentZ;
-    info.waitingForAck        = waitingForAck;
+    info.waitingForAck        = transport.waitingForAck;
     info.expectedFilamentMM   = expectedFilamentMM;
     info.actualFilamentMM     = actualFilamentMM;
     info.lastExpectedDeltaMM  = lastExpectedDeltaMM;

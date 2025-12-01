@@ -192,63 +192,6 @@ void Logger::logPinValues(const char *format, ...)
     logInternal(buffer, LOG_PIN_VALUES);
 }
 
-String Logger::getLogsAsJson()
-{
-    DynamicJsonDocument jsonDoc(32768);  // Allocate space for expanded log buffer
-    JsonArray           logsArray = jsonDoc.createNestedArray("logs");
-
-    if (logCapacity == 0 || logBuffer == nullptr)
-    {
-        String jsonResponse;
-        serializeJson(jsonDoc, jsonResponse);
-        return jsonResponse;
-    }
-
-    int count = totalEntries;
-    if (count == 0)
-    {
-        String jsonResponse;
-        serializeJson(jsonDoc, jsonResponse);
-        return jsonResponse;
-    }
-
-    // Limit to MAX_RETURNED_LOG_ENTRIES
-    int  returnCount = count;
-    bool truncated   = false;
-    if (returnCount > MAX_RETURNED_LOG_ENTRIES)
-    {
-        returnCount = MAX_RETURNED_LOG_ENTRIES;
-        truncated   = true;
-    }
-
-    // If we have less than logCapacity entries, start from 0
-    // Otherwise, start from currentIndex (oldest entry)
-    int startIndex = (count < logCapacity) ? 0 : currentIndex;
-
-    // If we're truncating, skip to the most recent entries
-    if (count > returnCount)
-    {
-        startIndex = (startIndex + (count - returnCount)) % logCapacity;
-    }
-
-    for (int i = 0; i < returnCount; i++)
-    {
-        int bufferIndex = (startIndex + i) % logCapacity;
-
-        JsonObject logEntry      = logsArray.createNestedObject();
-        logEntry["uuid"]         = logBuffer[bufferIndex].uuid;
-        logEntry["timestamp"]    = logBuffer[bufferIndex].timestamp;
-        logEntry["message"]      = logBuffer[bufferIndex].message;
-        logEntry["level"]        = (int)logBuffer[bufferIndex].level;
-    }
-
-    jsonDoc["truncated"] = truncated;
-
-    String jsonResponse;
-    serializeJson(jsonDoc, jsonResponse);
-    return jsonResponse;
-}
-
 String Logger::getLogsAsText()
 {
     return getLogsAsText(MAX_RETURNED_LOG_ENTRIES);

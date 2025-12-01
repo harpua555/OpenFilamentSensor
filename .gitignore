@@ -23,3 +23,5 @@ test/nul
 data/.version
 CLAUDE.md
 .codex
+docs/old
+doc/new

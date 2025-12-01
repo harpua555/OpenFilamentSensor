@@ -116,8 +116,18 @@ bool JamDetector::evaluateGraceState(unsigned long currentTimeMs, unsigned long 
 bool JamDetector::evaluateHardJam(float expectedDistance, float passRatio,
                                   bool newPulseSinceLastEval, unsigned long elapsedMs,
                                   const JamConfig& config) {
-    bool hardCondition = (expectedDistance >= MIN_HARD_WINDOW_MM) &&
-                        (passRatio < HARD_PASS_THRESHOLD);
+    // Use configurable hard jam window if provided, otherwise fall back
+    // to the built-in minimum window size.
+    float minHardWindow = (config.hardJamMm > 0.0f) ? config.hardJamMm : MIN_HARD_WINDOW_MM;
+
+    // Hard jam = essentially no movement over a sufficiently large window.
+    // Require both:
+    //  - expectedDistance above the configured hard jam window, and
+    //  - pass ratio below the hard jam threshold, and
+    //  - no new pulses since the last evaluation.
+    bool hardCondition = (expectedDistance >= minHardWindow) &&
+                         (passRatio < HARD_PASS_THRESHOLD) &&
+                         !newPulseSinceLastEval;
 
     if (hardCondition) {
         // Accumulate hard jam time
@@ -125,9 +135,10 @@ bool JamDetector::evaluateHardJam(float expectedDistance, float passRatio,
         if (hardJamAccumulatedMs > config.hardJamTimeMs) {
             hardJamAccumulatedMs = config.hardJamTimeMs;
         }
-    } else if (passRatio >= HARD_RECOVERY_RATIO ||
-               expectedDistance < (MIN_HARD_WINDOW_MM * 0.5f)) {
-        // Recovery: good flow or low expected distance
+    } else if (newPulseSinceLastEval ||
+               passRatio >= HARD_RECOVERY_RATIO ||
+               expectedDistance < (minHardWindow * 0.5f)) {
+        // Recovery: any new pulse, good flow, or low expected distance
         hardJamAccumulatedMs = 0;
     }
 

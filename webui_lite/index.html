@@ -1513,7 +1513,7 @@
                     <div class="form-group">
                         <label class="form-label">Soft Jam Ratio Threshold (%)</label>
                         <input type="number" class="form-input" id="detection_ratio_threshold" value="${(currentSettings.detection_ratio_threshold * 100 || 25)}" min="5" max="50">
-                        <p class="form-help">Percentage of expected filament movement that must actually occur to be considered normal. For example, 25% means if only 25% of expected filament moves through the sensor (75% deficit), a soft jam is triggered after the time threshold. Lower = more sensitive.</p>
+                        <p class="form-help">Percentage of expected filament movement that must actually occur to be considered normal. For example, 60% means if flow drops below 60% of expected for longer than the soft jam time threshold, a soft jam is triggered. Higher = more sensitive (warns on smaller deficits); lower = more tolerant (only severe under-extrusion triggers).</p>
                     </div>
 
                     <div class="form-group">

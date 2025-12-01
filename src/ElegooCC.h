@@ -7,6 +7,7 @@
 
 #include "FilamentMotionSensor.h"
 #include "JamDetector.h"
+//#include "JamDetector_iface.h"
 #include "UUID.h"
 
 #define CARBON_CENTAURI_PORT 3030
@@ -163,6 +164,14 @@ class ElegooCC
     int           lastLoggedLayer;
     int           lastLoggedTotalLayer;
 
+    // Print start candidate tracking (to distinguish true job start
+    // from transient/attached PRINTING states)
+    bool          printCandidateActive;
+    bool          printCandidateSawHoming;
+    bool          printCandidateSawLeveling;
+    bool          printCandidateConditionsMet;
+    unsigned long printCandidateIdleSinceMs;
+
     // Tracking state (for UI freeze on pause)
     bool          trackingFrozen;
 
@@ -186,6 +195,13 @@ class ElegooCC
     void handleCommandResponse(JsonDocument &doc);
     void handleStatus(JsonDocument &doc);
     void sendCommand(int command, bool waitForAck = false);
+
+    // Helpers for print start detection
+    void clearPrintStartCandidate();
+    void updatePrintStartCandidate(sdcp_print_status_t previousStatus,
+                                   sdcp_print_status_t newStatus);
+    bool isPrintStartCandidateSatisfied() const;
+    void updatePrintStartCandidateTimeout(unsigned long currentTime);
    public:
     void pausePrint();
     void continuePrint();

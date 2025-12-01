@@ -66,6 +66,17 @@ ElegooCC &ElegooCC::getInstance()
     return instance;
 }
 
+namespace
+{
+bool isRestPrintStatus(sdcp_print_status_t status)
+{
+    return status == SDCP_PRINT_STATUS_IDLE ||
+           status == SDCP_PRINT_STATUS_COMPLETE ||
+           status == SDCP_PRINT_STATUS_PAUSED ||
+           status == SDCP_PRINT_STATUS_STOPED;
+}
+}  // namespace
+
 ElegooCC::ElegooCC()
 {
     lastMovementValue = -1;
@@ -106,6 +117,11 @@ ElegooCC::ElegooCC()
     lastLoggedPrintStatus         = -1;
     lastLoggedLayer               = -1;
     lastLoggedTotalLayer          = -1;
+    printCandidateActive          = false;
+    printCandidateSawHoming       = false;
+    printCandidateSawLeveling     = false;
+    printCandidateConditionsMet   = false;
+    printCandidateIdleSinceMs     = 0;
     trackingFrozen                = false;
     motionSensor.reset();
 
@@ -259,6 +275,7 @@ void ElegooCC::handleStatus(JsonDocument &doc)
     {
         JsonObject          printInfo = status["PrintInfo"];
         sdcp_print_status_t newStatus = printInfo["Status"].as<sdcp_print_status_t>();
+        sdcp_print_status_t previousStatus = printStatus;
 
         // Any time we receive a well-formed PrintInfo block, treat SDCP
         // telemetry as available at the connection level, even if this
@@ -269,6 +286,9 @@ void ElegooCC::handleStatus(JsonDocument &doc)
 
         if (newStatus != printStatus)
         {
+            // Track preparation sequence for new-print detection.
+            updatePrintStartCandidate(previousStatus, newStatus);
+
             bool wasPrinting   = (printStatus == SDCP_PRINT_STATUS_PRINTING);
             bool isPrintingNow = (newStatus == SDCP_PRINT_STATUS_PRINTING);
 
@@ -296,19 +316,36 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                 }
                 else
                 {
-                    // Treat all other transitions into PRINTING as a new print.
-                    logger.log("Print status changed to printing");
-                    startedAt = statusTimestamp;
-                    resetFilamentTracking();
+                    // Treat transitions into PRINTING as a new print only after we
+                    // have observed a full preparation sequence (both leveling and
+                    // homing) starting from a resting state.
+                    if (isPrintStartCandidateSatisfied())
+                    {
+                        logger.log("Print status changed to printing");
+                        startedAt = statusTimestamp;
+                        resetFilamentTracking();
 
-                    // Log active settings for this print (excluding network config)
-                    logger.logf("Print settings: pulse=%.2fmm grace=%dms ratio_thr=%.2f hard_jam=%.1fmm soft_time=%dms hard_time=%dms",
-                               settingsManager.getMovementMmPerPulse(),
-                               settingsManager.getDetectionGracePeriodMs(),
-                               settingsManager.getDetectionRatioThreshold(),
-                               settingsManager.getDetectionHardJamMm(),
-                               settingsManager.getDetectionSoftJamTimeMs(),
-                               settingsManager.getDetectionHardJamTimeMs());
+                        // Log active settings for this print (excluding network config)
+                        logger.logf(
+                            "Print settings: pulse=%.2fmm grace=%dms ratio_thr=%.2f hard_jam=%.1fmm soft_time=%dms hard_time=%dms",
+                            settingsManager.getMovementMmPerPulse(),
+                            settingsManager.getDetectionGracePeriodMs(),
+                            settingsManager.getDetectionRatioThreshold(),
+                            settingsManager.getDetectionHardJamMm(),
+                            settingsManager.getDetectionSoftJamTimeMs(),
+                            settingsManager.getDetectionHardJamTimeMs());
+
+                        // Once we have promoted this candidate to an active print,
+                        // clear the candidate flags so the next job starts fresh.
+                        clearPrintStartCandidate();
+                    }
+                    else if (settingsManager.getVerboseLogging())
+                    {
+                        logger.logf(
+                            "PRINTING entered without full prep sequence (prev=%d new=%d), "
+                            "deferring new-print detection",
+                            (int) previousStatus, (int) newStatus);
+                    }
                 }
             }
             else if (wasPrinting)
@@ -626,6 +663,144 @@ void ElegooCC::sendCommand(int command, bool waitForAck)
     }
 }
 
+void ElegooCC::clearPrintStartCandidate()
+{
+    printCandidateActive        = false;
+    printCandidateSawHoming     = false;
+    printCandidateSawLeveling   = false;
+    printCandidateConditionsMet = false;
+    printCandidateIdleSinceMs   = 0;
+}
+
+void ElegooCC::updatePrintStartCandidate(sdcp_print_status_t previousStatus,
+                                         sdcp_print_status_t newStatus)
+{
+    // Reset candidate tracking whenever we re-enter a resting state
+    // (idle, stopped, completed, or paused).
+    if (isRestPrintStatus(newStatus))
+    {
+        // Special-case IDLE: allow a short idle window before clearing the
+        // candidate so brief returns to idle during job prep don't discard
+        // the sequence. For other rest states, clear immediately.
+        if (printCandidateActive && newStatus == SDCP_PRINT_STATUS_IDLE)
+        {
+            if (printCandidateIdleSinceMs == 0)
+            {
+                printCandidateIdleSinceMs = millis();
+                if (settingsManager.getVerboseLogging())
+                {
+                    logger.log("Print start candidate entered IDLE state");
+                }
+            }
+        }
+        else
+        {
+            if (printCandidateActive && settingsManager.getVerboseLogging())
+            {
+                logger.logf("Print start candidate cleared due to rest status %d",
+                            (int) newStatus);
+            }
+            clearPrintStartCandidate();
+        }
+        return;
+    }
+
+    // Any non-rest status cancels the idle countdown.
+    printCandidateIdleSinceMs = 0;
+
+    // If we have already started a candidate sequence, update the
+    // "saw homing/leveling" flags as we observe those states.
+    if (printCandidateActive)
+    {
+        bool beforeHoming   = printCandidateSawHoming;
+        bool beforeLeveling = printCandidateSawLeveling;
+
+        if (newStatus == SDCP_PRINT_STATUS_HOMING)
+        {
+            printCandidateSawHoming = true;
+        }
+        else if (newStatus == SDCP_PRINT_STATUS_BED_LEVELING)
+        {
+            printCandidateSawLeveling = true;
+        }
+
+        bool nowConditionsMet = printCandidateSawHoming && printCandidateSawLeveling;
+        if (nowConditionsMet && !printCandidateConditionsMet)
+        {
+            printCandidateConditionsMet = true;
+            if (settingsManager.getVerboseLogging())
+            {
+                logger.log("Print start candidate conditions met (homing + leveling observed)");
+            }
+        }
+        return;
+    }
+
+    // Not currently tracking a candidate. Start one when we move out
+    // of a resting/stop state into a preparation state.
+    bool previousWasRestOrStopping = isRestPrintStatus(previousStatus) ||
+                                     previousStatus == SDCP_PRINT_STATUS_STOPPING;
+    if (!previousWasRestOrStopping)
+    {
+        return;
+    }
+
+    // Preparation states observed before a true new print: leveling,
+    // homing, heating, and a few unknown "prep-ish" codes.
+    bool isPrepState = (newStatus == SDCP_PRINT_STATUS_HOMING) ||
+                       (newStatus == SDCP_PRINT_STATUS_BED_LEVELING) ||
+                       (newStatus == SDCP_PRINT_STATUS_HEATING) ||
+                       (newStatus == SDCP_PRINT_STATUS_UNKNOWN_18) ||
+                       (newStatus == SDCP_PRINT_STATUS_UNKNOWN_19) ||
+                       (newStatus == SDCP_PRINT_STATUS_UNKNOWN_21);
+    if (!isPrepState)
+    {
+        return;
+    }
+
+    printCandidateActive        = true;
+    printCandidateSawHoming     = (newStatus == SDCP_PRINT_STATUS_HOMING);
+    printCandidateSawLeveling   = (newStatus == SDCP_PRINT_STATUS_BED_LEVELING);
+    printCandidateConditionsMet = printCandidateSawHoming && printCandidateSawLeveling;
+    printCandidateIdleSinceMs   = 0;
+
+    if (settingsManager.getVerboseLogging())
+    {
+        logger.logf("Print start candidate found (prev=%d new=%d)",
+                    (int) previousStatus, (int) newStatus);
+        if (printCandidateConditionsMet)
+        {
+            logger.log("Print start candidate conditions met (homing + leveling observed)");
+        }
+    }
+}
+
+bool ElegooCC::isPrintStartCandidateSatisfied() const
+{
+    // Require that we have seen both homing and bed leveling in this
+    // preparation sequence before treating PRINTING as a new job.
+    return printCandidateActive && printCandidateConditionsMet;
+}
+
+void ElegooCC::updatePrintStartCandidateTimeout(unsigned long currentTime)
+{
+    if (!printCandidateActive || printCandidateIdleSinceMs == 0)
+    {
+        return;
+    }
+
+    unsigned long elapsed = currentTime - printCandidateIdleSinceMs;
+    if (elapsed > 5000)
+    {
+        if (settingsManager.getVerboseLogging())
+        {
+            logger.logf("Print start candidate cleared after %lus of IDLE",
+                        elapsed / 1000UL);
+        }
+        clearPrintStartCandidate();
+    }
+}
+
 void ElegooCC::maybeRequestStatus(unsigned long currentTime)
 {
     if (!transport.webSocket.isConnected())
@@ -715,6 +890,7 @@ void ElegooCC::loop()
     unsigned long currentTime = millis();
 
     updateTransport(currentTime);
+    updatePrintStartCandidateTimeout(currentTime);
 
     // Check filament sensors before determining if we should pause
     checkFilamentMovement(currentTime);

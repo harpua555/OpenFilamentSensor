@@ -19,7 +19,8 @@ const selectors = {
     wifiStatus: document.getElementById('wifiPatchStatus'),
     wifiAcceptBtn: document.getElementById('wifiAcceptBtn'),
     wifiPatchDialog: document.getElementById('wifiPatchDialog'),
-    boardCount: document.getElementById('boardCount')
+    boardCount: document.getElementById('boardCount'),
+    boardNotes: document.getElementById('boardNotes')
 };
 
 const state = {
@@ -147,34 +148,40 @@ const renderBoards = () => {
 const applyVersioningToBoard = (board) => {
     if (!board) return board;
     if (!state.versioning) {
-        return { ...board, notes: Array.isArray(board.notes) ? board.notes : [] };
+        return {
+            ...board,
+            boardNotes: Array.isArray(board.notes) ? board.notes : []
+        };
     }
 
     const overrides = state.versioning.boards?.[board.id] || {};
-    const boardNotes = Array.isArray(overrides.release_notes) ? overrides.release_notes.filter(Boolean) : [];
-    const notes = [...state.versioning.releaseNotes, ...boardNotes];
+    const boardNotes = Array.isArray(overrides.release_notes)
+        ? overrides.release_notes.filter(Boolean)
+        : (Array.isArray(board.notes) ? board.notes : []);
 
     return {
         ...board,
         version: overrides.version || state.versioning.version || board.version,
         status: overrides.status || state.versioning.status || board.status,
         released: overrides.build_date || state.versioning.buildDate || board.released,
-        notes
+        boardNotes
     };
 };
 
-const renderNotes = (notes = []) => {
-    selectors.notesList.innerHTML = '';
+const renderNotes = (target, notes = [], emptyText = 'No release notes provided for this build.') => {
+    if (!target) return;
+    target.innerHTML = '';
     if (!notes.length) {
         const fallback = document.createElement('li');
-        fallback.textContent = 'No release notes provided for this build.';
-        selectors.notesList.appendChild(fallback);
+        fallback.textContent = emptyText;
+        fallback.style.color = 'var(--text-secondary)';
+        target.appendChild(fallback);
         return;
     }
     notes.forEach((note) => {
         const li = document.createElement('li');
         li.textContent = note;
-        selectors.notesList.appendChild(li);
+        target.appendChild(li);
     });
 };
 
@@ -244,7 +251,7 @@ const hydrateBoardDetails = (board) => {
         selectors.releaseNotesTitle.textContent = 'Release notes';
         selectors.heroLabel.textContent = 'Please select a board';
         selectors.heroDate.textContent = '--';
-        selectors.notesList.innerHTML = '<li style="color: var(--text-secondary);">Select a board to view release notes</li>';
+        renderNotes(selectors.boardNotes, [], 'Select a board to view release notes');
         updateButtonStates();
         selectors.installButton?.removeAttribute('manifest');
         state.wifiPatcher?.updateBaseManifest('');
@@ -259,10 +266,10 @@ const hydrateBoardDetails = (board) => {
     selectors.boardStatus.dataset.state = status;
     selectors.boardVersion.textContent = version;
     selectors.boardRelease.textContent = formatDate(board.released);
-    selectors.releaseNotesTitle.textContent = `${board.variant} release notes`;
+    selectors.releaseNotesTitle.textContent = 'Release notes';
     selectors.heroLabel.textContent = board.variant;
     selectors.heroDate.textContent = formatDate(board.released);
-    renderNotes(board.notes);
+    renderNotes(selectors.boardNotes, board.boardNotes, 'No release notes for this board.');
     updateButtonStates();
 
     const manifestUrl = resolveAssetUrl(board.manifest);
@@ -303,8 +310,10 @@ const fetchVersioning = async () => {
         const text = await response.text();
         const parsed = JSON.parse(text);
         state.versioning = normalizeVersioning(parsed);
+        renderNotes(selectors.notesList, state.versioning.releaseNotes, 'No release notes provided for this build.');
     } catch (error) {
         state.versioning = null;
+        renderNotes(selectors.notesList, [], 'No release notes provided for this build.');
         appendLog(`Version info unavailable; using board metadata instead: ${error.message}`, 'warn');
     }
 };

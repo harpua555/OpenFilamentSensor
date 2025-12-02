@@ -1,6 +1,6 @@
 const PLACEHOLDER_PATTERN = /"ssid"\s*:\s*"([^"]*)"\s*,\s*"passwd"\s*:\s*"([^"]*)"/i;
 const DEFAULT_STATUS_MESSAGE =
-    'Optional: patch firmware with Wi-Fi credentials before flashing.';
+    '\n\nsee Github for implementation';
 const MAX_FIELD_LENGTH = 20;
 const isoDecoder = new TextDecoder('iso-8859-1');
 

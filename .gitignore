@@ -1,32 +1,45 @@
-.pio
-.vscode
-.DS_Store
+# Build / tool output
+.pio/
+tools/.platformio/
+tools/.venv/
+tools/__pycache__/
+
+# IDE / editor / local config
+.vscode/
 .commands
-.claude
+.claude/
+.codex
+
+# OS cruft
+.DS_Store
+
+# Data & secrets
 data/secrets.json
 data_lite/
-merge_bin.py
-!tools/merge_bin.py
-tools/__pycache__
-test/render/filament_log*
+data/.version
+data/build_timestamp.txt
+data/build_version.txt
+test/nul
+
+# Logs
 logs/*
 !logs/README.md
 !logs/history/
 logs/history/*
 !logs/history/README.md
+test/render/filament_log*
+
+# Merge tools
+merge_bin.py
+!tools/merge_bin.py
+
+# Web UI lite
 webui_lite/README.md
 webui_lite/node_modules/
 
-# Portable build environment (created by tools/setup_local_env.py)
-tools/.venv/
-tools/.platformio/
-test/nul
-data/.version
+# Docs and misc
+docs/old/
+doc/new/
 CLAUDE.md
-.codex
-docs/old
-doc/new
-.antigravity
 TODO.md
-data/build_timestamp.txt
-data/build_version.txt
+.antigravity

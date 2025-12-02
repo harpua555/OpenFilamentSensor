@@ -1995,6 +1995,7 @@
                     <div class="btn-group">
                         <button type="button" class="btn" onclick="saveSettings()">Save Settings</button>
                         <button type="button" class="btn btn-secondary" onclick="testCancel()">Send Pause Command</button>
+                        <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume Command</button>
                     </div>
                 `;
             } catch (error) {
@@ -2046,16 +2047,29 @@
             }
         }
 
-        async function testCancel() {
+        async function testPause() {
             try {
-                const response = await fetch('/test_cancel', { method: 'POST' });
+                const response = await fetch('/test_pause', { method: 'POST' });
                 if (response.ok) {
-                    showToast('Cancel command sent', 'success');
+                    showToast('Pause command sent', 'success');
                 } else {
                     throw new Error('Request failed');
                 }
             } catch (error) {
-                showToast('Failed to send cancel command: ' + error.message, 'error');
+                showToast('Failed to send pause command: ' + error.message, 'error');
+            }
+        }
+
+        async function testResume() {
+            try {
+                const response = await fetch('/test_resume', { method: 'POST' });
+                if (response.ok) {
+                    showToast('Resume command sent', 'success');
+                } else {
+                    throw new Error('Request failed');
+                }
+            } catch (error) {
+                showToast('Failed to send resume command: ' + error.message, 'error');
             }
         }
 

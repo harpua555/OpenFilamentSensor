@@ -111,7 +111,7 @@ static const SettingField kSettingFields[] = {
     makeBoolField("test_recording_mode", offsetof(user_settings, test_recording_mode), false),
 };
 
-constexpr size_t SETTINGS_JSON_CAPACITY = 1152;
+constexpr size_t SETTINGS_JSON_CAPACITY = 1536;  // Increased from 1152 to prevent truncation
 
 template <typename T>
 T& fieldAt(user_settings& settings, size_t offset)

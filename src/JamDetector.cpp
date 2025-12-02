@@ -86,6 +86,9 @@ void JamDetector::onResume(unsigned long currentTimeMs,
     state.jammed           = false;
     state.hardJamTriggered = false;
     state.softJamTriggered = false;
+
+    // Clear pause request flag so future jams can be detected
+    jamPauseRequested = false;
 }
 
 bool JamDetector::evaluateGraceState(unsigned long currentTimeMs,

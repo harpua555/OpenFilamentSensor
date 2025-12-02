@@ -30,6 +30,29 @@ from typing import Iterator, List, Optional
 
 SECRET_FILENAME = "secrets.json"
 
+# Board to chip family mapping for CHIP_FAMILY environment variable
+BOARD_TO_CHIP_FAMILY = {
+    "esp32-dev": "ESP32",
+    "esp32-build": "ESP32",
+    "esp32-s3-dev": "ESP32-S3",
+    "esp32-s3-build": "ESP32-S3",
+    "seeed_xiao_esp32s3-dev": "ESP32-S3",
+    "seeed_xiao_esp32s3-build": "ESP32-S3",
+    "seeed_xiao_esp32c3-dev": "ESP32-C3",
+    "seeed_xiao_esp32c3-build": "ESP32-C3",
+    "esp32-c3-supermini-dev": "ESP32-C3",
+    "esp32-c3-supermini-ota": "ESP32-C3",
+    "esp32c3supermini": "ESP32-C3",
+}
+
+
+def get_chip_family_for_board(board_env: str) -> str:
+    """
+    Get the chip family for a given PlatformIO environment name.
+    Returns the appropriate chip family string or empty string if unknown.
+    """
+    return BOARD_TO_CHIP_FAMILY.get(board_env, "")
+
 
 @contextmanager
 def temporarily_hide_files(paths: List[str]):
@@ -107,9 +130,23 @@ def temporarily_merge_secrets(settings_path: str, secrets_path: str, ignore: boo
         print("Restored original data/user_settings.json without secrets after build.")
 
 
-def run(cmd: List[str], cwd: Optional[str] = None) -> None:
+def run(cmd: List[str], cwd: Optional[str] = None, env: Optional[str] = None) -> None:
     print(f"> {' '.join(cmd)} (cwd={cwd or os.getcwd()})")
-    subprocess.run(cmd, cwd=cwd, check=True)
+
+    # Set up environment for subprocess
+    env_dict = os.environ.copy()
+    if env:
+        env_dict['CHIP_FAMILY'] = env
+
+    subprocess.run(cmd, cwd=cwd, check=True, env=env_dict)
+
+
+def run_with_chip_family(cmd: List[str], board_env: str, cwd: Optional[str] = None) -> None:
+    """
+    Run a command with CHIP_FAMILY environment variable set based on board configuration.
+    """
+    chip_family = get_chip_family_for_board(board_env)
+    run(cmd, cwd=cwd, env=chip_family)
 
 
 def ensure_executable(name: str) -> None:
@@ -342,10 +379,10 @@ def main() -> None:
         if args.build_mode == "nofs":
             print("\n=== Build Mode: Firmware Only (no merge) ===")
             if args.local:
-                run([pio_cmd, "run", "-e", args.env], cwd=repo_root)
+                run_with_chip_family([pio_cmd, "run", "-e", args.env], args.env, cwd=repo_root)
                 print("\nAll done. Firmware binary ready at `.pio/build/{}/firmware.bin`.".format(args.env))
             else:
-                run([pio_cmd, "run", "-e", args.env, "-t", "upload"], cwd=repo_root)
+                run_with_chip_family([pio_cmd, "run", "-e", args.env, "-t", "upload"], args.env, cwd=repo_root)
                 print("\nAll done. Firmware has been flashed.")
 
         # Build mode: nobin = filesystem only (no merge)
@@ -356,7 +393,7 @@ def main() -> None:
                 version_path = create_build_version(data_dir, repo_root)
                 fs_target = "uploadfs" if not args.local else "buildfs"
                 with temporarily_hide_files(secret_file_paths):
-                    run([pio_cmd, "run", "-e", args.env, "-t", fs_target], cwd=repo_root)
+                    run_with_chip_family([pio_cmd, "run", "-e", args.env, "-t", fs_target], args.env, cwd=repo_root)
 
             if args.local:
                 print("\nAll done. Filesystem binary ready at `.pio/build/{}/littlefs.bin`.".format(args.env))
@@ -374,14 +411,14 @@ def main() -> None:
                 # Filesystem upload/build (uses merged settings if present)
                 fs_target = "uploadfs" if not args.local else "buildfs"
                 with temporarily_hide_files(secret_file_paths):
-                    run([pio_cmd, "run", "-e", args.env, "-t", fs_target], cwd=repo_root)
+                    run_with_chip_family([pio_cmd, "run", "-e", args.env, "-t", fs_target], args.env, cwd=repo_root)
 
                 if args.local:
-                    run([pio_cmd, "run", "-e", args.env], cwd=repo_root)
+                    run_with_chip_family([pio_cmd, "run", "-e", args.env], args.env, cwd=repo_root)
                     print("\nAll done. Build artifacts are ready in `data/` and `.pio/build`.")
                 else:
                     # Firmware upload (will build firmware first if needed)
-                    run([pio_cmd, "run", "-e", args.env, "-t", "upload"], cwd=repo_root)
+                    run_with_chip_family([pio_cmd, "run", "-e", args.env, "-t", "upload"], args.env, cwd=repo_root)
                     print("\nAll done. Firmware and filesystem have been flashed.")
     except FileNotFoundError as exc:
         print(f"ERROR: {exc}")

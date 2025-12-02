@@ -11,7 +11,8 @@ namespace
 {
 constexpr const char kRouteGetSettings[]      = "/get_settings";
 constexpr const char kRouteUpdateSettings[]   = "/update_settings";
-constexpr const char kRouteTestCancel[]       = "/test_cancel";
+constexpr const char kRouteTestPause[]        = "/test_pause";
+constexpr const char kRouteTestResume[]       = "/test_resume";
 constexpr const char kRouteDiscoverPrinter[]  = "/discover_printer";
 constexpr const char kRouteSensorStatus[]     = "/sensor_status";
 constexpr const char kRouteLogsText[]         = "/api/logs_text";
@@ -192,10 +193,17 @@ void WebServer::begin()
             request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
 
-    server.on(kRouteTestCancel, HTTP_POST,
+    server.on(kRouteTestPause, HTTP_POST,
               [](AsyncWebServerRequest *request)
               {
                   elegooCC.pausePrint();
+                  request->send(200, "text/plain", "ok");
+              });
+
+    server.on(kRouteTestResume, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  elegooCC.continuePrint();
                   request->send(200, "text/plain", "ok");
               });
 

@@ -10,6 +10,7 @@ const selectors = {
     releaseNotesTitle: document.getElementById('releaseNotesTitle'),
     installButton: document.getElementById('installButton'),
     flashTrigger: document.getElementById('flashTrigger'),
+    downloadOtaBtn: document.getElementById('downloadOtaBtn'),
     logStream: document.getElementById('logStream'),
     copyLogBtn: document.getElementById('copyLogBtn'),
     clearLogBtn: document.getElementById('clearLogBtn'),
@@ -101,11 +102,27 @@ const stopCapture = (reason = 'Installer closed') => {
 
 const renderBoards = () => {
     selectors.boardSelect.innerHTML = '';
-    state.boards.forEach((board) => {
-        const option = document.createElement('option');
-        option.value = board.id;
-        option.textContent = `${board.variant} · ${board.chipFamily}`;
-        selectors.boardSelect.appendChild(option);
+
+    // Group boards by chipFamily
+    const groupedBoards = state.boards.reduce((groups, board) => {
+        if (!groups[board.chipFamily]) {
+            groups[board.chipFamily] = [];
+        }
+        groups[board.chipFamily].push(board);
+        return groups;
+    }, {});
+
+    // Create optgroups for each chip family
+    Object.entries(groupedBoards).forEach(([family, boards]) => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = family;
+        boards.forEach((board) => {
+            const option = document.createElement('option');
+            option.value = board.id;
+            option.textContent = board.variant;
+            optgroup.appendChild(option);
+        });
+        selectors.boardSelect.appendChild(optgroup);
     });
 };
 
@@ -183,8 +200,29 @@ const createDialogLogOverlay = () => {
     state.dialogLogStream = stream;
 };
 
+const updateButtonStates = () => {
+    const hasValidBoard = state.selected !== null && selectors.boardSelect.value !== '';
+    selectors.flashTrigger.disabled = !hasValidBoard;
+    selectors.downloadOtaBtn.disabled = !hasValidBoard;
+};
+
 const hydrateBoardDetails = (board) => {
-    if (!board) return;
+    if (!board) {
+        state.selected = null;
+        selectors.boardStatus.textContent = '—';
+        selectors.boardStatus.dataset.state = 'unknown';
+        selectors.boardVersion.textContent = '—';
+        selectors.boardRelease.textContent = '—';
+        selectors.releaseNotesTitle.textContent = 'Release notes';
+        selectors.heroLabel.textContent = 'Please select a board';
+        selectors.heroDate.textContent = '—';
+        selectors.fileList.innerHTML = '<li style="color: var(--text-secondary);">Select a board to view files</li>';
+        selectors.notesList.innerHTML = '<li style="color: var(--text-secondary);">Select a board to view release notes</li>';
+        updateButtonStates();
+        selectors.installButton?.removeAttribute('manifest');
+        state.wifiPatcher?.updateBaseManifest('');
+        return;
+    }
     state.selected = board;
     selectors.boardStatus.textContent = board.status || 'unknown';
     selectors.boardStatus.dataset.state = board.status || 'unknown';
@@ -195,6 +233,7 @@ const hydrateBoardDetails = (board) => {
     selectors.heroDate.textContent = formatDate(board.released);
     renderFiles(board.files);
     renderNotes(board.notes);
+    updateButtonStates();
     const manifestUrl = resolveAssetUrl(board.manifest);
     if (manifestUrl) {
         selectors.installButton?.setAttribute('manifest', manifestUrl);
@@ -213,14 +252,15 @@ const fetchBoards = async () => {
         state.boards = data.boards || [];
         selectors.boardCount.textContent = state.boards.length;
         renderBoards();
-        const fallback = data.defaultBoard || state.boards[0]?.id;
-        selectors.boardSelect.value = fallback || '';
-        const board = state.boards.find((item) => item.id === selectors.boardSelect.value);
-        hydrateBoardDetails(board);
+        // Start with empty selection
+        selectors.boardSelect.value = '';
+        updateButtonStates();
+        hydrateBoardDetails(null);
     } catch (error) {
         appendLog(`Unable to load board list: ${error.message}`, 'error');
         selectors.boardSelect.disabled = true;
         selectors.flashTrigger.disabled = true;
+        selectors.downloadOtaBtn.disabled = true;
     }
 };
 
@@ -236,7 +276,33 @@ const attachEvents = () => {
             appendLog('Select a board before flashing.', 'warn');
             return;
         }
+
+        // Validate that board has required files for flashing
+        if (!state.selected.manifest) {
+            appendLog(`Error: ${state.selected.variant} does not have a manifest file for flashing.`, 'error');
+            return;
+        }
+
         startCapture(state.selected.variant);
+    });
+
+    selectors.downloadOtaBtn.addEventListener('click', async () => {
+        if (!state.selected) {
+            appendLog('Select a board before downloading OTA files.', 'warn');
+            return;
+        }
+
+        // Check if board has OTA directory
+        try {
+            const otaCheckResponse = await fetch(`./firmware/${state.selected.id}/OTA/firmware.bin`, { method: 'HEAD' });
+            if (!otaCheckResponse.ok) {
+                appendLog(`Warning: OTA files not available for ${state.selected.variant}. Download may be incomplete.`, 'warn');
+            }
+        } catch (error) {
+            appendLog(`Warning: Unable to verify OTA files for ${state.selected.variant}: ${error.message}`, 'warn');
+        }
+
+        await downloadOtaFiles(state.selected.id);
     });
 
     selectors.copyLogBtn.addEventListener('click', async () => {
@@ -274,6 +340,85 @@ const observeInstallerDialog = () => {
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
+};
+
+const downloadOtaFiles = async (boardId) => {
+    try {
+        appendLog(`Starting OTA download for ${boardId}...`, 'info');
+
+        // Update button state during download
+        const originalText = selectors.downloadOtaBtn.textContent;
+        selectors.downloadOtaBtn.textContent = 'Downloading...';
+        selectors.downloadOtaBtn.disabled = true;
+
+        const otaFiles = ['firmware.bin', 'littlefs.bin', 'OTA_readme.md'];
+        const zip = new JSZip();
+        const wifiForm = document.getElementById('wifiPatchForm');
+        const ssidInput = wifiForm?.querySelector('#wifiSsid');
+        const passwdInput = wifiForm?.querySelector('#wifiPass');
+        const ssid = (ssidInput?.value || '').trim();
+        const passwd = (passwdInput?.value || '').trim();
+        const shouldPatchLittlefs = Boolean(
+            state.wifiPatcher &&
+            ssid &&
+            passwd &&
+            ssid !== 'your_ssid' &&
+            passwd !== 'your_pass'
+        );
+
+        for (const file of otaFiles) {
+            try {
+                const fileUrl = `./firmware/${boardId}/OTA/${file}`;
+
+                if (file === 'littlefs.bin' && shouldPatchLittlefs) {
+                    try {
+                        appendLog('Applying Wi-Fi patch to littlefs.bin...', 'info');
+                        const patchedBuffer = await state.wifiPatcher.patchFirmware(ssid, passwd, fileUrl);
+                        zip.file(file, patchedBuffer);
+                        appendLog('Wi-Fi patch applied to littlefs.bin', 'success');
+                        continue;
+                    } catch (patchError) {
+                        appendLog(`Warning: Failed to apply Wi-Fi patch: ${patchError.message}`, 'warn');
+                    }
+                }
+
+                const response = await fetch(fileUrl);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const patchNote = file === 'littlefs.bin' && shouldPatchLittlefs ? ' (no Wi-Fi patch)' : '';
+                    zip.file(file, blob);
+                    appendLog(`Added ${file} to OTA package${patchNote}`, 'info');
+                } else {
+                    appendLog(`Warning: ${file} not found in OTA directory`, 'warn');
+                }
+            } catch (error) {
+                appendLog(`Warning: Failed to fetch ${file}: ${error.message}`, 'warn');
+            }
+        }
+
+        // Generate and download zip
+        appendLog('Creating OTA package...', 'info');
+        const content = await zip.generateAsync({type: "blob"});
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `centauri-carbon-${boardId}-ota.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Restore button state
+        selectors.downloadOtaBtn.textContent = originalText;
+        updateButtonStates();
+
+        appendLog(`OTA files downloaded successfully for ${boardId}`, 'success');
+    } catch (error) {
+        // Restore button state on error
+        selectors.downloadOtaBtn.textContent = originalText;
+        updateButtonStates();
+        appendLog(`OTA download failed: ${error.message}`, 'error');
+    }
 };
 
 const init = async () => {

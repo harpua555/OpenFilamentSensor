@@ -1,5 +1,4 @@
 {
-  "defaultBoard": "esp32s3",
   "boards": [
     {
       "id": "esp32s3",

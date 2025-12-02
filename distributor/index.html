@@ -12,6 +12,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="./styles.css">
     <script type="module" src="https://unpkg.com/esp-web-tools/dist/web/install-button.js?module"></script>
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script type="module" src="./app.js" defer></script>
 </head>
 
@@ -53,7 +54,7 @@
             <div class="hero-grid">
                 <div>
                     <p class="metric-label">Current release</p>
-                    <p class="metric-value" id="activeFirmwareLabel">Loading…</p>
+                    <p class="metric-value" id="activeFirmwareLabel">Please select a board</p>
                 </div>
                 <div>
                     <p class="metric-label">Published</p>
@@ -150,11 +151,21 @@
                         Hosting must be HTTPS or localhost for Web Serial. Deploy behind TLS to continue.
                     </span>
                 </esp-web-install-button>
-                <p class="small-print">
-                    Need the CLI instead? The binaries referenced above match the <code>manifest.json</code> files under
-                    <code>/firmware/&lt;board&gt;</code>.
-                </p>
-            </article>
+                <div class="update-ota-section">
+                    <h4>Update OTA</h4>
+                    <p>1. Download files, unzip, and open readme.</p>
+                </div>
+                <div class="download-actions">
+                    <button class="ghost-btn" id="downloadOtaBtn" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7,10 12,15 17,10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download OTA Files
+                    </button>
+                </div>
+              </article>
 
             <article class="card">
                 <div class="card-header">

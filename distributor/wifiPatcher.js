@@ -1,6 +1,6 @@
 const PLACEHOLDER_PATTERN = /"ssid"\s*:\s*"([^"]*)"\s*,\s*"passwd"\s*:\s*"([^"]*)"/i;
 const DEFAULT_STATUS_MESSAGE =
-    'Optional: enter SSID + password and patch before flashing. The installer will use the modified binary.';
+    'Optional: patch firmware with Wi-Fi credentials before flashing.';
 const MAX_FIELD_LENGTH = 20;
 const isoDecoder = new TextDecoder('iso-8859-1');
 
@@ -117,40 +117,57 @@ export function initWifiPatcher({ installButton, openButton, dialog, form, statu
         });
     };
 
-    const patchFirmware = async (ssid, passwd) => {
-        if (!baseManifest) {
-            throw new Error('Manifest URL is required for Wi-Fi patching.');
+    const patchFirmware = async (ssid, passwd, firmwareUrl = null) => {
+        if (!baseManifest && !firmwareUrl) {
+            throw new Error('Manifest URL or firmware URL is required for Wi-Fi patching.');
         }
         patching = true;
         setStatus('Fetching firmware to patch...');
-        const manifestResponse = await fetch(baseManifest, { cache: 'no-store' });
-        if (!manifestResponse.ok) throw new Error('Failed to download manifest');
-        const manifest = await manifestResponse.json();
-        const part = manifest?.builds?.[0]?.parts?.[0];
-        if (!part || !part.path) throw new Error('Manifest missing firmware part');
-        const binUrl = new URL(part.path, baseManifest).href;
-        const dataResponse = await fetch(binUrl, { cache: 'no-store' });
-        if (!dataResponse.ok) throw new Error('Failed to download firmware blob');
-        const buffer = await dataResponse.arrayBuffer();
-        const patchedBuffer = patchBuffer(buffer, ssid, passwd);
-        if (binaryBlobUrl) {
-            URL.revokeObjectURL(binaryBlobUrl);
-        }
-        binaryBlobUrl = URL.createObjectURL(new Blob([patchedBuffer], { type: 'application/octet-stream' }));
 
-        const patchedManifest = JSON.parse(JSON.stringify(manifest));
-        patchedManifest.builds[0].parts[0].path = binaryBlobUrl;
+        let patchedBuffer;
 
-        if (manifestBlobUrl) {
-            URL.revokeObjectURL(manifestBlobUrl);
+        if (firmwareUrl) {
+            // Direct firmware patching for OTA files
+            const dataResponse = await fetch(firmwareUrl, { cache: 'no-store' });
+            if (!dataResponse.ok) throw new Error('Failed to download firmware blob');
+            const buffer = await dataResponse.arrayBuffer();
+            patchedBuffer = patchBuffer(buffer, ssid, passwd);
+        } else {
+            // Manifest-based patching for flashing
+            const manifestResponse = await fetch(baseManifest, { cache: 'no-store' });
+            if (!manifestResponse.ok) throw new Error('Failed to download manifest');
+            const manifest = await manifestResponse.json();
+            const part = manifest?.builds?.[0]?.parts?.[0];
+            if (!part || !part.path) throw new Error('Manifest missing firmware part');
+            const binUrl = new URL(part.path, baseManifest).href;
+            const dataResponse = await fetch(binUrl, { cache: 'no-store' });
+            if (!dataResponse.ok) throw new Error('Failed to download firmware blob');
+            const buffer = await dataResponse.arrayBuffer();
+            patchedBuffer = patchBuffer(buffer, ssid, passwd);
+
+            if (binaryBlobUrl) {
+                URL.revokeObjectURL(binaryBlobUrl);
+            }
+            binaryBlobUrl = URL.createObjectURL(new Blob([patchedBuffer], { type: 'application/octet-stream' }));
+
+            const patchedManifest = JSON.parse(JSON.stringify(manifest));
+            patchedManifest.builds[0].parts[0].path = binaryBlobUrl;
+
+            if (manifestBlobUrl) {
+                URL.revokeObjectURL(manifestBlobUrl);
+            }
+            manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(patchedManifest)], { type: 'application/json' }));
+            installButton.setAttribute('manifest', manifestBlobUrl);
         }
-        manifestBlobUrl = URL.createObjectURL(new Blob([JSON.stringify(patchedManifest)], { type: 'application/json' }));
-        installButton.setAttribute('manifest', manifestBlobUrl);
+
         patchApplied = true;
         openButton.disabled = true;
         openButton.textContent = 'Patch applied';
         setStatus('Patched SSID/password applied.');
         log('Wi-Fi settings patched locally before flashing.');
+
+        // Return patched buffer for OTA usage
+        return patchedBuffer;
     };
 
     form.addEventListener('submit', async (event) => {
@@ -197,6 +214,7 @@ export function initWifiPatcher({ installButton, openButton, dialog, form, statu
 
     return {
         updateBaseManifest,
-        clearPatch: clearPatches
+        clearPatch: clearPatches,
+        patchFirmware
     };
 }

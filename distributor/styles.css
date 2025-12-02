@@ -452,6 +452,56 @@ select {
     font-size: 0.85rem;
 }
 
+.download-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.download-actions .ghost-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.download-actions .ghost-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.download-actions .ghost-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.download-actions .ghost-btn svg {
+    flex-shrink: 0;
+}
+
+.update-ota-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    margin-top: 16px;
+}
+
+.update-ota-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.update-ota-section p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
 .instructions ol {
     padding-left: 20px;
     margin: 0 0 24px;

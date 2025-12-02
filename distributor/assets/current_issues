@@ -1,2 +1,0 @@
-Soft jam does not appear to evaluate as expected when it is right around (+/- 5%) the underextrusion threshold.  
- - Visualizations make it seem like it will trip until a reset at 99% - need to update the visualizations.

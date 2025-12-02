@@ -49,9 +49,13 @@ BOARD_TO_CHIP_FAMILY = {
 def get_chip_family_for_board(board_env: str) -> str:
     """
     Get the chip family for a given PlatformIO environment name.
-    Returns the appropriate chip family string or empty string if unknown.
+    Returns the appropriate chip family string or raises ValueError if unknown.
     """
-    return BOARD_TO_CHIP_FAMILY.get(board_env, "")
+    chip_family = BOARD_TO_CHIP_FAMILY.get(board_env)
+    if chip_family is None:
+        raise ValueError(f"Unknown PlatformIO environment '{board_env}'. "
+                        f"Supported environments: {sorted(BOARD_TO_CHIP_FAMILY.keys())}")
+    return chip_family
 
 
 @contextmanager
@@ -137,6 +141,7 @@ def run(cmd: List[str], cwd: Optional[str] = None, env: Optional[str] = None) ->
     env_dict = os.environ.copy()
     if env:
         env_dict['CHIP_FAMILY'] = env
+        print(f"DEBUG: Setting CHIP_FAMILY={env} for subprocess")
 
     subprocess.run(cmd, cwd=cwd, check=True, env=env_dict)
 
@@ -146,6 +151,7 @@ def run_with_chip_family(cmd: List[str], board_env: str, cwd: Optional[str] = No
     Run a command with CHIP_FAMILY environment variable set based on board configuration.
     """
     chip_family = get_chip_family_for_board(board_env)
+    print(f"DEBUG: Environment '{board_env}' -> CHIP_FAMILY='{chip_family}'")
     run(cmd, cwd=cwd, env=chip_family)
 
 

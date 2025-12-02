@@ -1876,6 +1876,12 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">Reduce Pulses to (%)</label>
+                        <input type="number" step="1" class="form-input" id="pulse_reduction_percent" value="${currentSettings.pulse_reduction_percent || 100}" min="0" max="100">
+                        <p class="form-help">Simulate under-extrusion by counting only a percentage of pulses. 100% = normal operation, 50% = every other pulse, 20% = 1 out of 5 pulses, 0% = complete blockage. Useful for testing jam detection without physically modifying filament flow.</p>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">Detection Grace Period (ms)</label>
                         <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 8000}" min="0" max="15000" step="100">
                         <p class="form-help">Time-based grace period after print starts before jam detection activates. Prevents false positives during print startup. The windowed tracking algorithm automatically handles purge lines and SDCP timing variations. Default: 5000ms.</p>
@@ -2020,6 +2026,7 @@
                     suppress_pause_commands: document.getElementById('suppress_pause_commands').checked,
                     movement_mm_per_pulse: parseFloat(document.getElementById('movement_mm_per_pulse').value),
                     auto_calibrate_sensor: document.getElementById('auto_calibrate_sensor').checked,
+                    pulse_reduction_percent: parseFloat(document.getElementById('pulse_reduction_percent').value),
                 };
 
                 const response = await fetch('/update_settings', {

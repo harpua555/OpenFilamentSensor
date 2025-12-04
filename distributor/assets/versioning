@@ -3,10 +3,10 @@
   "build_date": "2025-12-04",
   "status": "experimental",
   "release_notes": [
-    "First closed alpha",
-    "Distributor still in progress",
-    "Contact on Discord with issues/suggestions",
-    "New logging, debug tab, and memory management"
+    "Closed Alpha",
+    "Known Issue: Soft Jam detection may be too slow with current 40%",
+    "New logging, debug tab, and memory management",
+    "Contact on Discord with issues/suggestions"
   ],
   "boards": {
     "esp32s3": {

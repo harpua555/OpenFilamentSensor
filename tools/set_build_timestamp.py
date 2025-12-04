@@ -3,6 +3,7 @@
 PlatformIO pre-build script to inject current build timestamp as compile flags.
 This ensures the build timestamp updates on every build, not just when source files change.
 """
+import os
 from datetime import datetime
 Import("env")
 
@@ -20,3 +21,9 @@ env.Append(CPPDEFINES=[
 ])
 
 print(f"Build timestamp set to: {build_date} {build_time}")
+
+chip_family = os.environ.get("CHIP_FAMILY", "").strip()
+if chip_family:
+    # Forward CHIP_FAMILY into the compiler in a safe way even if it contains spaces.
+    env.Append(CPPDEFINES=[("CHIP_FAMILY_RAW", chip_family)])
+    print(f"CHIP_FAMILY define set to: {chip_family}")

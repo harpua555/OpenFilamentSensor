@@ -40,7 +40,7 @@ tools_dir = str(Path(__file__).parent)
 sys.path.append(tools_dir)
 
 # Import shared board configuration
-from board_config import get_chip_family_for_board, validate_board_environment, get_supported_boards
+from board_config import compose_chip_family_label, validate_board_environment, get_supported_boards
 
 # Import the timestamp and version creation functions from build_and_flash.py
 try:
@@ -106,13 +106,13 @@ BOARD_TO_DISTRIBUTOR_DIR = {
 }
 
 
-# get_chip_family_for_board function is now imported from tools/board_config.py
-
 
 def get_distributor_dir_for_board(board_env: str) -> str:
     """
-    Get the distributor firmware directory for a given PlatformIO environment.
-    Returns the appropriate directory name or empty string if unknown.
+    Map a PlatformIO board environment name to its distributor firmware directory.
+    
+    Returns:
+        The distributor directory name for the given `board_env`, or an empty string if there is no mapping.
     """
     return BOARD_TO_DISTRIBUTOR_DIR.get(board_env, "")
 
@@ -144,8 +144,18 @@ def temporarily_hide_files(paths: List[str]):
 @contextmanager
 def temporarily_merge_secrets(settings_path: str, secrets_path: str, ignore: bool) -> Iterator[bool]:
     """
-    Merge secrets into user_settings.json for the duration of the context.
-    Always restores the original contents, even if later steps fail.
+    Temporarily merge values from a secrets file into a user settings JSON file for the duration of a context, restoring the original file afterwards.
+    
+    Parameters:
+        settings_path (str): Path to the user settings JSON file to be modified.
+        secrets_path (str): Path to the secrets JSON file supplying values to merge.
+        ignore (bool): If True, do not merge secrets and immediately yield control.
+    
+    Returns:
+        Iterator[bool]: `True` if secrets were merged into the settings for the context, `False` if merging was skipped due to `ignore`.
+    
+    Raises:
+        FileNotFoundError: If `ignore` is False and `secrets_path` does not exist.
     """
     if ignore:
         yield False
@@ -193,28 +203,61 @@ def temporarily_merge_secrets(settings_path: str, secrets_path: str, ignore: boo
         print("Restored original data/user_settings.json without secrets after build.")
 
 
-def run(cmd: List[str], cwd: Optional[str] = None, env: Optional[str] = None) -> None:
-    """Run command with optional environment variable."""
+def run(cmd: List[str], cwd: Optional[str] = None, extra_env: Optional[dict[str, str]] = None) -> None:
+    """
+    Execute a command, printing it and running it with an optional working directory and additional environment variables.
+    
+    Parameters:
+        cmd (List[str]): Command and arguments to execute.
+        cwd (Optional[str]): Working directory for the command; current directory used if None.
+        extra_env (Optional[dict[str, str]]): Environment variables to merge into the subprocess environment.
+    
+    Raises:
+        subprocess.CalledProcessError: If the command exits with a non-zero status.
+    """
     print(f"> {' '.join(cmd)} (cwd={cwd or os.getcwd()})")
 
     # Set up environment for subprocess
     env_dict = os.environ.copy()
-    if env:
-        env_dict['CHIP_FAMILY'] = env
+    if extra_env:
+        env_dict.update(extra_env)
 
     subprocess.run(cmd, cwd=cwd, check=True, env=env_dict)
 
 
-def run_with_chip_family(cmd: List[str], board_env: str, cwd: Optional[str] = None) -> None:
+def run_with_build_env(
+    cmd: List[str],
+    board_env: str,
+    build_env: dict[str, str],
+    cwd: Optional[str] = None,
+) -> None:
     """
-    Run a command with CHIP_FAMILY environment variable set based on board configuration.
+    Execute a command with CHIP_FAMILY and FIRMWARE_VERSION provided to the subprocess environment.
+    
+    Parameters:
+        cmd (List[str]): Command and arguments to execute.
+        board_env (str): Logical build environment name used for logging.
+        build_env (dict[str, str]): Environment variables to merge into the subprocess environment. May include keys "CHIP_FAMILY" and "FIRMWARE_VERSION" whose values will be exposed to the process.
+        cwd (Optional[str]): Working directory for the command; if None the current working directory is used.
     """
-    chip_family = get_chip_family_for_board(board_env)
-    run(cmd, cwd=cwd, env=chip_family)
+    chip_family = build_env.get("CHIP_FAMILY", "")
+    firmware_label = build_env.get("FIRMWARE_VERSION", "")
+    print(
+        f"Environment '{board_env}' -> CHIP_FAMILY='{chip_family}', "
+        f"FIRMWARE_VERSION='{firmware_label}'"
+    )
+    run(cmd, cwd=cwd, extra_env=build_env)
 
 
 def ensure_executable(name: str) -> None:
-    """Check if required executable exists."""
+    """
+    Verify that the given executable is available on the system PATH and terminate the process with a user-facing error message if it is not.
+    
+    If the executable is missing, prints an error and brief installation guidance (special-cased for `npm` and `python`/`python3`) and exits the program.
+    
+    Parameters:
+        name (str): The executable name to check (e.g., "pio", "npm", "python").
+    """
     if shutil.which(name) is None:
         print(f"ERROR: `{name}` is not on PATH.")
         if name == "npm":
@@ -335,8 +378,14 @@ def update_versioning_metadata(repo_root: str, version: str) -> None:
 
 def resolve_version_increment(version_action: Optional[str], version_type: str) -> Optional[str]:
     """
-    Decide which version increment to apply based on CLI flags.
-    Returns the increment type ('build'|'ver'|'release') or None to skip.
+    Choose which version component to increment based on the provided CLI flags and fallback rules.
+    
+    Parameters:
+        version_action (Optional[str]): Explicit action from CLI; expected values are "build", "ver", "release", or "skip".
+        version_type (str): Default increment type when no explicit action is provided; expected values are "build", "ver", or "release".
+    
+    Returns:
+        Optional[str]: `"build"`, `"ver"`, or `"release"` to indicate which component to increment, or `None` to skip incrementing.
     """
     if version_action == "skip":
         return None
@@ -347,11 +396,15 @@ def resolve_version_increment(version_action: Optional[str], version_type: str) 
     return None
 
 
-def copy_to_distributor(repo_root: str, board_env: str, ignore_secrets: bool) -> None:
+def copy_to_distributor(repo_root: str, board_env: str, ignore_secrets: bool, chip_family_label: str) -> None:
     """
-    Copy firmware_merged.bin to distributor directory if secrets were ignored.
-    Only copies when ignore_secrets is True to ensure clean firmware.
-    Also creates OTA directory with individual files for download.
+    Copy a clean firmware build into the distributor directory and create OTA artifacts and a README.
+    
+    Parameters:
+    	repo_root (str): Path to the repository root where build and distributor directories reside.
+    	board_env (str): PlatformIO board environment name used to locate build outputs.
+    	ignore_secrets (bool): If True, copy a firmware image that does not contain merged secrets; if False, the copy is skipped.
+    	chip_family_label (str): Human-readable chip family label used in the generated OTA README (e.g., "ESP32").
     """
     if not ignore_secrets:
         print("\n=== Skipping Distributor Copy ===")
@@ -421,14 +474,13 @@ def copy_to_distributor(repo_root: str, board_env: str, ignore_secrets: bool) ->
     # Generate OTA_readme.md
     ota_readme_dst = os.path.join(ota_dir, "OTA_readme.md")
     try:
-        chip_family = get_chip_family_for_board(board_env)
         version = "1.3.0"  # TODO: Extract from build or git
         release_date = datetime.now().strftime("%Y-%m-%d")
 
         ota_readme_content = f"""# Centauri Carbon Motion Detector - OTA Update
 
 ## Version: {version}
-## Board: {chip_dir} ({chip_family})
+## Board: {chip_dir} ({chip_family_label})
 ## Released: {release_date}
 
 ### Installation Instructions
@@ -449,7 +501,7 @@ def copy_to_distributor(repo_root: str, board_env: str, ignore_secrets: bool) ->
 - **littlefs.bin**: Filesystem image with web UI and settings (including Wifi)
 
 ### Supported Hardware
-- {chip_family}
+- {chip_family_label}
 - Board configuration: {chip_dir}
 
 ### Changes in This Version
@@ -475,10 +527,28 @@ Generated by build_and_release.py on {release_date}
         print(f"\nERROR: Failed to create OTA readme: {e}")
 
 
-def build_firmware(repo_root: str, board_env: str, ignore_secrets: bool, version_action: Optional[str], version_type: str) -> None:
+def build_firmware(
+    repo_root: str,
+    board_env: str,
+    ignore_secrets: bool,
+    version_action: Optional[str],
+    version_type: str,
+    chip_family_label: str,
+    firmware_label: str,
+) -> None:
     """
-    Build firmware using build_and_flash.py functionality.
-    This replicates the core build process with our specific flags.
+    Build the firmware and filesystem for a specified board environment and prepare versioning metadata.
+    
+    Builds the WebUI (if present), runs PlatformIO to compile firmware for `board_env`, generates filesystem image with optional secret merging and temporary hiding of secret files, and updates distributor versioning metadata.
+    
+    Parameters:
+        repo_root (str): Path to the repository root.
+        board_env (str): PlatformIO environment name identifying the target board.
+        ignore_secrets (bool): If True, secrets are not merged into the filesystem build and secret files may be copied to distributor outputs.
+        version_action (Optional[str]): CLI-specified version action flag (e.g., 'increment'); used to decide version increment behavior.
+        version_type (str): The type of version increment to apply when a version action is requested.
+        chip_family_label (str): Label identifying the chip family to inject into the build environment (sets `CHIP_FAMILY`).
+        firmware_label (str): Label used for the firmware version (sets `FIRMWARE_VERSION`).
     """
     # Resolve paths
     tools_dir = os.path.join(repo_root, "tools")
@@ -537,12 +607,18 @@ def build_firmware(repo_root: str, board_env: str, ignore_secrets: bool, version
     current_version = get_version_string(repo_root)
     update_versioning_metadata(repo_root, current_version)
 
+    build_env = {
+        "CHIP_FAMILY": chip_family_label,
+        "FIRMWARE_VERSION": firmware_label,
+    }
+
     print(f"\n=== Building Firmware for {board_env} ===")
-    print(f"Chip family: {get_chip_family_for_board(board_env)}")
+    print(f"Chip family: {chip_family_label}")
+    print(f"Firmware label: {firmware_label}")
 
     # Build firmware
     build_cmd = [pio_cmd, "run", "-e", board_env]
-    run_with_chip_family(build_cmd, board_env, cwd=repo_root)
+    run_with_build_env(build_cmd, board_env, build_env, cwd=repo_root)
 
     # Build filesystem with timestamp and version info
     print(f"\n=== Building Filesystem ===")
@@ -557,7 +633,7 @@ def build_firmware(repo_root: str, board_env: str, ignore_secrets: bool, version
             version_path = create_build_version(data_dir, repo_root)
             fs_cmd = [pio_cmd, "run", "-e", board_env, "-t", "buildfs"]
             with temporarily_hide_files(secret_file_paths):
-                run_with_chip_family(fs_cmd, board_env, cwd=repo_root)
+                run_with_build_env(fs_cmd, board_env, build_env, cwd=repo_root)
     finally:
         # Clean up temporary files
         if timestamp_path and os.path.exists(timestamp_path):
@@ -591,6 +667,16 @@ def main() -> None:
         default="ver",
         help="Type of version increment (default: ver)",
     )
+    parser.add_argument(
+        "--chip",
+        default="ESP32",
+        help="Chip prefix to combine with the board suffix (default: ESP32).",
+    )
+    parser.add_argument(
+        "--firmware-label",
+        default="alpha",
+        help="Firmware version string to embed in the firmware binary (default: alpha).",
+    )
 
     args = parser.parse_args()
 
@@ -606,7 +692,8 @@ def main() -> None:
             print(f"  {env}")
         sys.exit(1)
 
-    chip_family = get_chip_family_for_board(args.env)
+    firmware_label = args.firmware_label or "alpha"
+    chip_family_label = compose_chip_family_label(args.env, args.chip)
 
     distributor_dir = get_distributor_dir_for_board(args.env)
     if not distributor_dir:
@@ -614,14 +701,22 @@ def main() -> None:
         sys.exit(1)
 
     # Build firmware
-    build_firmware(repo_root, args.env, True, args.version, args.version_type)
+    build_firmware(
+        repo_root,
+        args.env,
+        True,
+        args.version,
+        args.version_type,
+        chip_family_label,
+        firmware_label,
+    )
 
     # Copy to distributor (always use --ignore-secrets behavior)
-    copy_to_distributor(repo_root, args.env, True)
+    copy_to_distributor(repo_root, args.env, True, chip_family_label)
 
     print("\n=== Release Complete ===")
     print(f"Board: {args.env}")
-    print(f"Chip family: {chip_family}")
+    print(f"Chip family: {chip_family_label}")
     print(f"Distributor directory: {distributor_dir}")
 
 

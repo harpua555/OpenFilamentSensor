@@ -55,6 +55,22 @@ const patchBuffer = (buffer, ssid, passwd) => {
 
 const defaultLog = () => {};
 
+/**
+ * Initialize Wi‑Fi patching UI and return an API to manage and apply SSID/password patches.
+ *
+ * @param {Object} options - Configuration and DOM elements for the patcher.
+ * @param {HTMLElement} [options.installButton] - Optional element whose `manifest` attribute will be updated for legacy install workflows.
+ * @param {HTMLElement} options.openButton - Button that opens the patch dialog; disabled after a patch is applied.
+ * @param {HTMLElement} options.dialog - Dialog element that contains the patch form and controls.
+ * @param {HTMLFormElement} options.form - Form element used to collect SSID and password.
+ * @param {HTMLElement} options.statusEl - Element where status messages are displayed.
+ * @param {(message: string, level?: string) => void} [options.log] - Optional logger function; defaults to internal logger.
+ * @returns {Object} API for managing patches:
+ *   - updateBaseManifest(manifestUrl: string): Replace the base manifest URL and clear any applied patches.
+ *   - clearPatch(): Revoke any created object URLs and restore the original state.
+ *   - patchFirmware(ssid: string, passwd: string, firmwareUrl?: string): Apply the SSID/password to a firmware image and return an ArrayBuffer containing the patched firmware.
+ *   - getPatchedManifestUrl(): Return the patched manifest object URL when a patch has been applied, or `null` otherwise.
+ */
 export function initWifiPatcher({ installButton, openButton, dialog, form, statusEl, log = defaultLog }) {
     // installButton is now optional since we're using custom flasher
     if (!openButton || !dialog || !form || !statusEl) {

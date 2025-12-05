@@ -5,7 +5,7 @@ Single source of truth for board-to-chip-family mappings and related functions.
 """
 
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Optional
 
 # Board to chip family mapping for CHIP_FAMILY environment variable
 # Format: <optionalmanufacturer> <chipbase>-<chiptype>
@@ -73,3 +73,29 @@ def get_supported_chip_families() -> set[str]:
         Set of unique chip family strings
     """
     return set(BOARD_TO_CHIP_FAMILY.values())
+
+
+def compose_chip_family_label(board_env: str, chip_prefix: Optional[str]) -> str:
+    """
+    Combine a user-specified chip prefix with the board's default suffix.
+    Examples:
+        base='ESP32-S3', chip_prefix='ESP32' -> 'ESP32-S3'
+        base='seeed ESP32-C3', chip_prefix='seeed ESP32' -> 'seeed ESP32-C3'
+    """
+    base_label = get_chip_family_for_board(board_env)
+    if not chip_prefix:
+        return base_label
+
+    prefix = chip_prefix.strip()
+    if not prefix:
+        return base_label
+
+    suffix = ""
+    hyphen_index = base_label.find("-")
+    if hyphen_index != -1:
+        suffix = base_label[hyphen_index:]
+
+    if suffix and prefix.endswith(suffix):
+        return prefix
+
+    return f"{prefix}{suffix}"

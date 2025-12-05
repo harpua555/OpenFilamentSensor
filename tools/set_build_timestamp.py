@@ -7,6 +7,12 @@ import os
 from datetime import datetime
 Import("env")
 
+
+def _as_string_literal(value: str) -> str:
+    """Return a C string literal payload for CPPDEFINES (without surrounding quotes)."""
+    escaped = value.replace('"', r'\"')
+    return f'\\"{escaped}\\"'
+
 # Generate current timestamp
 now = datetime.now()
 
@@ -25,5 +31,10 @@ print(f"Build timestamp set to: {build_date} {build_time}")
 chip_family = os.environ.get("CHIP_FAMILY", "").strip()
 if chip_family:
     # Forward CHIP_FAMILY into the compiler in a safe way even if it contains spaces.
-    env.Append(CPPDEFINES=[("CHIP_FAMILY_RAW", chip_family)])
+    env.Append(CPPDEFINES=[("CHIP_FAMILY_RAW", _as_string_literal(chip_family))])
     print(f"CHIP_FAMILY define set to: {chip_family}")
+
+firmware_label = os.environ.get("FIRMWARE_VERSION", "").strip()
+if firmware_label:
+    env.Append(CPPDEFINES=[("FIRMWARE_VERSION_RAW", _as_string_literal(firmware_label))])
+    print(f"FIRMWARE_VERSION define set to: {firmware_label}")

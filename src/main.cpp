@@ -14,18 +14,19 @@
 
 // Handle the case where environment variables are empty strings
 #ifndef FIRMWARE_VERSION_RAW
-#define FIRMWARE_VERSION_RAW alpha
+#define FIRMWARE_VERSION_RAW "alpha"
 #endif
 
 // Build scripts now guarantee that CHIP_FAMILY_RAW is always set with valid values
 #ifndef CHIP_FAMILY_RAW
-#define CHIP_FAMILY_RAW ESP32
+#define CHIP_FAMILY_RAW "ESP32"
 #endif
 
-const char* firmwareVersion = TOSTRING(FIRMWARE_VERSION_RAW);
+static const char* firmwareVersionRaw = FIRMWARE_VERSION_RAW;
+const char* firmwareVersion = (firmwareVersionRaw[0] != '\0') ? firmwareVersionRaw : "alpha";
 
 // Use the CHIP_FAMILY_RAW if it expands to a non-empty string literal, otherwise fall back to the default.
-static const char* chipFamilyRaw = TOSTRING(CHIP_FAMILY_RAW);
+static const char* chipFamilyRaw = CHIP_FAMILY_RAW;
 const char* chipFamily = (chipFamilyRaw[0] != '\0') ? chipFamilyRaw : "ESP32";
 
 
@@ -114,4 +115,3 @@ void loop()
     // - Printer polling: 250ms status interval
     vTaskDelay(pdMS_TO_TICKS(1));
 }
-

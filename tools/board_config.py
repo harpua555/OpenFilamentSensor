@@ -67,20 +67,26 @@ def get_supported_boards() -> list[str]:
 
 def get_supported_chip_families() -> set[str]:
     """
-    Get set of all unique chip families supported.
-
+    Return the set of unique chip family identifiers supported by the board mapping.
+    
     Returns:
-        Set of unique chip family strings
+        set[str]: Unique chip family strings present in the board-to-chip-family mapping.
     """
     return set(BOARD_TO_CHIP_FAMILY.values())
 
 
 def compose_chip_family_label(board_env: str, chip_prefix: Optional[str]) -> str:
     """
-    Combine a user-specified chip prefix with the board's default suffix.
-    Examples:
-        base='ESP32-S3', chip_prefix='ESP32' -> 'ESP32-S3'
-        base='seeed ESP32-C3', chip_prefix='seeed ESP32' -> 'seeed ESP32-C3'
+    Produce a chip family label by combining a user-provided prefix with the board's default suffix.
+    
+    Parameters:
+        board_env (str): PlatformIO board environment name used to look up the board's default chip family label.
+        chip_prefix (Optional[str]): User-supplied prefix to use for the chip family label; may be None or whitespace.
+    
+    Returns:
+        final_label (str): The resulting chip family label. If `chip_prefix` is empty or whitespace, returns the board's default label.
+        If `chip_prefix` already ends with the default label's suffix (the substring from the first '-' onward), returns `chip_prefix`.
+        Otherwise returns `chip_prefix` concatenated with the default suffix.
     """
     base_label = get_chip_family_for_board(board_env)
     if not chip_prefix:

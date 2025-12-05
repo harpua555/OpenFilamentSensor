@@ -61,8 +61,20 @@ def temporarily_hide_files(paths: List[str]):
 @contextmanager
 def temporarily_merge_secrets(settings_path: str, secrets_path: str, ignore: bool) -> Iterator[bool]:
     """
-    Merge secrets into user_settings.json for the duration of the context.
-    Always restores the original contents, even if later steps fail.
+    Temporarily merge secrets from a secrets file into the given user settings file for the duration of a context.
+    
+    When `ignore` is True, this context does nothing and yields False. Otherwise, reads secrets from `secrets_path`, merges the keys "ssid", "passwd", and "elegooip" into the JSON at `settings_path`, writes the merged settings to disk, and yields True; on context exit the original contents of `settings_path` are restored. Raises FileNotFoundError if `secrets_path` does not exist and `ignore` is False.
+    
+    Parameters:
+        settings_path (str): Path to the user settings JSON file that will be modified temporarily.
+        secrets_path (str): Path to the secrets JSON file providing values to merge.
+        ignore (bool): If True, skip merging and yield False.
+    
+    Returns:
+        bool: `True` if secrets were merged for the context, `False` if merging was skipped due to `ignore`.
+    
+    Side effects:
+        Overwrites `settings_path` during the context and restores its original contents on exit.
     """
     if ignore:
         yield False
@@ -111,6 +123,16 @@ def temporarily_merge_secrets(settings_path: str, secrets_path: str, ignore: boo
 
 
 def run(cmd: List[str], cwd: Optional[str] = None, extra_env: Optional[Dict[str, str]] = None) -> None:
+    """
+    Execute a subprocess command after printing it and optionally extending the environment.
+    
+    Runs the given command in an optional working directory, merges `extra_env` into the current process environment for the subprocess, and raises subprocess.CalledProcessError if the command exits with a non-zero status.
+    
+    Parameters:
+        cmd (List[str]): Command and arguments to execute.
+        cwd (Optional[str]): Working directory for the subprocess; uses the current working directory if None.
+        extra_env (Optional[Dict[str, str]]): Environment variables to add or override for the subprocess.
+    """
     print(f"> {' '.join(cmd)} (cwd={cwd or os.getcwd()})")
 
     # Set up environment for subprocess
@@ -127,7 +149,15 @@ def run_with_build_env(
     build_env: Dict[str, str],
     cwd: Optional[str] = None,
 ) -> None:
-    """Run a command with both CHIP_FAMILY and FIRMWARE_VERSION populated."""
+    """
+    Log the resolved CHIP_FAMILY and FIRMWARE_VERSION for a PlatformIO environment and run the given command with those environment variables applied.
+    
+    Parameters:
+        cmd (List[str]): The command and arguments to execute.
+        board_env (str): The PlatformIO environment name used for display/logging.
+        build_env (Dict[str, str]): Environment mapping; expected to contain `CHIP_FAMILY` and `FIRMWARE_VERSION` which are injected into the subprocess environment.
+        cwd (Optional[str]): Working directory to run the command in, or None to use the current directory.
+    """
     chip_family = build_env.get("CHIP_FAMILY", "")
     firmware_label = build_env.get("FIRMWARE_VERSION", "")
     print(
@@ -138,6 +168,12 @@ def run_with_build_env(
 
 
 def ensure_executable(name: str) -> None:
+    """
+    Ensure the given executable is available on the system PATH and exit with status 1 if it is not.
+    
+    Parameters:
+        name (str): The command/executable name to check (e.g., 'npm', 'python').
+    """
     if shutil.which(name) is None:
         print(f"ERROR: `{name}` is not on PATH.")
         if name == "npm":
@@ -232,6 +268,14 @@ def create_build_timestamp(data_dir: str) -> str:
 
 
 def main() -> None:
+    """
+    Build and optionally flash a lightweight Web UI and firmware for ESP32 using PlatformIO.
+    
+    Parses CLI options to control which artifacts to build: lightweight web UI/filesystem, firmware, or both;
+    whether to merge per-run secrets into the filesystem image; and version increment behavior.
+    Creates temporary build timestamp and version files for filesystem images and removes them after the run.
+    Exits with non‑zero status for unsupported board environments or missing required tools.
+    """
     parser = argparse.ArgumentParser(
         description="Build Lite WebUI + firmware and flash to ESP32 via PlatformIO."
     )

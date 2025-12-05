@@ -9,7 +9,15 @@ Import("env")
 
 
 def _as_string_literal(value: str) -> str:
-    """Return a C string literal payload for CPPDEFINES (without surrounding quotes)."""
+    """
+    Produce a C-style quoted string suitable for embedding in CPPDEFINES.
+    
+    Parameters:
+        value (str): The raw string to convert into a C string literal payload.
+    
+    Returns:
+        str: The input wrapped in escaped double quotes with internal double quotes escaped, suitable for use as a C string literal in CPPDEFINES (no additional surrounding quotes).
+    """
     escaped = value.replace('"', r'\"')
     return f'\\"{escaped}\\"'
 

@@ -70,6 +70,16 @@ void setup()
     systemServices.begin();
 }
 
+/**
+ * @brief Main program loop that drives periodic system tasks and conditional subsystem startup.
+ *
+ * Runs recurring service processing, defers further work while setup is required, starts the web
+ * server once a Wi‑Fi setup attempt has occurred, initializes and processes the Elegoo subsystem
+ * when Wi‑Fi is ready and an Elegoo IP is configured, and services the web server if started.
+ *
+ * @note The loop yields to the FreeRTOS scheduler with a 1 ms delay to reduce CPU usage while
+ *       preserving sensor and polling timing requirements.
+ */
 void loop()
 {
     systemServices.loop();

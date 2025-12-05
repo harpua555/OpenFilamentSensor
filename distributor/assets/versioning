@@ -1,6 +1,6 @@
 {
   "version": "0.4.0",
-  "build_date": "2025-12-04",
+  "build_date": "2025-12-05",
   "status": "experimental",
   "release_notes": [
     "Closed Alpha",
@@ -13,13 +13,13 @@
       "status": "tested, stable~ish",
       "release_notes": []
     },
-    "esp32c3mini": {
+    "esp32c3supermini": {
       "status": "experimental",
       "release_notes": [
         "OTA currently not supported"
       ]
     },
-    "seeed_xiao_esp32c3": {
+    "seeed_esp32c3": {
       "status": "experimental",
       "release_notes": []
     }

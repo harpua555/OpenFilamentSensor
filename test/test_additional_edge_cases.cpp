@@ -14,6 +14,11 @@
 
 // Mock Arduino environment
 unsigned long _mockMillis = 0;
+/**
+ * @brief Provides the mocked system time in milliseconds for tests.
+ *
+ * @return unsigned long Current mocked time in milliseconds.
+ */
 unsigned long millis() { return _mockMillis; }
 
 // Define header guards BEFORE including anything to prevent real headers
@@ -23,25 +28,133 @@ unsigned long millis() { return _mockMillis; }
 // Mock Logger class that matches the interface expected by JamDetector
 class Logger {
 public:
-    static Logger& getInstance() { static Logger inst; return inst; }
-    void log(const char* msg, int level = 0) { /* no-op */ }
-    void log(const void* msg, int level = 0) { /* no-op */ }
-    void logf(const char* fmt, ...) { /* no-op */ }
-    void logf(int level, const char* fmt, ...) { /* no-op */ }
-    void logVerbose(const char* fmt, ...) { /* no-op */ }
-    void logNormal(const char* fmt, ...) { /* no-op */ }
-    void logPinValues(const char* fmt, ...) { /* no-op */ }
-    int getLogLevel() const { return 0; }
-    void setLogLevel(int level) { /* no-op */ }
+    /**
+ * @brief Accesses the global Logger singleton instance.
+ *
+ * @return Logger& Reference to the process-wide Logger singleton.
+ */
+static Logger& getInstance() { static Logger inst; return inst; }
+    /**
+ * @brief Accepts a message for logging at the specified verbosity level (no-op in test mocks).
+ *
+ * This mock implementation ignores the message and level; in production it would emit or route the
+ * log message according to the provided verbosity `level`.
+ *
+ * @param msg Null-terminated string containing the message to log.
+ * @param level Verbosity or priority of the message; higher values indicate higher verbosity. Default is 0.
+ */
+void log(const char* msg, int level = 0) { /* no-op */ }
+    /**
+ * @brief Accepts a pointer message and an optional verbosity level for logging (mock no-op).
+ *
+ * This mock overload mirrors the production logger interface and intentionally performs no action.
+ *
+ * @param msg Pointer to the message payload; interpreted by real logger implementations but ignored here.
+ * @param level Verbosity or log level for the message; defaults to 0 and is ignored in the mock.
+ */
+void log(const void* msg, int level = 0) { /* no-op */ }
+    /**
+ * @brief Formats a message using a printf-style format string and records it to the logger at the default level.
+ *
+ * @param fmt A null-terminated printf-style format string.
+ * @param ... Values referenced by the format specifiers in `fmt`.
+ */
+void logf(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Logs a formatted message at the specified log level.
+ *
+ * In the mock logger this function performs no action.
+ *
+ * @param level Log level to associate with the message.
+ * @param fmt printf-style format string for the message.
+ * @param ... Arguments matching the format specifiers in `fmt`.
+ */
+void logf(int level, const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Logs a verbose-format message (mock implementation; no operation).
+ *
+ * Accepts a printf-style format string and corresponding arguments intended for
+ * verbose logging. In this test/mock build the function does nothing.
+ *
+ * @param fmt printf-style format string describing the message.
+ * @param ... Optional arguments referenced by the format specifiers in `fmt`.
+ */
+void logVerbose(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Logs a normal-priority formatted message; in the test mock this is a no-op.
+ *
+ * @param fmt printf-style format string specifying the message.
+ * @param ... Arguments referenced by the format specifier in `fmt`.
+ */
+void logNormal(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Accepts a printf-style format and arguments intended to log GPIO/pin values (mock implementation).
+ *
+ * This mock accepts the same format string and variable arguments as the production logger's pin-value logger but performs no action.
+ *
+ * @param fmt printf-style format string describing pin names and values; additional arguments supply the corresponding values.
+ */
+void logPinValues(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Retrieves the current logger verbosity level.
+ *
+ * The verbosity level controls which messages the logger will emit.
+ *
+ * @return int Current verbosity level; larger values enable more verbose output.
+ */
+int getLogLevel() const { return 0; }
+    /**
+ * @brief Sets the logger's verbosity level for future log messages.
+ *
+ * In this mock implementation the call is a no-op and does not change any state.
+ *
+ * @param level Desired verbosity level (higher values indicate more verbose output).
+ */
+void setLogLevel(int level) { /* no-op */ }
 };
 
 // Mock SettingsManager class
 class SettingsManager {
 public:
-    static SettingsManager& getInstance() { static SettingsManager inst; return inst; }
-    bool getVerboseLogging() const { return false; }
-    template<typename T> T getSetting(int offset) const { return T(); }
-    template<typename T> void setSetting(int offset, T value) { /* no-op */ }
+    /**
+ * @brief Access the global SettingsManager singleton.
+ *
+ * Provides a single, shared SettingsManager instance for use throughout the test harness.
+ *
+ * @return SettingsManager& Reference to the process-wide SettingsManager singleton.
+ */
+static SettingsManager& getInstance() { static SettingsManager inst; return inst; }
+    /**
+ * @brief Reports whether verbose logging is enabled in the settings manager.
+ *
+ * In the mock SettingsManager used for tests, this indicates if verbose logging is requested.
+ *
+ * @return `true` if verbose logging is enabled, `false` otherwise.
+ */
+bool getVerboseLogging() const { return false; }
+    template<typename T> /**
+ * @brief Retrieve the setting value for a given offset (mock implementation).
+ *
+ * This mock returns a default-constructed value of type `T` for the requested
+ * offset rather than reading persistent configuration.
+ *
+ * @tparam T Type of the requested setting value.
+ * @param offset Integer offset identifying the setting.
+ * @return T Default-constructed value of the requested type for the given offset.
+ */
+T getSetting(int offset) const { return T(); }
+    template<typename T> /**
+ * @brief Store a configuration value for a given settings offset.
+ *
+ * Sets the setting identified by `offset` to `value`.
+ *
+ * @tparam T Type of the value to store.
+ * @param offset Integer offset/key identifying the setting.
+ * @param value Value to assign to the setting.
+ *
+ * @note In this mock SettingsManager implementation this method is a no-op.
+ */
+void setSetting(int offset, T value) { /* no-op */ }
 };
 
 // Define the macros that the source code expects
@@ -117,6 +230,12 @@ void testJamDetectorRapidStateChanges() {
     testsPassed++;
 }
 
+/**
+ * @brief Verifies JamDetector remains stable and does not report false jams during a very long, consistent print.
+ *
+ * Runs the detector over a simulated 24-hour print with minute updates using stable expected/actual flow values,
+ * confirming the detector never enters a jammed state while allowing normal grace-state transitions.
+ */
 void testJamDetectorVeryLongPrint() {
     std::cout << "\n=== Test: JamDetector Very Long Print Duration ===" << std::endl;
     
@@ -440,7 +559,15 @@ void testIntegrationMixedJamTypes() {
 
 // ============================================================================
 // Main Test Runner
-// ============================================================================
+/**
+ * @brief Runs additional JamDetector edge-case and integration tests and prints a colored summary.
+ *
+ * Executes a sequence of edge-case and integration test functions for JamDetector, prints progress
+ * and a final colored pass/fail summary to stdout, and catches any std::exception thrown during
+ * test execution (counting such exceptions as a failed test).
+ *
+ * @return int `0` if all tests passed, `1` if any test failed.
+ */
 
 int main() {
     std::cout << "\n========================================" << std::endl;

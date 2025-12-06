@@ -14,6 +14,13 @@
 
 // Mock Arduino environment
 unsigned long _mockMillis = 0;
+/**
+ * @brief Provides the current simulated millisecond count used by the test harness.
+ *
+ * The function serves as the time source for tests that mock Arduino behavior.
+ *
+ * @return unsigned long The current mock time in milliseconds.
+ */
 unsigned long millis() { return _mockMillis; }
 
 // Define header guards BEFORE including anything to prevent real headers
@@ -23,25 +30,134 @@ unsigned long millis() { return _mockMillis; }
 // Mock Logger class that matches the interface expected by JamDetector
 class Logger {
 public:
-    static Logger& getInstance() { static Logger inst; return inst; }
-    void log(const char* msg, int level = 0) { /* no-op */ }
-    void log(const void* msg, int level = 0) { /* no-op */ }
-    void logf(const char* fmt, ...) { /* no-op */ }
-    void logf(int level, const char* fmt, ...) { /* no-op */ }
-    void logVerbose(const char* fmt, ...) { /* no-op */ }
-    void logNormal(const char* fmt, ...) { /* no-op */ }
-    void logPinValues(const char* fmt, ...) { /* no-op */ }
-    int getLogLevel() const { return 0; }
-    void setLogLevel(int level) { /* no-op */ }
+    /**
+ * @brief Accesses the global Logger instance.
+ *
+ * @return Logger& Reference to the shared Logger instance.
+ */
+static Logger& getInstance() { static Logger inst; return inst; }
+    /**
+ * @brief Records a log message at the specified verbosity level (no-op in the test mock).
+ *
+ * @param msg Null-terminated string containing the message to log.
+ * @param level Optional verbosity or severity level; lower values are less verbose. Default is 0.
+ */
+void log(const char* msg, int level = 0) { /* no-op */ }
+    /**
+ * @brief Accepts a message pointer and log level but performs no logging.
+ *
+ * This mock implementation intentionally discards the message and level; it
+ * provides a compatible interface for tests that expect a Logger.
+ *
+ * @param msg Pointer to the message data (commonly a null-terminated C string).
+ * @param level Log verbosity level; higher values indicate more verbose output.
+ */
+void log(const void* msg, int level = 0) { /* no-op */ }
+    /**
+ * @brief Formats a message according to `fmt` and arguments but performs no action.
+ *
+ * This stub accepts a printf-style format string and variadic arguments but intentionally does nothing.
+ *
+ * @param fmt C-style format string describing the message.
+ * @param ... Arguments referenced by the format string.
+ */
+void logf(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Logs a formatted message at the specified verbosity level.
+ *
+ * Accepts a printf-style format string and variadic arguments to format the message.
+ *
+ * @param level Verbosity or severity level for the message.
+ * @param fmt C-style format string (printf-style).
+ * @param ... Arguments referenced by the format string.
+ *
+ * @note In the test/mock implementation this function is a no-op.
+ */
+void logf(int level, const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Logs a verbose, printf-style message (test/mock implementation does nothing).
+ *
+ * Accepts a printf-style format string and corresponding arguments.
+ *
+ * @param fmt Format string for the message.
+ * @param ... Arguments referenced by the format string.
+ */
+void logVerbose(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Accepts a printf-style normal-priority log message (mock no-op).
+ *
+ * Acts as a stub logger method that accepts a printf-style format string and
+ * corresponding variadic arguments but performs no logging in the test/mock
+ * environment.
+ *
+ * @param fmt printf-style format string.
+ * @param ... Arguments matching `fmt`.
+ */
+void logNormal(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Formats and records pin-value information for diagnostics; in the test harness this is a no-op.
+ *
+ * @param fmt printf-style format string describing pin values.
+ * @param ... Arguments corresponding to the format string.
+ */
+void logPinValues(const char* fmt, ...) { /* no-op */ }
+    /**
+ * @brief Retrieve the current logging verbosity level.
+ *
+ * Higher values indicate more verbose logging output.
+ *
+ * @return int The current log level as an integer.
+ */
+int getLogLevel() const { return 0; }
+    /**
+ * @brief Set the logger verbosity level.
+ *
+ * Adjusts the verbosity threshold used by the logger to filter messages.
+ *
+ * @param level Verbosity level (higher values enable more verbose output).
+ */
+void setLogLevel(int level) { /* no-op */ }
 };
 
 // Mock SettingsManager class
 class SettingsManager {
 public:
-    static SettingsManager& getInstance() { static SettingsManager inst; return inst; }
-    bool getVerboseLogging() const { return false; }
-    template<typename T> T getSetting(int offset) const { return T(); }
-    template<typename T> void setSetting(int offset, T value) { /* no-op */ }
+    /**
+ * @brief Accesses the process-wide SettingsManager singleton.
+ *
+ * The singleton instance is created on first invocation and the same reference
+ * is returned on all subsequent calls.
+ *
+ * @return SettingsManager& Reference to the shared SettingsManager instance.
+ */
+static SettingsManager& getInstance() { static SettingsManager inst; return inst; }
+    /**
+ * @brief Indicates whether verbose logging is enabled.
+ *
+ * @return `true` if verbose logging is enabled, `false` otherwise. This implementation always returns `false`.
+ */
+bool getVerboseLogging() const { return false; }
+    template<typename T> /**
+ * @brief Retrieve a configuration value by its integer offset.
+ *
+ * In this test/mock implementation, the requested setting is not stored and
+ * a default-constructed value of type `T` is returned.
+ *
+ * @tparam T Type of the requested setting.
+ * @param offset Index or key offset identifying the setting.
+ * @return T A default-constructed value of type `T`.
+ */
+T getSetting(int offset) const { return T(); }
+    template<typename T> /**
+ * @brief Test-only setter that accepts a typed setting value but intentionally performs no action.
+ *
+ * This mock implementation is provided for test scaffolding and does not persist or affect any settings.
+ *
+ * @tparam T Type of the setting value.
+ * @param offset Integer index or identifier for the setting (ignored).
+ * @param value Setting value to assign (ignored).
+ */
+void setSetting(int offset, T value) { /* no-op */ }
 };
 
 // Define the macros that the source code expects
@@ -220,6 +336,16 @@ void testHardJamDetection() {
     testsPassed++;
 }
 
+/**
+ * @brief Executes a unit test that verifies soft-jam detection under sustained under-extrusion.
+ *
+ * Runs a scenario where actual extrusion remains below the configured ratio threshold over time,
+ * asserts initial non-jammed conditions and increasing soft-jam percent, then advances simulated time
+ * with repeated updates and expects the detector to set a soft-jam and jammed state within the test window.
+ *
+ * The test logs a pass when a soft jam is triggered, or logs a warning and still counts as pass if the
+ * soft jam does not trigger within the simulated iterations.
+ */
 void testSoftJamDetection() {
     std::cout << "\n=== Test: Soft Jam Detection ===" << std::endl;
     
@@ -289,6 +415,13 @@ void testSoftJamDetection() {
     testsPassed++;
 }
 
+/**
+ * @brief Verifies that JamDetector reduces or stops increasing soft-jam accumulation once filament flow recovers.
+ *
+ * This unit test simulates an initial period of under-extrusion to build soft-jam percentage, then simulates healthy
+ * extrusion to confirm the detector's soft-jam percent declines or at least does not continue to grow after recovery.
+ * The test reports a pass with the peak and post-recovery soft-jam percentages.
+ */
 void testJamRecovery() {
     std::cout << "\n=== Test: Jam Recovery ===" << std::endl;
 
@@ -342,6 +475,11 @@ void testJamRecovery() {
     testsPassed++;
 }
 
+/**
+ * @brief Unit test verifying that a resume event restores a temporary grace period that prevents false jam detections.
+ *
+ * Exercises a JamDetector through a simulated print lifecycle: it advances mock time past the initial start grace, issues a resume event with a new baseline, and then performs an update shortly after resume to ensure jam flags remain cleared and the detector enters the RESUME_GRACE state so transient poor flow does not trigger a jam.
+ */
 void testResumeGrace() {
     std::cout << "\n=== Test: Resume Grace Period ===" << std::endl;
 

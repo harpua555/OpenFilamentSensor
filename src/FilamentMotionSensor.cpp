@@ -2,12 +2,25 @@
 
 static const unsigned long INVALID_SAMPLE_TIMESTAMP = ~0UL;
 
+/**
+ * @brief Construct a FilamentMotionSensor configured for filament motion tracking.
+ *
+ * Initializes the sensor object with a default 5000 ms (5 second) sliding window and prepares
+ * internal state for collecting expected and actual extrusion samples.
+ */
 FilamentMotionSensor::FilamentMotionSensor()
 {
     windowSizeMs = 5000;  // 5 second window
     reset();
 }
 
+/**
+ * @brief Reset internal state and windowed tracking to an initial baseline.
+ *
+ * Clears initialization and pulse-tracking flags, resets the extrusion baseline
+ * and timestamp anchors, and empties the sliding window of samples so subsequent
+ * measurements start from a clean state.
+ */
 void FilamentMotionSensor::reset()
 {
     initialized           = false;
@@ -29,6 +42,15 @@ void FilamentMotionSensor::reset()
     lastSensorPulseMs = millis();  // Initialize to current time
 }
 
+/**
+ * @brief Update expected filament position using cumulative extrusion telemetry.
+ *
+ * Establishes an initial baseline on first telemetry, detects retractions to clear
+ * the windowed tracking buffer (without touching the grace-period timer), and
+ * records incremental expected extrusion into the sample window when appropriate.
+ *
+ * @param totalExtrusionMm Cumulative extruder distance in millimeters from firmware telemetry.
+ */
 void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
 {
     unsigned long currentTime = millis();
@@ -68,6 +90,20 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
     lastTotalExtrusionMm = totalExtrusionMm;
 }
 
+/**
+ * @brief Record a sensor pulse into the windowed motion tracker.
+ *
+ * Adds the given filament distance represented by a sensor pulse to the current time window:
+ * it updates the timestamp of the last pulse, discards any pre-pulse samples when the first
+ * detected pulse arrives, and associates the pulse with the most recent sample within the
+ * active window or creates a new sample when appropriate.
+ *
+ * @param mmPerPulse Millimeters of filament represented by this pulse; ignored if less than
+ *                   or equal to 0.0.
+ *
+ * Notes:
+ * - No action is taken if the sensor subsystem is not initialized.
+ */
 void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
 {
     if (mmPerPulse <= 0.0f || !initialized)
@@ -130,6 +166,17 @@ void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
     }
 }
 
+/**
+ * @brief Record a new expected/actual filament movement sample into the time window.
+ *
+ * Prunes samples outside the configured window, finalizes the duration for the previous
+ * sample based on elapsed time (capped to the window), and appends a new sample with
+ * the provided expected and actual delta distances. Uses a fixed-size circular buffer
+ * and increments the stored sample count when space permits.
+ *
+ * @param expectedDeltaMm Expected extrusion distance for this sample, in millimeters.
+ * @param actualDeltaMm Actual measured extrusion distance for this sample, in millimeters.
+ */
 void FilamentMotionSensor::addSample(float expectedDeltaMm, float actualDeltaMm)
 {
     unsigned long currentTime = millis();
@@ -166,6 +213,15 @@ void FilamentMotionSensor::addSample(float expectedDeltaMm, float actualDeltaMm)
     }
 }
 
+/**
+ * @brief Removes stored samples that fall outside the configured time window.
+ *
+ * Prunes the internal circular sample buffer so only samples with timestamps
+ * within the most recent windowSizeMs remain. If no samples are within the
+ * window, the stored sample count is set to zero. The insertion index
+ * (nextSampleIndex) is not changed; callers should read samples using the
+ * updated sampleCount to determine the current valid range.
+ */
 void FilamentMotionSensor::pruneOldSamples()
 {
     if (sampleCount == 0)
@@ -231,6 +287,11 @@ float FilamentMotionSensor::getDeficit()
     return deficit > 0.0f ? deficit : 0.0f;
 }
 
+/**
+ * @brief Retrieve the accumulated expected filament movement over the current time window.
+ *
+ * @return float Accumulated expected filament movement in millimeters within the sensor's configured window; returns 0.0 if the sensor is not initialized.
+ */
 float FilamentMotionSensor::getExpectedDistance()
 {
     if (!initialized)
@@ -243,6 +304,12 @@ float FilamentMotionSensor::getExpectedDistance()
     return expectedMm;
 }
 
+/**
+ * @brief Retrieves the filament movement measured by the sensor within the current time window.
+ *
+ * @return The accumulated filament movement from sensor pulses, in millimeters, within the active window.
+ *         Returns `0.0f` if the sensor is not initialized or no samples are available.
+ */
 float FilamentMotionSensor::getSensorDistance()
 {
     if (!initialized)
@@ -255,6 +322,17 @@ float FilamentMotionSensor::getSensorDistance()
     return actualMm;
 }
 
+/**
+ * @brief Compute the windowed expected and actual filament feed rates.
+ *
+ * Computes feed rates (millimeters per second) for both the expected extrusion
+ * and the measured sensor distance using samples inside the current time
+ * window. If there are fewer than 100 ms of accumulated sample duration the
+ * outputs remain 0 to avoid unstable rate estimates.
+ *
+ * @param[out] expectedRate Receives the computed expected feed rate in mm/s.
+ * @param[out] actualRate Receives the computed measured feed rate in mm/s.
+ */
 void FilamentMotionSensor::getWindowedRates(float &expectedRate, float &actualRate)
 {
     expectedRate = 0.0f;
@@ -307,6 +385,11 @@ void FilamentMotionSensor::getWindowedRates(float &expectedRate, float &actualRa
     actualRate   = actualSum / durationSec;
 }
 
+/**
+ * @brief Reports whether the filament motion sensor has completed its initialization.
+ *
+ * @return `true` if the sensor has been initialized, `false` otherwise.
+ */
 bool FilamentMotionSensor::isInitialized() const
 {
     return initialized;

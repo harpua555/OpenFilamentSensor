@@ -46,6 +46,7 @@ jobs:
         run: |
           python tools/build_and_release.py \
             --env all \
+            --ignore-secrets \
             --version "${{ inputs.version-action }}" \
             --firmware-label "${{ inputs.firmware-label }}"
 

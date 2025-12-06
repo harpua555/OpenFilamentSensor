@@ -18,11 +18,11 @@ This project uses two focused GitHub Actions workflows:
      - `prerelease`: flag to mark the GitHub Release as prerelease.
    - Steps:
      - Installs Python/Node/PlatformIO (with `pyyaml`).
-     - Runs `tools/build_and_release.py --env all --version <version-action> --firmware-label <firmware-label>` with the chosen version action and label; this script builds firmware/filesystem for every board sequentially and copies clean `firmware_merged.bin` plus OTA artifacts into `distributor/firmware/<board>` (see below).
+     - Runs `tools/build_and_release.py --env all --ignore-secrets --version <version-action> --firmware-label <firmware-label>` with the chosen version action and label; this script builds firmware/filesystem for every board sequentially and copies clean `firmware_merged.bin` plus OTA artifacts into `distributor/firmware/<board>` (see below). Secrets stay out of these binaries thanks to the explicit `--ignore-secrets` flag.
      - Collects `.pio/build/<env>` binaries (`firmware.bin`, `firmware_merged.bin`, `littlefs.bin`, `bootloader.bin`, `partitions.bin`) into `release-assets/`, listing them and generating `checksums.txt`.
      - Reads `data/.version` for the release tag, captures the latest commit message, and publishes a GitHub Release via `softprops/action-gh-release@v2`, attaching `release-assets/*` and referencing the checksum file.
 
-### Expected GitHub Artifacts
+## Expected GitHub Artifacts
 
 | Artifact | Description | Source |
  | --- | --- | --- |

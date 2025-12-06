@@ -12,7 +12,7 @@ Usage (run from repo root):
  python tools/build_and_release.py --version skip --env esp32       # Build only, no version update
 
 Features:
-- Always uses safe defaults: --local --ignore-secrets --increment-version
+- Always ignores secrets by default while still allowing a deliberate merge via --merge-secrets (default=ignore)
 - Version management: skip/build/ver/release (default=ver)
 - Distributor copy: Only copies firmware_merged.bin when --ignore-secrets used
 - Safety: Prevents distributor copy if secrets were merged into firmware
@@ -682,6 +682,20 @@ def main() -> None:
         default="alpha",
         help="Firmware version string to embed in the firmware binary (default: alpha).",
     )
+    secrets_group = parser.add_mutually_exclusive_group()
+    secrets_group.add_argument(
+        "--ignore-secrets",
+        dest="ignore_secrets",
+        action="store_true",
+        help="Skip merging data/secrets.json so release binaries stay clean (default).",
+    )
+    secrets_group.add_argument(
+        "--merge-secrets",
+        dest="ignore_secrets",
+        action="store_false",
+        help="Allow secrets to be merged into this build (use with caution).",
+    )
+    parser.set_defaults(ignore_secrets=True)
 
     args = parser.parse_args()
 
@@ -713,6 +727,7 @@ def main() -> None:
     built_envs: list[str] = []
     first_board = True
 
+    ignore_secrets = args.ignore_secrets
     for board_env in target_envs:
         if not validate_board_environment(board_env):
             print(f"ERROR: Unsupported board environment '{board_env}'")
@@ -729,14 +744,14 @@ def main() -> None:
         build_firmware(
             repo_root,
             board_env,
-            True,
+            ignore_secrets,
             version_action,
             args.version_type,
             chip_family_label,
             firmware_label,
         )
 
-        copy_to_distributor(repo_root, board_env, True, chip_family_label)
+        copy_to_distributor(repo_root, board_env, ignore_secrets, chip_family_label)
 
         built_envs.append(board_env)
         first_board = False

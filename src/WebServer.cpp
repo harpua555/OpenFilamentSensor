@@ -29,7 +29,16 @@ constexpr const char kLiteIndexPath[]         = "/lite/index.htm";
 extern const char *firmwareVersion;
 extern const char *chipFamily;
 
-// Convert __DATE__ and __TIME__ to thumbprint format MMDDYYHHMMSS
+/**
+ * @brief Produce a compact build timestamp thumbprint in MMDDYYHHMMSS format.
+ *
+ * Converts a build date and time string into a 12-digit thumbprint representing
+ * month, day, two-digit year, hour, minute, and second.
+ *
+ * @param date Build date string in the format "Mon DD YYYY" (for example, "Nov 25 2025").
+ * @param time Build time string in the format "HH:MM:SS" (for example, "08:10:22").
+ * @return String 12-character thumbprint "MMDDYYHHMMSS" (for example, "112525081022").
+ */
 String getBuildThumbprint(const char* date, const char* time) {
     // Parse __DATE__ format: "Nov 25 2025"
     const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",

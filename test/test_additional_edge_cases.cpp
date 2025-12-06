@@ -14,6 +14,11 @@
 
 // Mock Arduino environment
 unsigned long _mockMillis = 0;
+/**
+ * @brief Provides the mock millisecond timestamp used by tests.
+ *
+ * @return unsigned long Current mock time in milliseconds.
+ */
 unsigned long millis() { return _mockMillis; }
 
 // Shared mocks and macros for Logger/SettingsManager
@@ -88,6 +93,14 @@ void testJamDetectorRapidStateChanges() {
     testsPassed++;
 }
 
+/**
+ * @brief Verifies JamDetector does not report false jams during very long prints.
+ *
+ * Exercises the detector over a 24-hour simulated print with consistent expected
+ * and actual flow values, advancing mocked time in one-minute intervals. Confirms
+ * the detector remains unjammed throughout and allows normal grace-state
+ * transitions (e.g., entering or leaving RESUME_GRACE/ACTIVE) as configured.
+ */
 void testJamDetectorVeryLongPrint() {
     std::cout << "\n=== Test: JamDetector Very Long Print Duration ===" << std::endl;
     
@@ -411,7 +424,15 @@ void testIntegrationMixedJamTypes() {
 
 // ============================================================================
 // Main Test Runner
-// ============================================================================
+/**
+ * @brief Runs additional edge-case and integration tests and reports results.
+ *
+ * Executes a suite of JamDetector edge-case tests and integration scenarios,
+ * catches and reports any exceptions, prints a summary of passed/failed tests,
+ * and returns an exit status reflecting the overall test outcome.
+ *
+ * @return int Exit code: 0 if all tests passed, 1 if any test failed.
+ */
 
 int main() {
     std::cout << "\n========================================" << std::endl;

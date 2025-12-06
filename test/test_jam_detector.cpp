@@ -14,6 +14,14 @@
 
 // Mock Arduino environment
 unsigned long _mockMillis = 0;
+/**
+ * @brief Provide the current mocked millisecond timestamp.
+ *
+ * This mock implementation exposes the test harness time source by returning
+ * the value of the global `_mockMillis`.
+ *
+ * @return unsigned long Current mock time in milliseconds (value of `_mockMillis`).
+ */
 unsigned long millis() { return _mockMillis; }
 
 // Shared mocks and macros for Logger/SettingsManager
@@ -125,6 +133,16 @@ void testGracePeriodStartup() {
     testsPassed++;
 }
 
+/**
+ * @brief Executes a unit test that verifies hard-jam detection triggers after sustained under-extrusion.
+ *
+ * Runs a simulated scenario with no grace period where expected movement is significant but actual movement and rate are near zero,
+ * advances mocked time across multiple update calls to accumulate detection time, and checks that the JamDetector sets the jammed state
+ * and hardJamTriggered flag within the configured hard-jam window.
+ *
+ * This test prints a PASS message and increments the global test counter when detection occurs, or prints a WARN message if the detector
+ * does not trigger within the simulated period. It relies on global mocked time and test harness globals (e.g., testsPassed, _mockMillis).
+ */
 void testHardJamDetection() {
     std::cout << "\n=== Test: Hard Jam Detection ===" << std::endl;
     
@@ -191,6 +209,18 @@ void testHardJamDetection() {
     testsPassed++;
 }
 
+/**
+ * @brief Exercises soft-jam detection by simulating sustained under-extrusion.
+ *
+ * Configures a JamDetector for soft-jam conditions (70% threshold, 5s soft window),
+ * advances mock time, and feeds a consistent ~60% pass ratio to accumulate soft-jam
+ * percent. Verifies initial non-jammed state with growing softJamPercent and passRatio
+ * ≈ 0.6, then performs repeated updates until a soft jam is triggered. Prints test
+ * results and increments the global test counters.
+ *
+ * @note Uses the global mock time (_mockMillis) and the test harness globals
+ *       (testsPassed, COLOR_* constants) to report outcomes. No return value.
+ */
 void testSoftJamDetection() {
     std::cout << "\n=== Test: Soft Jam Detection ===" << std::endl;
     
@@ -260,6 +290,13 @@ void testSoftJamDetection() {
     testsPassed++;
 }
 
+/**
+ * @brief Verifies JamDetector soft-jam recovery by simulating a period of poor flow followed by healthy flow.
+ *
+ * Runs a scenario that accumulates soft-jam percentage under sustained under-extrusion, then switches
+ * to healthy extrusion and verifies the detector's soft-jam percent does not continue increasing.
+ * The test prints a PASS message and increments the global test counter on completion.
+ */
 void testJamRecovery() {
     std::cout << "\n=== Test: Jam Recovery ===" << std::endl;
 
@@ -579,6 +616,15 @@ void testNotPrintingState() {
     testsPassed++;
 }
 
+/**
+ * @brief Runs the JamDetector unit test suite and reports results.
+ *
+ * Executes the full set of unit tests for JamDetector, prints a header,
+ * per-test outcome messages and a summary to standard output, and updates
+ * global counters for passed and failed tests.
+ *
+ * @return int Exit code: `0` when all tests passed, `1` when one or more tests failed.
+ */
 int main() {
     std::cout << "\n";
     std::cout << "========================================\n";

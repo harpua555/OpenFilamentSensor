@@ -13,9 +13,58 @@ struct FilamentSample
 };
 
 /**
- * Filament motion sensor with windowed tracking algorithm
- *
- * Uses sliding time window (Klipper-style) to handle calibration drift
+ * Initialize a FilamentMotionSensor instance and its internal tracking state.
+ */
+
+/**
+ * Reset all tracking state to the initial (pre-print) condition.
+ */
+
+/**
+ * Update the expected extrusion position from printer telemetry.
+ * @param totalExtrusionMm Current total extrusion measured by the printer in millimeters.
+ */
+
+/**
+ * Record a sensor pulse representing filament movement.
+ * @param mmPerPulse Distance in millimeters that a single sensor pulse represents.
+ */
+
+/**
+ * Report the positive difference where expected extrusion exceeds actual sensor-measured extrusion.
+ * @return Deficit in millimeters (zero if actual ≥ expected).
+ */
+
+/**
+ * Report the accumulated expected extrusion distance within the current tracking window or since reset.
+ * @return Expected distance in millimeters.
+ */
+
+/**
+ * Report the accumulated actual sensor-measured distance within the current tracking window or since reset.
+ * @return Actual sensor distance in millimeters.
+ */
+
+/**
+ * Fill the provided references with the average expected and actual extrusion rates over the tracking window.
+ * @param expectedRate Output reference updated with the average expected rate in millimeters per second.
+ * @param actualRate Output reference updated with the average actual (sensor) rate in millimeters per second.
+ */
+
+/**
+ * Indicate whether the sensor has received at least one expected position update from telemetry.
+ * @return `true` if an expected position update has been received, `false` otherwise.
+ */
+
+/**
+ * Indicate whether tracking is still within a grace period following initialization, retraction, or a telemetry gap.
+ * @param gracePeriodMs Grace period duration in milliseconds.
+ * @return `true` if the time since the last relevant event is less than `gracePeriodMs`, `false` otherwise.
+ */
+
+/**
+ * Compute the ratio of actual (sensor) extrusion to expected extrusion for the current window.
+ * @return Ratio `actual / expected` (0.0 or greater), or `0` if tracking is not initialized or expected is zero.
  */
 class FilamentMotionSensor
 {

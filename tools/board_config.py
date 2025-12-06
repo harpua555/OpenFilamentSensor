@@ -16,6 +16,7 @@ BOARD_TO_CHIP_FAMILY: Dict[str, str] = {
     "esp32": "ESP32 (WROOM)",
     "seeed_esp32s3": "Seeed ESP32-S3",
     "seeed_esp32c3": "Seeed ESP32-C3",
+    "esp32c3supermini": "ESP32-C3",
 }
 
 def get_chip_family_for_board(board_env: str) -> str:

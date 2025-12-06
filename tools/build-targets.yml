@@ -7,4 +7,4 @@ platformio_envs:
   - esp32                # active (original ESP32 dev board)
   - seeed_esp32s3        # active (Seeed XIAO ESP32-S3)
   - esp32c3              # active (ESP32-C3 SuperMini)
-
+  - esp32c3supermini     # alternate env for the ESP32-C3 SuperMini packaging

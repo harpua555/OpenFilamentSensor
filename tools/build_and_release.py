@@ -98,6 +98,7 @@ BOARD_TO_DISTRIBUTOR_DIR = {
     "esp32": "esp32",
     "seeed_esp32s3": "seeed_esp32s3",
     "seeed_esp32c3": "seeed_esp32c3",
+    "esp32c3supermini": "esp32c3supermini",
 }
 
 ALL_ENVIRONMENT = "all"

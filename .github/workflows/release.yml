@@ -1,0 +1,140 @@
+name: Release Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      version-action:
+        description: "Version increment to apply (build, ver, release)"
+        required: false
+        default: ver
+        type: choice
+        options:
+          - build
+          - ver
+          - release
+      firmware-label:
+        description: "Firmware label injected into each binary"
+        required: false
+        default: release
+        type: string
+      prerelease:
+        description: "Draft this GitHub release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO Core
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio pyyaml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build all release targets
+        run: |
+          python tools/build_and_release.py \
+            --env all \
+            --local \
+            --ignore-secrets \
+            --version "${{ inputs.version-action }}" \
+            --firmware-label "${{ inputs.firmware-label }}"
+
+      - name: Capture release metadata
+        id: release-info
+        run: |
+          VERSION=$(cat data/.version)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          MESSAGE=$(git log -1 --pretty=%B)
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Publish distributor build artifacts
+        env:
+          BUILD_BRANCH: build
+          RELEASE_TAG: v${{ steps.release-info.outputs.version }}
+          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          CLONE_DIR=$(mktemp -d)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "${REPO_URL}" "${CLONE_DIR}"
+          cd "${CLONE_DIR}"
+          if git show-ref --verify --quiet "refs/remotes/origin/${BUILD_BRANCH}"; then
+            git checkout -B "${BUILD_BRANCH}" "origin/${BUILD_BRANCH}"
+          else
+            git checkout -B "${BUILD_BRANCH}"
+          fi
+          rsync -a --delete "${GITHUB_WORKSPACE}/distributor/firmware/" "${CLONE_DIR}/distributor/firmware/"
+          git add distributor/firmware
+          if git diff --cached --quiet; then
+            echo "Distributor branch already up to date."
+          else
+            git commit -m "Update distributor firmware for ${RELEASE_TAG}"
+            git push origin "${BUILD_BRANCH}"
+          fi
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release-assets
+          python - <<'PY'
+import yaml
+import shutil
+from pathlib import Path
+
+with open("tools/build-targets.yml", encoding="utf-8") as f:
+    envs = yaml.safe_load(f).get("platformio_envs", [])
+
+artifact_dir = Path("release-assets")
+filenames = ["firmware.bin", "firmware_merged.bin", "littlefs.bin", "bootloader.bin", "partitions.bin"]
+for env in envs:
+    build_dir = Path(".pio") / "build" / env
+    if not build_dir.exists():
+        continue
+    for name in filenames:
+        src = build_dir / name
+        if src.exists():
+            dest_name = f"{env}-{name}"
+            shutil.copy2(src, artifact_dir / dest_name)
+PY
+          ls release-assets
+          if compgen -G "release-assets/*.bin" >/dev/null; then
+            (
+              cd release-assets
+              sha256sum *.bin > checksums.txt
+            )
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release-info.outputs.version }}
+          name: "Centauri Firmware v${{ steps.release-info.outputs.version }}"
+          body: |
+            ## Firmware Release v${{ steps.release-info.outputs.version }}
+
+            ${{ steps.release-info.outputs.message }}
+
+            ### Included artifacts
+            - All supported boards (`esp32s3`, `esp32c3`, `esp32`, `seeed_esp32s3`, `seeed_esp32c3`)
+            - `checksums.txt` with SHA256 digests
+
+            🔧 Built with `tools/build_and_release.py`
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

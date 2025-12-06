@@ -68,6 +68,8 @@ BUILD_ENV_OPTIONS = [
     "seeed_esp32c3",
 ]
 
+RELEASE_ENV_OPTIONS = BUILD_ENV_OPTIONS + ["all"]
+
 BUILD_MODE_OPTIONS = {
     "1": ("full (firmware + filesystem)", "full"),
     "2": ("nofs (firmware only)", "nofs"),
@@ -325,9 +327,9 @@ def change_release_env():
         clear_screen()
         print("Select PlatformIO env for release:")
         print()
-        for i, env in enumerate(BUILD_ENV_OPTIONS, 1):
+        for i, env in enumerate(RELEASE_ENV_OPTIONS, 1):
             print(f" [{i}] {env}")
-        print(f" [{len(BUILD_ENV_OPTIONS) + 1}] <enter manually>")
+        print(f" [{len(RELEASE_ENV_OPTIONS) + 1}] <enter manually>")
         print(" [B] Back (no change)")
         print()
         print(f"Current env: {Settings.release_env}")
@@ -339,10 +341,10 @@ def change_release_env():
 
         try:
             idx = int(choice) - 1
-            if 0 <= idx < len(BUILD_ENV_OPTIONS):
-                Settings.release_env = BUILD_ENV_OPTIONS[idx]
+            if 0 <= idx < len(RELEASE_ENV_OPTIONS):
+                Settings.release_env = RELEASE_ENV_OPTIONS[idx]
                 return
-            elif idx == len(BUILD_ENV_OPTIONS):
+            elif idx == len(RELEASE_ENV_OPTIONS):
                 manual = input("Enter env name manually: ").strip()
                 if manual:
                     Settings.release_env = manual

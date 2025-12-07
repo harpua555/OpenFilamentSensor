@@ -6,7 +6,7 @@
       "variant": "ESP32-S3 (Generic)",
       "chipFamily": "ESP32-S3",
       "status": "stable",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "released": "2025-11-30",
       "manifest": "firmware/esp32s3/manifest.json",
       "notes": [
@@ -20,10 +20,27 @@
     {
       "id": "esp32c3",
       "name": "Centauri Carbon Motion Detector",
+      "variant": "ESP32-C3",
+      "chipFamily": "ESP32-C3",
+      "status": "beta",
+      "version": "0.5.0",
+      "released": "2025-11-30",
+      "manifest": "firmware/esp32c3/manifest.json",
+      "notes": [
+        "Flashes the merged image targeting the ESP32-C3 Supermini dev board",
+        "Uses the same tooling as the S3 merged build so updates stay in sync"
+      ],
+      "files": [
+        "firmware/esp32c3/firmware_merged.bin"
+      ]
+    },
+    {
+      "id": "esp32c3supermini",
+      "name": "Centauri Carbon Motion Detector",
       "variant": "ESP32-C3 Supermini",
       "chipFamily": "ESP32-C3",
       "status": "beta",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "released": "2025-11-30",
       "manifest": "firmware/esp32c3/manifest.json",
       "notes": [
@@ -40,7 +57,7 @@
       "variant": "ESP32 (WROOM)",
       "chipFamily": "ESP32",
       "status": "stable",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "released": "2025-11-30",
       "manifest": "firmware/esp32/manifest.json",
       "notes": [
@@ -57,7 +74,7 @@
       "variant": "Seeed XIAO ESP32-S3",
       "chipFamily": "ESP32-S3",
       "status": "beta",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "released": "2025-11-30",
       "manifest": "firmware/seeed_esp32s3/manifest.json",
       "notes": [
@@ -74,7 +91,7 @@
       "variant": "Seeed XIAO ESP32-C3",
       "chipFamily": "ESP32-C3",
       "status": "experimental",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "released": "2025-11-30",
       "manifest": "firmware/seeed_esp32c3/manifest.json",
       "notes": [

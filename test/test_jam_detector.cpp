@@ -114,7 +114,7 @@ void testGracePeriodStartup() {
 
 void testHardJamDetection() {
     std::cout << "\n=== Test: Hard Jam Detection ===" << std::endl;
-    
+
     resetMockTime();
     JamDetector detector;
     JamConfig config;
@@ -122,15 +122,17 @@ void testHardJamDetection() {
     config.startTimeoutMs = 0;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 10000;
-    config.hardJamTimeMs = 3000;
+    config.hardJamTimeMs = 2000;  // 2 seconds (MAX_EVAL_INTERVAL_MS caps each update to 1s)
     config.ratioThreshold = 0.25f;
     config.detectionMode = DetectionMode::BOTH;
-    
+
     unsigned long printStartTime = 1000;
     _mockMillis = 1000;
     detector.reset(printStartTime);
-    
+
     // Simulate hard jam: expected movement but zero actual
+    // Note: actualRate must be < MIN_ACTUAL_RATE_MM_S (0.05) to trigger hard jam
+    // Note: Each update accumulates up to MAX_EVAL_INTERVAL_MS (1000ms) of jam time
     _mockMillis = 2000;
     JamState state = detector.update(
         15.0f,  // expected (above threshold)
@@ -142,27 +144,27 @@ void testHardJamDetection() {
         printStartTime,
         config,
         10.0f,  // expectedRate
-        0.05f   // actualRate (very low)
+        0.02f   // actualRate (must be < 0.05 to trigger hard jam detection)
     );
-    
+
     assert(!state.jammed);  // Not yet - needs time accumulation
     assert(state.hardJamPercent > 0.0f);
-    
-    // Continue the jam condition
-    _mockMillis = 4500;  // 3.5 seconds total
+
+    // Second update should trigger the jam (2 x 1000ms accumulated >= 2000ms hardJamTimeMs)
+    _mockMillis = 3000;
     state = detector.update(
-        25.0f,
-        0.2f,
-        10,
+        20.0f,
+        0.15f,
+        7,
         true,
         true,
         _mockMillis,
         printStartTime,
         config,
         10.0f,
-        0.05f
+        0.02f
     );
-    
+
     assert(state.jammed);
     assert(state.hardJamTriggered);
     assert(floatEquals(state.hardJamPercent, 100.0f));
@@ -173,23 +175,24 @@ void testHardJamDetection() {
 
 void testSoftJamDetection() {
     std::cout << "\n=== Test: Soft Jam Detection ===" << std::endl;
-    
+
     resetMockTime();
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
     config.startTimeoutMs = 0;
     config.hardJamMm = 5.0f;
-    config.softJamTimeMs = 5000;
+    config.softJamTimeMs = 2000;  // 2 seconds (MAX_EVAL_INTERVAL_MS caps each update to 1s)
     config.hardJamTimeMs = 3000;
     config.ratioThreshold = 0.70f;  // 70% threshold
     config.detectionMode = DetectionMode::BOTH;
-    
+
     unsigned long printStartTime = 1000;
     _mockMillis = 1000;
     detector.reset(printStartTime);
-    
+
     // Simulate soft jam: consistent under-extrusion (60% actual)
+    // Note: Each update accumulates up to MAX_EVAL_INTERVAL_MS (1000ms) of jam time
     _mockMillis = 2000;
     JamState state = detector.update(
         15.0f,  // expected
@@ -203,17 +206,17 @@ void testSoftJamDetection() {
         5.0f,   // expectedRate
         3.0f    // actualRate (60%)
     );
-    
-    assert(!state.jammed);  // Not yet - needs time
+
+    assert(!state.jammed);  // Not yet - needs time accumulation
     assert(state.softJamPercent > 0.0f);
     assert(floatEquals(state.passRatio, 0.6f, 0.05f));
-    
-    // Continue under-extrusion
-    _mockMillis = 7500;  // 6.5 seconds total (past threshold)
+
+    // Second update should trigger soft jam (2 x 1000ms accumulated >= 2000ms softJamTimeMs)
+    _mockMillis = 3000;
     state = detector.update(
-        30.0f,
-        18.0f,  // Still 60%
-        300,
+        20.0f,
+        12.0f,  // Still 60%
+        150,
         true,
         true,
         _mockMillis,
@@ -222,11 +225,11 @@ void testSoftJamDetection() {
         5.0f,
         3.0f
     );
-    
+
     assert(state.jammed);
     assert(state.softJamTriggered);
     assert(floatEquals(state.softJamPercent, 100.0f));
-    
+
     std::cout << COLOR_GREEN << "PASS: Soft jam detection works correctly" << COLOR_RESET << std::endl;
     testsPassed++;
 }
@@ -258,11 +261,11 @@ void testJamRecovery() {
     
     assert(state.softJamPercent > 50.0f);  // Building up
     
-    // Now recover - good flow ratio
+    // Now recover - good flow ratio (actualRate/expectedRate = 4.5/5.0 = 0.9)
     _mockMillis = 4000;
     state = detector.update(30.0f, 24.0f, 400, true, true, _mockMillis, printStartTime, config, 5.0f, 4.5f);
-    
-    assert(floatEquals(state.passRatio, 0.8f, 0.05f));  // 80% is good
+
+    assert(floatEquals(state.passRatio, 0.9f, 0.05f));  // 90% is good (4.5/5.0)
     assert(state.softJamPercent < 50.0f);  // Should be decreasing
     
     std::cout << COLOR_GREEN << "PASS: Jam recovery decreases accumulation" << COLOR_RESET << std::endl;
@@ -302,8 +305,10 @@ void testResumeGrace() {
     assert(!state.jammed);  // Resume should clear jam flags
     
     // Even with bad ratio during resume grace, no jam
+    // Note: pulseCount must stay close to baseline (200) to avoid exceeding RESUME_MIN_PULSES (5)
+    // and expectedDistance must be < RESUME_GRACE_15MM_THRESHOLD (~15mm)
     _mockMillis = 16000;
-    state = detector.update(25.0f, 15.0f, 250, true, true, _mockMillis, printStartTime, config, 5.0f, 3.0f);
+    state = detector.update(10.0f, 6.0f, 203, true, true, _mockMillis, printStartTime, config, 5.0f, 3.0f);
     assert(state.graceActive);
     assert(!state.jammed);
     

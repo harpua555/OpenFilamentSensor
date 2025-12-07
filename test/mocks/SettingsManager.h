@@ -3,10 +3,13 @@
  *
  * Intercepts #include "SettingsManager.h" for unit testing.
  * Provides default values for all settings.
+ *
+ * NOTE: Uses SETTINGS_DATA_H guard to match real header and prevent
+ * redefinition when JamDetector.cpp includes the real SettingsManager.h
  */
 
-#ifndef SETTINGS_MANAGER_H
-#define SETTINGS_MANAGER_H
+#ifndef SETTINGS_DATA_H
+#define SETTINGS_DATA_H
 
 class SettingsManager {
 public:
@@ -56,4 +59,8 @@ public:
     int getSDCPLossBehavior() const { return 2; }
 };
 
-#endif // SETTINGS_MANAGER_H
+// Global settingsManager instance - mirrors the pattern used in main.cpp
+// JamDetector.cpp uses a global `settingsManager` reference
+inline SettingsManager& settingsManager = SettingsManager::getInstance();
+
+#endif // SETTINGS_DATA_H

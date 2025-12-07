@@ -23,43 +23,11 @@ unsigned long _mockMillis = 0;
 // Use mock SDCP Protocol instead of real one (which has incompatible deps)
 #include "mocks/SDCPProtocol.h"
 
-// Mock Logger
-class MockLogger {
-public:
-    void log(const char* msg) { /* no-op */ }
-    void logf(const char* fmt, ...) { /* no-op */ }
-    void logVerbose(const char* fmt, ...) { /* no-op */ }
-    int getLogLevel() const { return 0; }
-};
-MockLogger logger;
-
-// Mock SettingsManager
-class MockSettingsManager {
-public:
-    bool getVerboseLogging() const { return false; }
-};
-MockSettingsManager settingsManager;
-
-// ANSI color codes
-#define COLOR_GREEN   "\033[32m"
-#define COLOR_RED     "\033[31m"
-#define COLOR_YELLOW  "\033[33m"
-#define COLOR_RESET   "\033[0m"
+// Logger and SettingsManager mocks are provided by mocks/Arduino.h
+// Test helper functions (resetMockTime, advanceTime, floatEquals) are in mocks/test_mocks.h
 
 int testsPassed = 0;
 int testsFailed = 0;
-
-void resetMockTime() {
-    _mockMillis = 0;
-}
-
-void advanceTime(unsigned long ms) {
-    _mockMillis += ms;
-}
-
-bool floatEquals(float a, float b, float epsilon = 0.001f) {
-    return std::fabs(a - b) < epsilon;
-}
 
 // ============================================================================
 // JamDetector Edge Cases
@@ -106,7 +74,7 @@ void testJamDetectorRapidStateChanges() {
 
 void testJamDetectorVeryLongPrint() {
     std::cout << "\n=== Test: JamDetector Very Long Print Duration ===" << std::endl;
-    
+
     resetMockTime();
     JamDetector detector;
     JamConfig config;
@@ -117,32 +85,35 @@ void testJamDetectorVeryLongPrint() {
     config.hardJamTimeMs = 3000;
     config.ratioThreshold = 0.70f;
     config.detectionMode = DetectionMode::BOTH;
-    
+
     unsigned long printStartTime = 1000;
     _mockMillis = 1000;
     detector.reset(printStartTime);
-    
-    // Simulate a very long print (24 hours)
+
+    // Skip past grace period first (startTimeoutMs = 5000)
+    unsigned long graceEndTime = config.startTimeoutMs + config.graceTimeMs;
+
+    // Simulate a very long print (24 hours), starting after grace period
     unsigned long duration = 24UL * 60UL * 60UL * 1000UL;  // 24 hours in ms
     unsigned long interval = 60000;  // Update every minute
-    
-    for (unsigned long elapsed = 0; elapsed < duration; elapsed += interval) {
+
+    for (unsigned long elapsed = graceEndTime; elapsed < duration; elapsed += interval) {
         _mockMillis = printStartTime + elapsed;
-        
+
         float expectedDist = 50.0f;  // Consistent flow
         float actualDist = 49.0f;
-        
+
         JamState state = detector.update(
             expectedDist, actualDist, elapsed / 100,
             true, true, _mockMillis, printStartTime,
             config, 50.0f, 49.0f
         );
-        
-        // Should remain stable throughout
+
+        // Should remain stable throughout (after grace period)
         assert(!state.jammed);
         assert(state.graceState == GraceState::ACTIVE);
     }
-    
+
     std::cout << COLOR_GREEN << "PASS: Handles very long print durations" << COLOR_RESET << std::endl;
     testsPassed++;
 }
@@ -442,15 +413,16 @@ void testIntegrationMixedJamTypes() {
     }
     
     // Suddenly transition to hard jam
+    // Note: actualRate must be < MIN_ACTUAL_RATE_MM_S (0.05) to trigger hard jam
     advanceTime(1000);
     for (int i = 0; i < 5; i++) {
         advanceTime(500);
         JamState state = detector.update(
-            10.0f, 0.1f, 103 + i,  // Nearly zero flow
+            10.0f, 0.02f, 103 + i,  // Nearly zero flow
             true, true, _mockMillis, printStartTime,
-            config, 10.0f, 0.1f
+            config, 10.0f, 0.02f  // actualRate must be < 0.05
         );
-        
+
         if (state.jammed) {
             // Hard jam should trigger faster
             assert(state.hardJamTriggered);

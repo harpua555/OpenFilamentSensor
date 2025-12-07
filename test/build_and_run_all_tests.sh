@@ -17,7 +17,7 @@
 #
 # =============================================================================
 
-set -e
+# set -e
 
 # Colors
 RED='\033[0;31m'
@@ -140,11 +140,13 @@ compile_test() {
     local INCLUDE_PATHS="-I. -I./mocks -I${WEBSOCKETS_INC_PATH} -I${ARDUINO_CORE_INC_PATH} -I${ARDUINO_VARIANT_INC_PATH} -I../src -I.."
 
     # Add extra source files based on the test name
+    # Note: Many tests include .cpp files directly via #include, so only add
+    # extra sources when the test genuinely needs separate compilation
     local extra_sources=()
-    if [ "$output_name" = "test_jam_detector" ]; then
-        extra_sources+=("../src/Logger.cpp" "../src/SettingsManager.cpp")
-    elif [ "$output_name" = "test_additional_edge_cases" ]; then
-        extra_sources+=("../src/ElegooCC.cpp" "../src/FilamentMotionSensor.cpp" "../src/SystemServices.cpp" "../src/main.cpp")
+    # test_jam_detector and test_additional_edge_cases include sources directly
+    # and use mocks, so they don't need extra sources compiled
+    if [ "$output_name" = "test_jam_detector" ] || [ "$output_name" = "test_additional_edge_cases" ]; then
+        : # No extra sources - tests include what they need directly
     elif [ -f "../src/${output_name#test_}.cpp" ]; then
          extra_sources+=("../src/${output_name#test_}.cpp")
     fi

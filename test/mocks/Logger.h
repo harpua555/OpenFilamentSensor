@@ -35,4 +35,8 @@ public:
     void clearLogs() { /* no-op */ }
 };
 
+// Global logger instance - mirrors the pattern used in main.cpp
+// JamDetector.cpp uses a global `logger` reference
+inline Logger& logger = Logger::getInstance();
+
 #endif // LOGGER_H

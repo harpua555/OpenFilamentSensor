@@ -12,18 +12,11 @@
 #include <cassert>
 #include <cstring>
 
-// Mock Arduino environment - MUST come before any Arduino includes
+// Global mock time variable (used by millis() in test_mocks.h)
 unsigned long _mockMillis = 0;
-<<<<<<< HEAD
+
+// Mock Arduino environment - MUST come before any Arduino includes
 #include "mocks/Arduino.h" // Provides millis() and Arduino mocks
-=======
-/**
- * @brief Provides the mock millisecond timestamp used by tests.
- *
- * @return unsigned long Current mock time in milliseconds.
- */
-unsigned long millis() { return _mockMillis; }
->>>>>>> derivative
 
 // Shared mocks and macros for Logger/SettingsManager
 #include "test_mocks.h"
@@ -31,14 +24,12 @@ unsigned long millis() { return _mockMillis; }
 // Include the actual implementations
 #include "../src/JamDetector.h"
 #include "../src/JamDetector.cpp"
-<<<<<<< HEAD
 
 // Use mock SDCP Protocol instead of real one (which has incompatible deps)
 #include "mocks/SDCPProtocol.h"
 
 // Logger and SettingsManager mocks are provided by mocks/Arduino.h
 // Test helper functions (resetMockTime, advanceTime, floatEquals) are in mocks/test_mocks.h
-=======
 // Note: SDCPProtocol tests are in test_sdcp_protocol.cpp to avoid dependency issues
 
 // ANSI color codes
@@ -46,7 +37,6 @@ unsigned long millis() { return _mockMillis; }
 #define COLOR_RED     "\033[31m"
 #define COLOR_YELLOW  "\033[33m"
 #define COLOR_RESET   "\033[0m"
->>>>>>> derivative
 
 int testsPassed = 0;
 int testsFailed = 0;
@@ -138,13 +128,8 @@ void testJamDetectorVeryLongPrint() {
             true, true, _mockMillis, printStartTime,
             config, 50.0f, 49.0f
         );
-<<<<<<< HEAD
 
         // Should remain stable throughout (after grace period)
-=======
-        
-        // Should remain stable throughout - no false jams on healthy flow
->>>>>>> derivative
         assert(!state.jammed);
         // Note: graceState transitions from ACTIVE after graceTimeMs expires, which is expected
     }

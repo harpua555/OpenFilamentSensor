@@ -15,14 +15,13 @@ unsigned long _mockMillis = 0;
 int testsPassed = 0;
 int testsFailed = 0;
 
-// Include shared mocks
-#include "mocks/test_mocks.h"
-#include "mocks/arduino_mocks.h"
+// Include mock Arduino environment
+#include "mocks/Arduino.h"
 
-// Mock instances
-MockLogger logger;
-MockSettingsManager settingsManager;
-MockSerial Serial;
+// Include shared test mocks (helpers)
+#include "mocks/test_mocks.h"
+
+// Mock instances are provided by mocks/Arduino.h and mocks/Logger.h / mocks/SettingsManager.h
 
 // Include the actual implementation
 #include "../src/FilamentMotionSensor.h"

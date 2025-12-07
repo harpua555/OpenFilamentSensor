@@ -26,8 +26,8 @@
 #include "generated_test_settings.h"
 
 // Mock Arduino millis() function
+// Note: _mockMillis is used by the millis() function defined in mocks/test_mocks.h
 unsigned long _mockMillis = 0;
-unsigned long millis() { return _mockMillis; }
 
 // Include actual sensor code
 #include "../src/FilamentMotionSensor.h"

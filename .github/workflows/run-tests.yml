@@ -1,0 +1,86 @@
+name: Run Tests (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_filter:
+        description: 'Filter tests by name (leave empty for all)'
+        required: false
+        default: ''
+      quick_mode:
+        description: 'Quick mode (pulse_simulator only)'
+        required: false
+        type: boolean
+        default: false
+      skip_python:
+        description: 'Skip Python tests'
+        required: false
+        type: boolean
+        default: false
+      skip_node:
+        description: 'Skip Node/JS tests'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install g++
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build test arguments
+        id: args
+        run: |
+          ARGS=""
+          if [ "${{ inputs.quick_mode }}" = "true" ]; then
+            ARGS="$ARGS --quick"
+          fi
+          if [ -n "${{ inputs.test_filter }}" ]; then
+            ARGS="$ARGS --filter '${{ inputs.test_filter }}'"
+          fi
+          if [ "${{ inputs.skip_python }}" = "true" ]; then
+            ARGS="$ARGS --no-python"
+          fi
+          if [ "${{ inputs.skip_node }}" = "true" ]; then
+            ARGS="$ARGS --no-node"
+          fi
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run test suite
+        working-directory: test
+        run: |
+          chmod +x build_and_run_all_tests.sh
+          bash build_and_run_all_tests.sh ${{ steps.args.outputs.args }}
+
+      - name: Upload test binaries (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-binaries
+          path: |
+            test/pulse_simulator
+            test/test_jam_detector
+            test/test_sdcp_protocol
+            test/test_additional_edge_cases
+            test/test_filament_motion_sensor
+            test/test_elegoo_cc
+            test/test_settings_manager
+            test/test_logger
+            test/test_integration
+          retention-days: 1
+          if-no-files-found: ignore

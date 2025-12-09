@@ -332,7 +332,7 @@ jobs:
           fi
 
           echo "CHANGELOG<<EOF" >> "$GITHUB_OUTPUT"
-          git log --pretty=format:"* %s (%h)" "$PREVIOUS_TAG"..main >> "$GITHUB_OUTPUT"
+          git log --pretty=format:"* %s (%h)" "$PREVIOUS_TAG"..${{ github.ref_name }} >> "$GITHUB_OUTPUT"
           echo "" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 

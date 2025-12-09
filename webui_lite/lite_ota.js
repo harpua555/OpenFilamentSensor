@@ -1,5 +1,8 @@
 (function () {
     const MAX_BIN_SIZE_BYTES = 4 * 1024 * 1024; // 4MB per file ceiling
+    const MIN_BIN_SIZE_BYTES = 100 * 1024; // 100KB per file floor
+    const BANNED_NAME_TOKENS = ['merged', 'bootloader', 'partition'];
+    const toMb = (bytes) => (bytes / (1024 * 1024)).toFixed(1);
 
     class LiteOtaUploader {
         constructor(options = {}) {
@@ -84,13 +87,15 @@
 
             for (const file of files) {
                 const name = file.name.toLowerCase();
-                if (name.includes('merged')) {
-                    return 'Files containing "merged" are not allowed. Upload firmware and LittleFS images only.';
+                if (BANNED_NAME_TOKENS.some((token) => name.includes(token))) {
+                    return 'Files containing "merged", "bootloader", or "partition" are not allowed. Upload firmware and LittleFS images only.';
                 }
 
                 if (file.size > MAX_BIN_SIZE_BYTES) {
-                    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-                    return `${file.name} is too large (${sizeMb} MB). Max size is 4 MB per file.`;
+                    return `${file.name} is too large (${toMb(file.size)} MB). Max size is 4 MB per file.`;
+                }
+                if (file.size < MIN_BIN_SIZE_BYTES) {
+                    return `${file.name} is too small (${toMb(file.size)} MB). Min size is 100 KB per file.`;
                 }
             }
 

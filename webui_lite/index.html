@@ -2436,7 +2436,8 @@
         const logScrollState = {
             isUserAtBottom: true,
             lastScrollHeight: 0,
-            lastDisplayedCount: 0
+            lastDisplayedCount: 0,
+            lastRenderedTail: null
         };
 
         function isAtBottom(container, threshold = 50) {
@@ -2470,13 +2471,19 @@
             if (!container) return;
 
             const wasAtBottom = isAtBottom(container);
-            const displayLimit = 200;
+            const displayLimit = 1000; // Keep more lines visible in the UI
             const displayLogs = logAccumulator.entries.slice(-displayLimit);
 
             const currentCount = container.children.length;
             const newCount = displayLogs.length;
+            const lastRenderedTail = container.lastElementChild?.textContent || null;
+            const newTail = newCount > 0 ? displayLogs[newCount - 1] : null;
 
-            if (currentCount === 0 || newCount < currentCount) {
+            // When we've reached the display limit, new logs should still replace old ones.
+            // Re-render if counts shrink, container was empty, or the newest entry changed.
+            const needsFullRefresh = currentCount === 0 || newCount < currentCount || newTail !== lastRenderedTail;
+
+            if (needsFullRefresh) {
                 container.innerHTML = '';
                 if (newCount > 0) {
                     const fragment = document.createDocumentFragment();
@@ -2519,6 +2526,7 @@
 
             updateScrollState();
             logScrollState.lastDisplayedCount = container.children.length;
+            logScrollState.lastRenderedTail = container.lastElementChild?.textContent || null;
         }
 
         async function loadLogs() {

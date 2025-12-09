@@ -252,7 +252,7 @@ void WebServer::begin()
                   logger.log("Device reset requested via web UI");
                   request->send(200, "text/plain", "Restarting...");
                   // Delay slightly to allow response to be sent
-                  delay(100);
+                  delay(1000);
                   ESP.restart();
               });
 

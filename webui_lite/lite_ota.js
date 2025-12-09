@@ -13,6 +13,9 @@
             this.toast = options.toast || (() => {});
             this.queue = [];
             this.uploading = false;
+            this.lastFirmwareUploadMs = null;
+            this.lastVersionFirstOkMs = null;
+            this.lastVersionSettleMs = null;
 
             if (this.uploadArea) {
                 this.uploadArea.addEventListener('click', () => this.fileInput?.click());
@@ -113,6 +116,9 @@
         async startQueue() {
             this.uploading = true;
             this.setBusyState(true);
+            this.lastFirmwareUploadMs = null;
+            this.lastVersionFirstOkMs = null;
+            this.lastVersionSettleMs = null;
             try {
                 for (let i = 0; i < this.queue.length; i++) {
                     const task = this.queue[i];
@@ -132,6 +138,19 @@
         async runTask(task, hasFsAfter) {
             const label = task.mode === 'fs' ? 'filesystem' : 'firmware';
             this.toast(`Starting ${label} upload: ${task.file.name}`, 'info');
+
+            if (task.mode === 'fs' && this.lastFirmwareUploadMs) {
+                const now = Date.now();
+                const sinceFirmware = ((now - this.lastFirmwareUploadMs) / 1000).toFixed(1);
+                const sinceFirstOk = this.lastVersionFirstOkMs
+                    ? ((now - this.lastVersionFirstOkMs) / 1000).toFixed(1)
+                    : 'n/a';
+                const settle = this.lastVersionSettleMs ? (this.lastVersionSettleMs / 1000).toFixed(1) : '0';
+                const timingMsg = `Filesystem OTA starting: ${sinceFirmware}s after firmware, ${sinceFirstOk}s after first /version, settled ${settle}s.`;
+                this.toast(timingMsg, 'info');
+                console.info(`[LiteOTA] ${timingMsg}`);
+            }
+
             await this.startOtaMode(task.mode);
             await this.uploadFile(task.file, label);
             this.toast(`${task.file.name} uploaded (${label})`, 'success');
@@ -140,8 +159,14 @@
             // wait for the ESP32 to reboot and come back online before
             // continuing with LittleFS uploads.
             if (task.mode === 'fw' && hasFsAfter) {
+                this.lastFirmwareUploadMs = Date.now();
                 this.toast('Firmware uploaded. Waiting for device reboot before filesystem update...', 'info');
-                await this.waitForReboot();
+                const rebootInfo = await this.waitForReboot(120000, 2000, {
+                    minSettlingMs: 5000,
+                    requiredConsecutive: 2
+                });
+                this.lastVersionFirstOkMs = rebootInfo.firstOkMs;
+                this.lastVersionSettleMs = rebootInfo.settleMs;
             }
         }
 
@@ -182,8 +207,11 @@
             });
         }
 
-        async waitForReboot(timeoutMs = 120000, pollMs = 2000) {
+        async waitForReboot(timeoutMs = 120000, pollMs = 2000, options = {}) {
             const start = Date.now();
+            const { minSettlingMs = 0, requiredConsecutive = 1 } = options;
+            let firstOkMs = null;
+            let consecutiveOk = 0;
 
             while (Date.now() - start < timeoutMs) {
                 // Small delay between polls
@@ -193,9 +221,22 @@
                     // /version is a lightweight JSON endpoint exposed by the firmware.
                     const response = await fetch('/version', { cache: 'no-store' });
                     if (response.ok) {
-                        return;
+                        consecutiveOk += 1;
+                        if (firstOkMs === null) {
+                            firstOkMs = Date.now();
+                        }
+                        const settled = consecutiveOk >= requiredConsecutive && (Date.now() - firstOkMs) >= minSettlingMs;
+                        if (settled) {
+                            return {
+                                firstOkMs,
+                                settleMs: Date.now() - firstOkMs
+                            };
+                        }
+                        continue;
                     }
+                    consecutiveOk = 0;
                 } catch (e) {
+                    consecutiveOk = 0;
                     // While the ESP32 is rebooting, requests will fail – ignore and keep polling.
                 }
             }

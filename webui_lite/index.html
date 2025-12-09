@@ -811,6 +811,40 @@
             font-weight: 500;
         }
 
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            max-width: 440px;
+            width: calc(100% - 32px);
+        }
+
+        .modal-card h3 {
+            margin: 0 0 8px;
+            color: var(--text-primary);
+        }
+
+        .modal-card p {
+            margin: 0 0 16px;
+            color: var(--text-secondary);
+        }
+
         .spinner-container {
             display: flex;
             justify-content: center;
@@ -933,6 +967,16 @@
 
 <body>
     <div class="toast-container" id="toastContainer"></div>
+    <div id="unsavedModal" class="modal-backdrop">
+        <div class="modal-card">
+            <h3>Unsaved settings</h3>
+            <p>You have unsaved settings changes. Discard them and leave?</p>
+            <div class="btn-group">
+                <button type="button" class="btn" id="discardSettingsBtn">Discard changes</button>
+                <button type="button" class="btn btn-secondary" id="stayOnSettingsBtn">Stay on settings</button>
+            </div>
+        </div>
+    </div>
 
     <header>
         <div class="container">
@@ -1203,6 +1247,7 @@
         let currentSettings = null;
         let settingsBaseline = null;
         let settingsDirty = false;
+        let pendingPageSwitch = null;
         let statusEventSource = null;
         let logsInterval = null;
         let metricsChart = null;
@@ -1303,16 +1348,52 @@
             });
         });
 
+        function openUnsavedModal() {
+            const modal = document.getElementById('unsavedModal');
+            if (!modal) return;
+            modal.classList.add('active');
+        }
+
+        function closeUnsavedModal() {
+            const modal = document.getElementById('unsavedModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+        }
+
+        function confirmDiscardSettings() {
+            settingsDirty = false;
+            updateSettingsDirtyIndicator();
+            closeUnsavedModal();
+            const target = pendingPageSwitch;
+            pendingPageSwitch = null;
+            if (target) {
+                performPageSwitch(target);
+            }
+        }
+
+        function stayOnSettings() {
+            pendingPageSwitch = null;
+            closeUnsavedModal();
+        }
+
+        const discardSettingsBtn = document.getElementById('discardSettingsBtn');
+        const stayOnSettingsBtn = document.getElementById('stayOnSettingsBtn');
+        if (discardSettingsBtn) discardSettingsBtn.addEventListener('click', confirmDiscardSettings);
+        if (stayOnSettingsBtn) stayOnSettingsBtn.addEventListener('click', stayOnSettings);
+
         function switchPage(pageName) {
             const activePage = document.querySelector('.page.active');
             const leavingSettings = activePage && activePage.id === 'settings' && pageName !== 'settings';
             if (leavingSettings && settingsDirty) {
-                const confirmLeave = confirm('You have unsaved settings changes. Leave without saving?');
-                if (!confirmLeave) {
-                    return;
-                }
+                pendingPageSwitch = pageName;
+                openUnsavedModal();
+                return;
             }
 
+            performPageSwitch(pageName);
+        }
+
+        function performPageSwitch(pageName) {
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.page === pageName);
             });

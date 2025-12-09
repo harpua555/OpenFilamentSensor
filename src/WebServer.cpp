@@ -23,6 +23,7 @@ constexpr const char kRouteLiteRoot[]         = "/lite";
 constexpr const char kRouteFavicon[]          = "/favicon.ico";
 constexpr const char kRouteRoot[]             = "/";
 constexpr const char kLiteIndexPath[]         = "/lite/index.htm";
+constexpr const char kRouteReset[]            = "/api/reset";
 }  // namespace
 
 // External reference to firmware version from main.cpp
@@ -243,6 +244,17 @@ void WebServer::begin()
 
     // Setup ElegantOTA
     ElegantOTA.begin(&server);
+
+    // Reset device endpoint
+    server.on(kRouteReset, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  logger.log("Device reset requested via web UI");
+                  request->send(200, "text/plain", "Restarting...");
+                  // Delay slightly to allow response to be sent
+                  delay(100);
+                  ESP.restart();
+              });
 
     statusEvents.onConnect([](AsyncEventSourceClient *client) {
         client->send("connected", "init", millis(), 1000);

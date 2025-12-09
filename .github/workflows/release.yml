@@ -1,143 +1,321 @@
 name: Release Firmware
 
 on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - build
+      - main
   workflow_dispatch:
     inputs:
-      version-action:
-        description: "Version increment to apply (build, ver, release)"
+      version_override:
+        description: 'Optional version to embed (e.g., 1.2.3-test). If empty on manual runs, a dev placeholder is used.'
         required: false
-        default: ver
-        type: choice
-        options:
-          - build
-          - ver
-          - release
-      firmware-label:
-        description: "Firmware label injected into each binary"
-        required: false
-        default: release
-        type: string
-      prerelease:
-        description: "Draft this GitHub release as a prerelease"
-        required: false
-        default: false
-        type: boolean
+        default: ''
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
 
 jobs:
-  create-release:
+  tests:
+    name: Run full test suite
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - env: all
+    env:
+      TZ: America/New_York
+    if: github.event_name != 'pull_request' || github.base_ref == 'build' || github.event.pull_request.head.ref == 'dev'
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v6
+      - name: Install g++
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run all build tests
+        working-directory: test
+        run: |
+          chmod +x build_and_run_all_tests.sh
+          bash build_and_run_all_tests.sh
+
+  matrix-source:
+    name: Determine build matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
+    if: github.event_name != 'pull_request' || github.base_ref == 'build' || github.event.pull_request.head.ref == 'dev'
+    outputs:
+      board-matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Load PlatformIO environments from tools/build-targets.yml
+        id: set-matrix
+        run: |
+          MATRIX=$(python - << 'PY'
+          import json
+          import yaml
+          from pathlib import Path
+
+          with Path("tools/build-targets.yml").open("r", encoding="utf-8") as f:
+              data = yaml.safe_load(f) or {}
+
+          matrix = {"env": data.get("platformio_envs", [])}
+          print(json.dumps(matrix))
+          PY
+          )
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  build-firmware:
+    name: Build firmware for ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
+    needs: [matrix-source, tests]
+    if: github.event_name != 'pull_request' || github.base_ref == 'build' || github.event.pull_request.head.ref == 'dev'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix-source.outputs.board-matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install PlatformIO Core
         run: |
           python -m pip install --upgrade pip
-          pip install platformio pyyaml
+          pip install platformio
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Build all release targets
-        run: |
-          python tools/build_and_release.py \
-            --env "${{ matrix.env }}" \
-            --ignore-secrets \
-            --version "${{ inputs.version-action }}" \
-            --firmware-label "${{ inputs.firmware-label }}"
+      - name: Install Lite UI dependencies
+        working-directory: webui_lite
+        run: npm ci
 
-      - name: Capture release metadata
-        id: release-info
+      - name: Determine firmware version
+        id: get_version
+        shell: bash
         run: |
-          VERSION=$(cat data/.version)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          MESSAGE=$(git log -1 --pretty=%B)
-          echo "message<<EOF" >> $GITHUB_OUTPUT
-          echo "$MESSAGE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ github.base_ref }}" = "build" ]; then
+              VERSION="0.0.0-pr-build-${{ github.event.number }}"
+            else
+              VERSION="0.0.0-pr-main-${{ github.event.number }}"
+            fi
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.version_override }}" ]; then
+              VERSION="${{ github.event.inputs.version_override }}"
+            else
+              VERSION="0.0.0-dev"
+            fi
+          else
+            REF="${GITHUB_REF#refs/tags/}"
+            VERSION="${REF#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Publish distributor build artifacts
+      - name: Resolve chip family
+        id: chip
         env:
-          BUILD_BRANCH: build
-          RELEASE_TAG: v${{ steps.release-info.outputs.version }}
-          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          BOARD_ENV: ${{ matrix.env }}
         run: |
-          set -euo pipefail
-          CLONE_DIR=$(mktemp -d)
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone --depth 1 "${REPO_URL}" "${CLONE_DIR}"
-          cd "${CLONE_DIR}"
-          if git show-ref --verify --quiet "refs/remotes/origin/${BUILD_BRANCH}"; then
-            git checkout -B "${BUILD_BRANCH}" "origin/${BUILD_BRANCH}"
-          else
-            git checkout -B "${BUILD_BRANCH}"
-          fi
-          rsync -a --delete "${GITHUB_WORKSPACE}/distributor/firmware/" "${CLONE_DIR}/distributor/firmware/"
-          git add distributor/firmware
-          if git diff --cached --quiet; then
-            echo "Distributor branch already up to date."
-          else
-            git commit -m "Update distributor firmware for ${RELEASE_TAG}"
-            git push origin "${BUILD_BRANCH}"
-          fi
-
-      - name: Prepare release artifacts
-        run: |
-          mkdir -p release-assets
-          python - <<'PY'
-          import yaml
-          import shutil
+          CHIP=$(python - << 'PY'
+          import os
+          import sys
           from pathlib import Path
 
-          with open("tools/build-targets.yml", encoding="utf-8") as f:
-              envs = yaml.safe_load(f).get("platformio_envs", [])
+          sys.path.insert(0, str(Path("tools").resolve()))
+          from board_config import get_chip_family_for_board
 
-          artifact_dir = Path("release-assets")
-          filenames = ["firmware.bin", "firmware_merged.bin", "littlefs.bin", "bootloader.bin", "partitions.bin"]
-          for env in envs:
-              build_dir = Path(".pio") / "build" / env
-              if not build_dir.exists():
-                  continue
-              for name in filenames:
-                  src = build_dir / name
-                  if src.exists():
-                      dest_name = f"{env}-{name}"
-                      shutil.copy2(src, artifact_dir / dest_name)
+          env = os.environ["BOARD_ENV"]
+          print(get_chip_family_for_board(env))
           PY
-          ls release-assets
-          if compgen -G "release-assets/*.bin" >/dev/null; then
-            (
-              cd release-assets
-              sha256sum *.bin > checksums.txt
-            )
+          )
+          echo "family=$CHIP" >> "$GITHUB_OUTPUT"
+
+      - name: Sanitize user settings (WiFi/IP)
+        shell: bash
+        run: |
+          if [ -f "data/user_settings.json" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          
+          path = Path("data/user_settings.json")
+          try:
+              raw = path.read_text(encoding="utf-8")
+              data = json.loads(raw or "{}")
+          except Exception:
+              data = {}
+          
+          # Blank WiFi credentials and set a safe placeholder IP
+          if "ssid" in data:
+              data["ssid"] = ""
+          if "passwd" in data:
+              data["passwd"] = ""
+          if "elegooip" in data:
+              data["elegooip"] = "1.1.1.1"
+          
+          path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
           fi
+
+      - name: Create version files
+        shell: bash
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          mkdir -p data
+          echo "$VERSION" > data/build_version.txt
+          echo "$(date +%m%d%y%H%M%S)" > data/build_timestamp.txt
+          echo "$VERSION" > data/.version
+
+      - name: Build firmware + filesystem for ${{ matrix.env }}
+        env:
+          FIRMWARE_VERSION: ${{ steps.get_version.outputs.VERSION }}
+          CHIP_FAMILY: ${{ steps.chip.outputs.family }}
+        run: |
+          python tools/build_and_flash.py --env ${{ matrix.env }} --local --ignore-secrets
+
+      - name: Collect build artifacts
+        shell: bash
+        run: |
+          BUILD_DIR=".pio/build/${{ matrix.env }}"
+          ARTIFACT_DIR="release-assets-${{ matrix.env }}"
+          mkdir -p "$ARTIFACT_DIR"
+
+          for name in firmware.bin firmware_merged.bin littlefs.bin bootloader.bin partitions.bin; do
+            if [ -f "$BUILD_DIR/$name" ]; then
+              cp "$BUILD_DIR/$name" "$ARTIFACT_DIR/${{ matrix.env }}-$name"
+            fi
+          done
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.env }}
+          path: release-assets-${{ matrix.env }}
+
+  check-main-tag:
+    name: Verify tag is on main
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    outputs:
+      is_main: ${{ steps.check.outputs.is_main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag commit is on main
+        id: check
+        shell: bash
+        run: |
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "is_main=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_main=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
+    needs: [build-firmware, check-main-tag]
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && needs.check-main-tag.outputs.is_main == 'true')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version for release
+        id: get_version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.version_override }}" ]; then
+              VERSION="${{ github.event.inputs.version_override }}"
+            else
+              VERSION="0.0.0-dev"
+            fi
+            TAG="v${VERSION}"
+          else
+            RAW_REF="${GITHUB_REF#refs/tags/}"
+            TAG="$RAW_REF"
+            VERSION="${RAW_REF#v}"
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-release-assets
+
+      - name: Collate artifacts and create checksums
+        shell: bash
+        run: |
+          mkdir release-assets
+          find all-release-assets -type f -name "*.bin" -exec mv {} release-assets/ \;
+          ls -l release-assets
+          (cd release-assets && sha256sum *.bin > checksums.txt)
+
+      - name: Generate Release Notes
+        id: release_notes
+        shell: bash
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | sed -n '2p' 2>/dev/null)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "CHANGELOG<<EOF" >> "$GITHUB_OUTPUT"
+          git log --pretty=format:"* %s (%h)" "$PREVIOUS_TAG"..${{ github.ref_name }} >> "$GITHUB_OUTPUT"
+          echo "" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.release-info.outputs.version }}
-          name: "Centauri Firmware v${{ steps.release-info.outputs.version }}"
+          tag_name: ${{ steps.get_version.outputs.TAG }}
+          name: "Centauri Firmware ${{ steps.get_version.outputs.VERSION }}"
           body: |
-            ## Firmware Release v${{ steps.release-info.outputs.version }}
+            ## Firmware Release ${{ steps.get_version.outputs.VERSION }}
 
-            ${{ steps.release-info.outputs.message }}
+            ### Changelog
+            ${{ steps.release_notes.outputs.CHANGELOG }}
 
             ### Included artifacts
-            - All supported boards (`esp32s3`, `esp32c3`, `esp32`, `seeed_esp32s3`, `seeed_esp32c3`)
+            - All supported boards
             - `checksums.txt` with SHA256 digests
-
-            🔧 Built with `tools/build_and_release.py`
           files: release-assets/*
           draft: false
-          prerelease: ${{ inputs.prerelease }}
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -27,6 +27,8 @@ jobs:
   unit-tests:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
     steps:
       - uses: actions/checkout@v4
 

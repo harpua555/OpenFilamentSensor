@@ -1,4 +1,9 @@
 (function () {
+    const MAX_BIN_SIZE_BYTES = 4 * 1024 * 1024; // 4MB per file ceiling
+    const MIN_BIN_SIZE_BYTES = 100 * 1024; // 100KB per file floor
+    const BANNED_NAME_TOKENS = ['merged', 'bootloader', 'partition'];
+    const toMb = (bytes) => (bytes / (1024 * 1024)).toFixed(1);
+
     class LiteOtaUploader {
         constructor(options = {}) {
             this.uploadArea = options.uploadArea;
@@ -8,6 +13,9 @@
             this.toast = options.toast || (() => {});
             this.queue = [];
             this.uploading = false;
+            this.lastFirmwareUploadMs = null;
+            this.lastVersionFirstOkMs = null;
+            this.lastVersionSettleMs = null;
 
             if (this.uploadArea) {
                 this.uploadArea.addEventListener('click', () => this.fileInput?.click());
@@ -43,7 +51,19 @@
                 this.toast('Upload already in progress. Please wait for it to finish.', 'warning');
                 return;
             }
-            const tasks = Array.from(fileList).map((file) => ({
+            const files = Array.from(fileList || []);
+            if (!files.length) {
+                this.toast('No files detected.', 'warning');
+                return;
+            }
+
+            const validationError = this.validateFiles(files);
+            if (validationError) {
+                this.toast(validationError, 'error');
+                return;
+            }
+
+            const tasks = files.map((file) => ({
                 file,
                 mode: this.inferMode(file)
             }));
@@ -63,6 +83,28 @@
             this.startQueue();
         }
 
+        validateFiles(files) {
+            if (files.length > 2) {
+                return 'Upload up to two files (firmware and optional LittleFS).';
+            }
+
+            for (const file of files) {
+                const name = file.name.toLowerCase();
+                if (BANNED_NAME_TOKENS.some((token) => name.includes(token))) {
+                    return 'Files containing "merged", "bootloader", or "partition" are not allowed. Upload firmware and LittleFS images only.';
+                }
+
+                if (file.size > MAX_BIN_SIZE_BYTES) {
+                    return `${file.name} is too large (${toMb(file.size)} MB). Max size is 4 MB per file.`;
+                }
+                if (file.size < MIN_BIN_SIZE_BYTES) {
+                    return `${file.name} is too small (${toMb(file.size)} MB). Min size is 100 KB per file.`;
+                }
+            }
+
+            return null;
+        }
+
         inferMode(file) {
             const name = file.name.toLowerCase();
             if (name.includes('little') || name.includes('lfs') || name.includes('fs')) {
@@ -74,6 +116,9 @@
         async startQueue() {
             this.uploading = true;
             this.setBusyState(true);
+            this.lastFirmwareUploadMs = null;
+            this.lastVersionFirstOkMs = null;
+            this.lastVersionSettleMs = null;
             try {
                 for (let i = 0; i < this.queue.length; i++) {
                     const task = this.queue[i];
@@ -93,6 +138,19 @@
         async runTask(task, hasFsAfter) {
             const label = task.mode === 'fs' ? 'filesystem' : 'firmware';
             this.toast(`Starting ${label} upload: ${task.file.name}`, 'info');
+
+            if (task.mode === 'fs' && this.lastFirmwareUploadMs) {
+                const now = Date.now();
+                const sinceFirmware = ((now - this.lastFirmwareUploadMs) / 1000).toFixed(1);
+                const sinceFirstOk = this.lastVersionFirstOkMs
+                    ? ((now - this.lastVersionFirstOkMs) / 1000).toFixed(1)
+                    : 'n/a';
+                const settle = this.lastVersionSettleMs ? (this.lastVersionSettleMs / 1000).toFixed(1) : '0';
+                const timingMsg = `Filesystem OTA starting: ${sinceFirmware}s after firmware, ${sinceFirstOk}s after first /version, settled ${settle}s.`;
+                // this.toast(timingMsg, 'info');
+                console.info(`[LiteOTA] ${timingMsg}`);
+            }
+
             await this.startOtaMode(task.mode);
             await this.uploadFile(task.file, label);
             this.toast(`${task.file.name} uploaded (${label})`, 'success');
@@ -101,8 +159,14 @@
             // wait for the ESP32 to reboot and come back online before
             // continuing with LittleFS uploads.
             if (task.mode === 'fw' && hasFsAfter) {
+                this.lastFirmwareUploadMs = Date.now();
                 this.toast('Firmware uploaded. Waiting for device reboot before filesystem update...', 'info');
-                await this.waitForReboot();
+                const rebootInfo = await this.waitForReboot(120000, 2000, {
+                    minSettlingMs: 5000,
+                    requiredConsecutive: 2
+                });
+                this.lastVersionFirstOkMs = rebootInfo.firstOkMs;
+                this.lastVersionSettleMs = rebootInfo.settleMs;
             }
         }
 
@@ -143,8 +207,11 @@
             });
         }
 
-        async waitForReboot(timeoutMs = 120000, pollMs = 2000) {
+        async waitForReboot(timeoutMs = 120000, pollMs = 2000, options = {}) {
             const start = Date.now();
+            const { minSettlingMs = 0, requiredConsecutive = 1 } = options;
+            let firstOkMs = null;
+            let consecutiveOk = 0;
 
             while (Date.now() - start < timeoutMs) {
                 // Small delay between polls
@@ -154,9 +221,22 @@
                     // /version is a lightweight JSON endpoint exposed by the firmware.
                     const response = await fetch('/version', { cache: 'no-store' });
                     if (response.ok) {
-                        return;
+                        consecutiveOk += 1;
+                        if (firstOkMs === null) {
+                            firstOkMs = Date.now();
+                        }
+                        const settled = consecutiveOk >= requiredConsecutive && (Date.now() - firstOkMs) >= minSettlingMs;
+                        if (settled) {
+                            return {
+                                firstOkMs,
+                                settleMs: Date.now() - firstOkMs
+                            };
+                        }
+                        continue;
                     }
+                    consecutiveOk = 0;
                 } catch (e) {
+                    consecutiveOk = 0;
                     // While the ESP32 is rebooting, requests will fail – ignore and keep polling.
                 }
             }

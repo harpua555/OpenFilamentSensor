@@ -24,6 +24,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -53,7 +54,10 @@ except ImportError as e:
 
     # Fallback implementations
     def read_version_file(repo_root: str) -> tuple[int, int, int]:
-        """Read version from .version file. Returns (major, minor, build)."""
+        """
+        Read version from .version file. Returns (major, minor, build), ignoring any suffix after X.Y.Z.
+        Accepts optional leading text (including a leading 'v').
+        """
         version_path = os.path.join(repo_root, "data/.version")
         if not os.path.exists(version_path):
             return (0, 0, 0)
@@ -61,18 +65,39 @@ except ImportError as e:
         try:
             with open(version_path, "r", encoding="utf-8") as f:
                 version_str = f.read().strip()
-                parts = version_str.split(".")
-                if len(parts) == 3:
-                    return (int(parts[0]), int(parts[1]), int(parts[2]))
+                match = re.search(r"(\d+)\.(\d+)\.(\d+)", version_str)
+                if match:
+                    return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
         except (ValueError, IOError):
             pass
 
         return (0, 0, 0)
 
+    def read_version_string(repo_root: str) -> str:
+        """
+        Read the raw version string, stripping any leading text (including a leading 'v') but preserving suffixes.
+        Falls back to '0.0.0' on error.
+        """
+        version_path = os.path.join(repo_root, "data/.version")
+        try:
+            with open(version_path, "r", encoding="utf-8") as f:
+                raw = f.read().strip()
+        except (IOError, OSError):
+            return "0.0.0"
+
+        if not raw:
+            return "0.0.0"
+
+        match = re.search(r"(?:v\s*)?(\d+\.\d+\.\d+)(.*)", raw, re.IGNORECASE)
+        if match:
+            base, suffix = match.group(1), match.group(2)
+            return f"{base}{suffix}"
+
+        return raw
+
     def create_build_version(data_dir: str, repo_root: str) -> str:
-        """Create build_version.txt with current version from .version file."""
-        major, minor, build = read_version_file(repo_root)
-        version_str = f"{major}.{minor}.{build}"
+        """Create build_version.txt with current version from .version file, preserving suffixes."""
+        version_str = read_version_string(repo_root)
         version_path = os.path.join(data_dir, "build_version.txt")
         with open(version_path, "w", encoding="utf-8") as f:
             f.write(version_str)
@@ -276,7 +301,10 @@ def ensure_executable(name: str) -> None:
 
 
 def read_version_file(repo_root: str) -> tuple[int, int, int]:
-    """Read version from .version file. Returns (major, minor, build)."""
+    """
+    Read version from .version file. Returns (major, minor, build), ignoring any suffix after X.Y.Z.
+    Accepts optional leading text (including a leading 'v').
+    """
     version_path = os.path.join(repo_root, "data/.version")
     if not os.path.exists(version_path):
         # Initialize with 0.0.0 if file doesn't exist
@@ -285,14 +313,37 @@ def read_version_file(repo_root: str) -> tuple[int, int, int]:
     try:
         with open(version_path, "r", encoding="utf-8") as f:
             version_str = f.read().strip()
-            parts = version_str.split(".")
-            if len(parts) == 3:
-                return (int(parts[0]), int(parts[1]), int(parts[2]))
+            match = re.search(r"(\d+)\.(\d+)\.(\d+)", version_str)
+            if match:
+                return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
     except (ValueError, IOError):
         pass
 
     # Default to 0.0.0 on any error
     return (0, 0, 0)
+
+
+def read_version_string(repo_root: str) -> str:
+    """
+    Read the raw version string, stripping any leading text (including a leading 'v') but preserving suffixes.
+    Falls back to '0.0.0' on error.
+    """
+    version_path = os.path.join(repo_root, "data/.version")
+    try:
+        with open(version_path, "r", encoding="utf-8") as f:
+            raw = f.read().strip()
+    except (IOError, OSError):
+        return "0.0.0"
+
+    if not raw:
+        return "0.0.0"
+
+    match = re.search(r"(?:v\s*)?(\d+\.\d+\.\d+)(.*)", raw, re.IGNORECASE)
+    if match:
+        base, suffix = match.group(1), match.group(2)
+        return f"{base}{suffix}"
+
+    return raw
 
 
 def write_version_file(repo_root: str, major: int, minor: int, build: int) -> str:

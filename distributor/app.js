@@ -82,37 +82,79 @@ const resolveAssetUrl = (path) => {
     return new URL(path, import.meta.url).href;
 };
 
+// Scroll state tracking for log streams
+const isAtBottom = (element, threshold = 50) => {
+    if (!element) return true;
+    return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+};
+
+const debounce = (fn, delay) => {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+};
+
 const appendLog = (message, level = 'info', skipFlashMirror = false) => {
     const entry = document.createElement('p');
     entry.className = `log-entry ${level}`;
     const time = new Date().toLocaleTimeString();
     entry.textContent = `[${time}] ${message}`;
+
+    const wasAtBottom = isAtBottom(selectors.logStream);
+
     selectors.logStream.appendChild(entry);
-    selectors.logStream.scrollTop = selectors.logStream.scrollHeight;
+
+    // Enforce history limit
+    if (selectors.logStream.children.length > state.logHistoryLimit) {
+        selectors.logStream.removeChild(selectors.logStream.firstChild);
+    }
+
+    // Conditional autoscroll - only if user was at bottom
+    if (wasAtBottom) {
+        requestAnimationFrame(() => {
+            selectors.logStream.scrollTop = selectors.logStream.scrollHeight;
+        });
+    }
 
     // Mirror to flash overlay log if visible (unless already handled by appendFlashLog)
     if (!skipFlashMirror && selectors.flashLogStream && !selectors.flashOverlay.classList.contains('hidden')) {
+        const flashWasAtBottom = isAtBottom(selectors.flashLogStream);
         const mirror = entry.cloneNode(true);
         selectors.flashLogStream.appendChild(mirror);
         if (selectors.flashLogStream.children.length > state.logHistoryLimit) {
             selectors.flashLogStream.removeChild(selectors.flashLogStream.firstChild);
         }
-        selectors.flashLogStream.scrollTop = selectors.flashLogStream.scrollHeight;
+        if (flashWasAtBottom) {
+            requestAnimationFrame(() => {
+                selectors.flashLogStream.scrollTop = selectors.flashLogStream.scrollHeight;
+            });
+        }
     }
 };
 
 const appendFlashLog = (message, level = 'info') => {
     // Append to flash overlay log
     if (selectors.flashLogStream) {
+        const wasAtBottom = isAtBottom(selectors.flashLogStream);
+
         const entry = document.createElement('p');
         entry.className = `log-entry ${level}`;
         const time = new Date().toLocaleTimeString();
         entry.textContent = `[${time}] ${message}`;
         selectors.flashLogStream.appendChild(entry);
+
         if (selectors.flashLogStream.children.length > state.logHistoryLimit) {
             selectors.flashLogStream.removeChild(selectors.flashLogStream.firstChild);
         }
-        selectors.flashLogStream.scrollTop = selectors.flashLogStream.scrollHeight;
+
+        // Conditional autoscroll - only if user was at bottom
+        if (wasAtBottom) {
+            requestAnimationFrame(() => {
+                selectors.flashLogStream.scrollTop = selectors.flashLogStream.scrollHeight;
+            });
+        }
     }
 
     // Also append to main log (skip flash mirror since we already added it above)
@@ -609,6 +651,10 @@ const attachEvents = () => {
             }
         });
     }
+
+    // Add scroll event listeners for autoscroll management
+    // Note: We don't need to track scroll state since isAtBottom() checks it on-demand
+    // The scroll listeners would only be needed if we wanted to show a "jump to bottom" button
 };
 
 const init = async () => {

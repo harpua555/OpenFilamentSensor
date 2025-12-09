@@ -670,7 +670,7 @@ def invoke_test_build_windows():
     print(f"\033[96mCommand: {' '.join(cmd)}\033[0m")
     print("=" * 50)
     print()
-    subprocess.run(cmd, shell=True)
+    subprocess.run(cmd)
     wait_for_enter()
 
 

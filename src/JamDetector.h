@@ -24,6 +24,16 @@ enum class DetectionMode : uint8_t
     SOFT_ONLY = 2   // Only soft jam detection is active
 };
 
+// Trip classification codes for debugging and diagnostics
+enum class TripCode : uint8_t
+{
+    NONE              = 0,   // No trip condition
+    HARD_ZERO_FLOW    = 1,   // Hard: sensor rate near zero
+    HARD_RATE_RATIO   = 2,   // Hard: rate ratio below threshold
+    SOFT_UNDER_EXT    = 3,   // Soft: sustained under-extrusion
+    LOW_SPEED_ANOMALY = 4,   // Diagnostic: low expected rate edge case
+};
+
 // Jam detection result
 struct JamState
 {
@@ -38,6 +48,7 @@ struct JamState
     float      actualRateMmPerSec;   // Derived sensor flow rate (mm/s)
     GraceState graceState;           // Current grace period state
     bool       graceActive;          // True if any grace is active
+    TripCode   tripCode;             // Current trip classification (for debugging)
 };
 
 // Configuration for jam detection (stored separately to save RAM)

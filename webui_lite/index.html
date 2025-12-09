@@ -662,6 +662,31 @@
             border-left: 3px solid var(--success);
         }
 
+        .jump-to-latest {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 100;
+            animation: slideIn 0.3s ease;
+        }
+
+        .jump-to-latest button {
+            background: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .jump-to-latest button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
         .upload-area {
             background: var(--bg-tertiary);
             border: 3px dashed var(--border-color);
@@ -944,11 +969,11 @@
                 </div>
                 <div class="status-grid" id="statusGrid">
                     <!-- Will be populated by JavaScript -->
+                    </div>
+                    <div class="status-help" id="statusHelpMessage">
+                        Tap any status tile to learn what it means.
+                    </div>
                 </div>
-                <div class="status-help" id="statusHelpMessage">
-                    Tap any status tile to learn what it means.
-                </div>
-            </div>
 
             <div class="card">
                 <div class="card-header">
@@ -985,8 +1010,7 @@
             <div class="card">
                 <div class="card-header">
                     <span>Debug Data Dump</span>
-                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from
-                        the status snapshot</small>
+                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from the status snapshot</small>
                 </div>
                 <div class="status-grid" id="debugGrid">
                     <!-- Populated by JavaScript -->
@@ -1070,8 +1094,7 @@
             <div class="card">
                 <div class="card-header">
                     <span>System Logs</span>
-                    <span id="logAccumulatorStatus"
-                        style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
+                    <span id="logAccumulatorStatus" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
                 </div>
                 <div class="btn-group">
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
@@ -1080,11 +1103,17 @@
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
                 <p class="form-help" style="margin: 12px 0;">
-                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer
-                    on the device.
+                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer on the device.
                 </p>
-                <div class="log-container" id="logContainer">
-                    <div class="log-entry info">Waiting for logs...</div>
+                <div style="position: relative;">
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry info">Waiting for logs...</div>
+                    </div>
+                    <div id="jumpToLatestBtn" class="jump-to-latest" style="display: none;">
+                        <button type="button" onclick="jumpToLatest()" class="btn btn-sm">
+                            ↓ New Logs Available
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1109,7 +1138,14 @@
                     <div class="progress-fill" id="progressFill">0%</div>
                 </div>
 
-
+                <div style="margin-top: 30px;">
+                    <h3 style="color: var(--accent-primary); margin-bottom: 16px;">Alternative: ElegantOTA</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        Use the built-in ElegantOTA interface for firmware updates.
+                    </p>
+                    <button type="button" class="btn" onclick="window.open('/update', '_blank')">Open ElegantOTA
+                        →</button>
+                </div>
             </div>
         </div>
 
@@ -1127,18 +1163,15 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Firmware Thumbprint</span>
-                    <span class="info-value" id="firmwareThumbprint"
-                        style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="firmwareThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Filesystem Thumbprint</span>
-                    <span class="info-value" id="filesystemThumbprint"
-                        style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="filesystemThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Build</span>
-                    <span class="info-value" id="buildVersion"
-                        style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="buildVersion" style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
 
                 <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Hardware / Network</h3>
@@ -1153,17 +1186,6 @@
                 <div class="info-row">
                     <span class="info-label">IP Address</span>
                     <span class="info-value" id="ipAddress">Loading...</span>
-                </div>
-
-                <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                    <h3 style="color: var(--accent-primary); margin-bottom: 16px;">Device Actions</h3>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-secondary" onclick="resetDevice()">🔄 Restart
-                            Device</button>
-                    </div>
-                    <p class="form-help" style="margin-top: 12px;">
-                        Restarts the ESP32. Connection will be lost temporarily.
-                    </p>
                 </div>
             </div>
         </div>
@@ -1826,7 +1848,7 @@
                 return;
             }
             lastSnapshotMs = now;
-            fetchStatusSnapshot({ suppressToast: true }).catch(() => { });
+            fetchStatusSnapshot({ suppressToast: true }).catch(() => {});
         }
 
         function setStatusHelpMessage(helpKey) {
@@ -2053,11 +2075,11 @@
                     enabled: document.getElementById('enabled').checked,
                     detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
                     detection_ratio_threshold: parseInt(document.getElementById('detection_ratio_threshold').value),
-                    detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
-                    detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,
-                    detection_hard_jam_time_ms: parseInt(document.getElementById('detection_hard_jam_time_ms').value) * 1000,
-                    detection_mode: parseInt(document.getElementById('detection_mode').value),
-                    sdcp_loss_behavior: parseInt(document.getElementById('sdcp_loss_behavior').value),
+                      detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
+                      detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,
+                      detection_hard_jam_time_ms: parseInt(document.getElementById('detection_hard_jam_time_ms').value) * 1000,
+                      detection_mode: parseInt(document.getElementById('detection_mode').value),
+                      sdcp_loss_behavior: parseInt(document.getElementById('sdcp_loss_behavior').value),
                     flow_telemetry_stale_ms: parseInt(document.getElementById('flow_telemetry_stale_ms').value),
                     ui_refresh_interval_ms: parseInt(document.getElementById('ui_refresh_interval_ms').value),
                     log_level: parseInt(document.getElementById('log_level').value),
@@ -2137,6 +2159,12 @@
             logAccumulator.seen = new Set();
             logAccumulator.sessionStart = new Date();
             updateLogAccumulatorStatus();
+
+            // Add scroll event listener to track user's scroll position
+            const logContainer = document.getElementById('logContainer');
+            if (logContainer) {
+                logContainer.addEventListener('scroll', debounce(updateScrollState, 150));
+            }
         }
 
         /**
@@ -2233,6 +2261,39 @@
             return result;
         }
 
+        // Scroll State Management for Logs
+        const logScrollState = {
+            isUserAtBottom: true,
+            lastScrollHeight: 0,
+            lastDisplayedCount: 0
+        };
+
+        function isAtBottom(container, threshold = 50) {
+            if (!container) return true;
+            return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        }
+
+        function updateScrollState() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+
+            logScrollState.isUserAtBottom = isAtBottom(container);
+
+            // Show/hide jump button
+            const jumpBtn = document.getElementById('jumpToLatestBtn');
+            if (jumpBtn) {
+                jumpBtn.style.display = logScrollState.isUserAtBottom ? 'none' : 'flex';
+            }
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
         async function loadLogs() {
             try {
                 const response = await fetch('/api/logs_live');
@@ -2244,30 +2305,64 @@
                 // Accumulate new entries into browser-side storage
                 accumulateLogs(logs);
 
-                // Display from accumulator (show most recent entries)
                 const container = document.getElementById('logContainer');
-                container.innerHTML = '';
+                const wasAtBottom = logScrollState.isUserAtBottom;
 
+                // Incremental update instead of full replace
                 const displayLimit = 200;
                 const displayLogs = logAccumulator.entries.slice(-displayLimit);
 
-                if (displayLogs.length > 0) {
-                    displayLogs.forEach(log => {
+                // Detect if we need a full rebuild (e.g., first load or major change)
+                const currentCount = container.children.length;
+                const newCount = displayLogs.length;
+
+                if (currentCount === 0 || newCount < currentCount) {
+                    // Full rebuild needed (initial load or logs were cleared)
+                    container.innerHTML = '';
+                    if (newCount > 0) {
+                        const fragment = document.createDocumentFragment();
+                        displayLogs.forEach(log => {
+                            const entry = document.createElement('div');
+                            entry.className = 'log-entry';
+                            if (log.toLowerCase().includes('error')) entry.classList.add('error');
+                            else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
+                            else entry.classList.add('info');
+                            entry.textContent = log;
+                            fragment.appendChild(entry);
+                        });
+                        container.appendChild(fragment);
+                    } else {
+                        container.innerHTML = '<div class="log-entry info">No logs available</div>';
+                    }
+                } else if (newCount > currentCount) {
+                    // Incremental append - only add new entries
+                    const fragment = document.createDocumentFragment();
+                    displayLogs.slice(currentCount).forEach(log => {
                         const entry = document.createElement('div');
                         entry.className = 'log-entry';
-
                         if (log.toLowerCase().includes('error')) entry.classList.add('error');
                         else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
                         else entry.classList.add('info');
-
                         entry.textContent = log;
-                        container.appendChild(entry);
+                        fragment.appendChild(entry);
                     });
+                    container.appendChild(fragment);
 
-                    container.scrollTop = container.scrollHeight;
-                } else {
-                    container.innerHTML = '<div class="log-entry info">No logs available</div>';
+                    // Remove excess entries from top to maintain displayLimit
+                    while (container.children.length > displayLimit) {
+                        container.removeChild(container.firstChild);
+                    }
                 }
+
+                // Conditional autoscroll - only if user was at bottom
+                if (wasAtBottom && container.children.length > 0) {
+                    requestAnimationFrame(() => {
+                        container.scrollTop = container.scrollHeight;
+                    });
+                }
+
+                updateScrollState();
+                logScrollState.lastDisplayedCount = container.children.length;
             } catch (error) {
                 console.error('Failed to load logs:', error);
                 const container = document.getElementById('logContainer');
@@ -2278,6 +2373,14 @@
         async function refreshLogs() {
             await loadLogs();
             showToast('Logs refreshed', 'success');
+        }
+
+        function jumpToLatest() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+            container.scrollTop = container.scrollHeight;
+            logScrollState.isUserAtBottom = true;
+            updateScrollState();
         }
 
         async function downloadLogs() {
@@ -2418,28 +2521,6 @@
             statusEventSource.onmessage = null;
             statusEventSource.close();
             statusEventSource = null;
-        }
-
-        async function resetDevice() {
-            if (!confirm('Are you sure you want to restart the device? This will temporarily disconnect the UI.')) {
-                return;
-            }
-            try {
-                const response = await fetch('/api/reset', { method: 'POST' });
-                if (response.ok) {
-                    showToast('Device is restarting...', 'info');
-                    // Attempt to reconnect after a delay
-                    setTimeout(() => {
-                        showToast('Attempting to reconnect...', 'info');
-                        window.location.reload();
-                    }, 5000);
-                } else {
-                    showToast('Failed to restart device', 'error');
-                }
-            } catch (error) {
-                showToast('Request sent - device may be restarting', 'info');
-                setTimeout(() => window.location.reload(), 5000);
-            }
         }
 
         window.addEventListener('load', () => {

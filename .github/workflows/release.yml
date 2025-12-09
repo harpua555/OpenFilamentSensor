@@ -321,6 +321,24 @@ jobs:
           ls -l release-assets
           (cd release-assets && sha256sum *.bin > checksums.txt)
 
+      - name: Stage firmware assets for GitHub Pages
+        shell: bash
+        run: |
+          TAG="${{ steps.get_version.outputs.TAG }}"
+          PAGES_DIR="pages-publish/releases/${TAG}"
+          mkdir -p "${PAGES_DIR}"
+          cp -v release-assets/* "${PAGES_DIR}/"
+
+      - name: Publish assets to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: pages-publish
+          keep_files: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+
       - name: Generate Release Notes
         id: release_notes
         shell: bash

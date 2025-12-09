@@ -2223,6 +2223,24 @@
             return parseTs(a).localeCompare(parseTs(b));
         }
 
+        function formatLogTimestamp() {
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, '0');
+            const mm = pad(now.getMonth() + 1);
+            const dd = pad(now.getDate());
+            const yy = pad(now.getFullYear() % 100);
+            const hh = pad(now.getHours());
+            const min = pad(now.getMinutes());
+            const ss = pad(now.getSeconds());
+            return `${mm}.${dd}.${yy}-${hh}:${min}:${ss}`;
+        }
+
+        function addLocalLogEntry(message) {
+            const entry = `${formatLogTimestamp()} ${message}`;
+            accumulateLogs([entry]);
+            renderLogsFromAccumulator();
+        }
+
         /**
          * Update the UI to show accumulator status
          */
@@ -2299,6 +2317,62 @@
             };
         }
 
+        function renderLogsFromAccumulator() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+
+            const wasAtBottom = isAtBottom(container);
+            const displayLimit = 200;
+            const displayLogs = logAccumulator.entries.slice(-displayLimit);
+
+            const currentCount = container.children.length;
+            const newCount = displayLogs.length;
+
+            if (currentCount === 0 || newCount < currentCount) {
+                container.innerHTML = '';
+                if (newCount > 0) {
+                    const fragment = document.createDocumentFragment();
+                    displayLogs.forEach(log => {
+                        const entry = document.createElement('div');
+                        entry.className = 'log-entry';
+                        if (log.toLowerCase().includes('error')) entry.classList.add('error');
+                        else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
+                        else entry.classList.add('info');
+                        entry.textContent = log;
+                        fragment.appendChild(entry);
+                    });
+                    container.appendChild(fragment);
+                } else {
+                    container.innerHTML = '<div class="log-entry info">No logs available</div>';
+                }
+            } else if (newCount > currentCount) {
+                const fragment = document.createDocumentFragment();
+                displayLogs.slice(currentCount).forEach(log => {
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    if (log.toLowerCase().includes('error')) entry.classList.add('error');
+                    else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
+                    else entry.classList.add('info');
+                    entry.textContent = log;
+                    fragment.appendChild(entry);
+                });
+                container.appendChild(fragment);
+
+                while (container.children.length > displayLimit) {
+                    container.removeChild(container.firstChild);
+                }
+            }
+
+            if (wasAtBottom && container.children.length > 0) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight;
+                });
+            }
+
+            updateScrollState();
+            logScrollState.lastDisplayedCount = container.children.length;
+        }
+
         async function loadLogs() {
             try {
                 const response = await fetch('/api/logs_live');
@@ -2310,64 +2384,7 @@
                 // Accumulate new entries into browser-side storage
                 accumulateLogs(logs);
 
-                const container = document.getElementById('logContainer');
-                const wasAtBottom = logScrollState.isUserAtBottom;
-
-                // Incremental update instead of full replace
-                const displayLimit = 200;
-                const displayLogs = logAccumulator.entries.slice(-displayLimit);
-
-                // Detect if we need a full rebuild (e.g., first load or major change)
-                const currentCount = container.children.length;
-                const newCount = displayLogs.length;
-
-                if (currentCount === 0 || newCount < currentCount) {
-                    // Full rebuild needed (initial load or logs were cleared)
-                    container.innerHTML = '';
-                    if (newCount > 0) {
-                        const fragment = document.createDocumentFragment();
-                        displayLogs.forEach(log => {
-                            const entry = document.createElement('div');
-                            entry.className = 'log-entry';
-                            if (log.toLowerCase().includes('error')) entry.classList.add('error');
-                            else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
-                            else entry.classList.add('info');
-                            entry.textContent = log;
-                            fragment.appendChild(entry);
-                        });
-                        container.appendChild(fragment);
-                    } else {
-                        container.innerHTML = '<div class="log-entry info">No logs available</div>';
-                    }
-                } else if (newCount > currentCount) {
-                    // Incremental append - only add new entries
-                    const fragment = document.createDocumentFragment();
-                    displayLogs.slice(currentCount).forEach(log => {
-                        const entry = document.createElement('div');
-                        entry.className = 'log-entry';
-                        if (log.toLowerCase().includes('error')) entry.classList.add('error');
-                        else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
-                        else entry.classList.add('info');
-                        entry.textContent = log;
-                        fragment.appendChild(entry);
-                    });
-                    container.appendChild(fragment);
-
-                    // Remove excess entries from top to maintain displayLimit
-                    while (container.children.length > displayLimit) {
-                        container.removeChild(container.firstChild);
-                    }
-                }
-
-                // Conditional autoscroll - only if user was at bottom
-                if (wasAtBottom && container.children.length > 0) {
-                    requestAnimationFrame(() => {
-                        container.scrollTop = container.scrollHeight;
-                    });
-                }
-
-                updateScrollState();
-                logScrollState.lastDisplayedCount = container.children.length;
+                renderLogsFromAccumulator();
             } catch (error) {
                 console.error('Failed to load logs:', error);
                 const container = document.getElementById('logContainer');
@@ -2468,6 +2485,21 @@
         }
 
         // About Page
+        async function resetDevice() {
+            addLocalLogEntry('Resetting device via web UI');
+            showToast('Resetting device...', 'info');
+
+            try {
+                const response = await fetch('/api/reset', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                addLocalLogEntry(`Reset request failed: ${error.message}`);
+                showToast('Failed to reset device: ' + error.message, 'error');
+            }
+        }
+
         async function loadAboutInfo() {
             try {
                 const response = await fetch('/version');

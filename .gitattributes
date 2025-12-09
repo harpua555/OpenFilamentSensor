@@ -1,0 +1,69 @@
+###############################################################################
+# Global text / EOL policy
+###############################################################################
+# Treat everything as text by default and normalize to LF in the repo.
+* text=auto eol=lf
+
+###############################################################################
+# Common text file overrides (still LF, just explicit)
+###############################################################################
+*.sh      text eol=lf
+*.bash    text eol=lf
+*.zsh     text eol=lf
+*.py      text eol=lf
+*.js      text eol=lf
+*.ts      text eol=lf
+*.jsx     text eol=lf
+*.tsx     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.json    text eol=lf
+*.toml    text eol=lf
+*.ini     text eol=lf
+*.cfg     text eol=lf
+*.html    text eol=lf
+*.css     text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+*.csv     text eol=lf
+
+# Windows
+*.bat     text eol=lf
+*.cmd     text eol=lf
+*.ps1     text eol=lf
+
+###############################################################################
+# Binary – never diff, never touch line endings
+###############################################################################
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.bmp     binary
+*.gz      binary
+*.zip     binary
+*.7z      binary
+*.xz      binary
+*.tar     binary
+*.pdf     binary
+*.exe     binary
+*.dll     binary
+*.pdb     binary
+*.bin     binary
+*.elf     binary
+*.hex     binary
+*.uf2     binary
+*.ttf     binary
+*.woff    binary
+*.woff2   binary
+
+# Pre-compressed web assets
+*.gz      binary
+*.br      binary
+*.wasm    binary
+
+###############################################################################
+# Ignore whitespace-only changes in diffs for certain files
+###############################################################################
+# webui_lite/index.html -whitespace

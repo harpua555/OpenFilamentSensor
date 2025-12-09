@@ -52,6 +52,7 @@ void JamDetector::reset(unsigned long currentTimeMs)
     state.actualRateMmPerSec   = 0.0f;
     state.graceState           = GraceState::IDLE;
     state.graceActive          = false;
+    state.tripCode             = TripCode::NONE;
 
     hardJamAccumulatedMs       = 0;
     softJamAccumulatedMs       = 0;
@@ -180,12 +181,34 @@ bool JamDetector::evaluateHardJam(float         expectedDistance,
         (actualRate < MIN_ACTUAL_RATE_MM_S) &&
         (passRatio < HARD_RATE_RATIO);
 
+    // Detect low-speed edge case for diagnostics
+    bool lowSpeedEdgeCase = extrudingNow && 
+                            (expectedRate < 1.0f) && 
+                            (actualRate < MIN_ACTUAL_RATE_MM_S);
+
     if (hardCondition)
     {
         hardJamAccumulatedMs += elapsedMs;
         if (hardJamAccumulatedMs > config.hardJamTimeMs)
         {
             hardJamAccumulatedMs = config.hardJamTimeMs;
+        }
+
+        // Diagnostic logging for hard jam conditions
+        if (settingsManager.getVerboseLogging())
+        {
+            if (actualRate < MIN_ACTUAL_RATE_MM_S)
+            {
+                state.tripCode = TripCode::HARD_ZERO_FLOW;
+                logger.logf("JAM_DEBUG: hard_cond=1 type=ZERO_FLOW exp_rate=%.3f act_rate=%.3f pass=%.2f exp_dist=%.1f accum_ms=%u",
+                            expectedRate, actualRate, passRatio, expectedDistance, hardJamAccumulatedMs);
+            }
+            else
+            {
+                state.tripCode = TripCode::HARD_RATE_RATIO;
+                logger.logf("JAM_DEBUG: hard_cond=1 type=RATE_RATIO exp_rate=%.3f act_rate=%.3f pass=%.2f exp_dist=%.1f accum_ms=%u",
+                            expectedRate, actualRate, passRatio, expectedDistance, hardJamAccumulatedMs);
+            }
         }
     }
     else
@@ -194,6 +217,14 @@ bool JamDetector::evaluateHardJam(float         expectedDistance,
         if (passRatio >= HARD_RECOVERY_RATIO || !extrudingNow)
         {
             hardJamAccumulatedMs = 0;
+        }
+
+        // Log low-speed edge cases for analysis (even when not triggering jam)
+        if (lowSpeedEdgeCase && settingsManager.getVerboseLogging())
+        {
+            state.tripCode = TripCode::LOW_SPEED_ANOMALY;
+            logger.logf("LOW_SPEED_TRIP: exp_rate=%.3f act_rate=%.3f pass=%.2f accum_ms=%u (not triggering - pass_ratio ok)",
+                        expectedRate, actualRate, passRatio, hardJamAccumulatedMs);
         }
     }
 
@@ -236,6 +267,14 @@ bool JamDetector::evaluateSoftJam(float         expectedDistance,
         if (softJamAccumulatedMs > config.softJamTimeMs)
         {
             softJamAccumulatedMs = config.softJamTimeMs;
+        }
+
+        // Diagnostic logging for soft jam conditions
+        if (settingsManager.getVerboseLogging())
+        {
+            state.tripCode = TripCode::SOFT_UNDER_EXT;
+            logger.logf("JAM_DEBUG: soft_cond=1 type=UNDER_EXT exp_rate=%.3f act_rate=%.3f pass=%.2f deficit=%.2f accum_ms=%u",
+                        expectedRate, actualRate, passRatio, deficit, softJamAccumulatedMs);
         }
     }
     else

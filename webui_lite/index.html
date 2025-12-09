@@ -662,6 +662,31 @@
             border-left: 3px solid var(--success);
         }
 
+        .jump-to-latest {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 100;
+            animation: slideIn 0.3s ease;
+        }
+
+        .jump-to-latest button {
+            background: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .jump-to-latest button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
         .upload-area {
             background: var(--bg-tertiary);
             border: 3px dashed var(--border-color);
@@ -786,6 +811,40 @@
             font-weight: 500;
         }
 
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            max-width: 440px;
+            width: calc(100% - 32px);
+        }
+
+        .modal-card h3 {
+            margin: 0 0 8px;
+            color: var(--text-primary);
+        }
+
+        .modal-card p {
+            margin: 0 0 16px;
+            color: var(--text-secondary);
+        }
+
         .spinner-container {
             display: flex;
             justify-content: center;
@@ -908,6 +967,16 @@
 
 <body>
     <div class="toast-container" id="toastContainer"></div>
+    <div id="unsavedModal" class="modal-backdrop">
+        <div class="modal-card">
+            <h3>Unsaved settings</h3>
+            <p>You have unsaved settings changes. Discard them and leave?</p>
+            <div class="btn-group">
+                <button type="button" class="btn" id="discardSettingsBtn">Discard changes</button>
+                <button type="button" class="btn btn-secondary" id="stayOnSettingsBtn">Stay on settings</button>
+            </div>
+        </div>
+    </div>
 
     <header>
         <div class="container">
@@ -925,8 +994,8 @@
                 </div>
                 <nav>
                     <button class="nav-btn active" data-page="status">Status</button>
-                    <button class="nav-btn" data-page="debug">DEBUG</button>
-                    <button class="nav-btn" data-page="settings">⚙️ Settings</button>
+                    <button class="nav-btn" data-page="debug">Debug</button>
+                    <button class="nav-btn" data-page="settings">Settings ⚙️</button>
                     <button class="nav-btn" data-page="logs">Logs</button>
                     <button class="nav-btn" data-page="update">Update</button>
                     <button class="nav-btn" data-page="about">About</button>
@@ -1055,6 +1124,7 @@
             <div class="card">
                 <div class="card-header">
                     <span>Device Configuration</span>
+                    <span id="settingsDirtyIndicator" style="display: none; margin-left: auto; color: var(--warning); font-size: 0.9rem; font-weight: 600;">Unsaved changes</span>
                 </div>
                 <div id="settingsContent">
                     <div class="spinner-container">
@@ -1080,8 +1150,15 @@
                 <p class="form-help" style="margin: 12px 0;">
                     Logs accumulate in your browser since page load. Download captures all entries, even those no longer on the device.
                 </p>
-                <div class="log-container" id="logContainer">
-                    <div class="log-entry info">Waiting for logs...</div>
+                <div style="position: relative;">
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry info">Waiting for logs...</div>
+                    </div>
+                    <div id="jumpToLatestBtn" class="jump-to-latest" style="display: none;">
+                        <button type="button" onclick="jumpToLatest()" class="btn btn-sm">
+                            ↓ New Logs Available
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1097,7 +1174,7 @@
                     <div class="upload-icon">📦</div>
                     <h3>Drop firmware.bin and/or littlefs.bin</h3>
                     <p style="color: var(--text-secondary); margin-top: 10px;">
-                        Files are uploaded sequentially. Firmware uploads reboot automatically.
+                        Up to 2 files; no merged builds; max 4 MB each. Firmware uploads reboot automatically.
                     </p>
                     <input type="file" id="firmwareFile" accept=".bin" multiple style="display: none;">
                 </div>
@@ -1106,14 +1183,9 @@
                     <div class="progress-fill" id="progressFill">0%</div>
                 </div>
 
-                <div style="margin-top: 30px;">
-                    <h3 style="color: var(--accent-primary); margin-bottom: 16px;">Alternative: ElegantOTA</h3>
-                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                        Use the built-in ElegantOTA interface for firmware updates.
-                    </p>
-                    <button type="button" class="btn" onclick="window.open('/update', '_blank')">Open ElegantOTA
-                        →</button>
-                </div>
+                
+
+                
             </div>
         </div>
 
@@ -1155,6 +1227,16 @@
                     <span class="info-label">IP Address</span>
                     <span class="info-value" id="ipAddress">Loading...</span>
                 </div>
+                <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <h3 style="color: var(--accent-primary); margin-bottom: 16px;">Device Actions</h3>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="resetDevice()"> Restart
+                            Device</button>
+                    </div>
+                    <p class="form-help" style="margin-top: 12px;">
+                        Restarts the ESP32. Connection will be lost temporarily.
+                    </p>
+                </div>
             </div>
         </div>
     </main>
@@ -1163,6 +1245,9 @@
     <script>
         // Global state
         let currentSettings = null;
+        let settingsBaseline = null;
+        let settingsDirty = false;
+        let pendingPageSwitch = null;
         let statusEventSource = null;
         let logsInterval = null;
         let metricsChart = null;
@@ -1263,7 +1348,52 @@
             });
         });
 
+        function openUnsavedModal() {
+            const modal = document.getElementById('unsavedModal');
+            if (!modal) return;
+            modal.classList.add('active');
+        }
+
+        function closeUnsavedModal() {
+            const modal = document.getElementById('unsavedModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+        }
+
+        function confirmDiscardSettings() {
+            settingsDirty = false;
+            updateSettingsDirtyIndicator();
+            closeUnsavedModal();
+            const target = pendingPageSwitch;
+            pendingPageSwitch = null;
+            if (target) {
+                performPageSwitch(target);
+            }
+        }
+
+        function stayOnSettings() {
+            pendingPageSwitch = null;
+            closeUnsavedModal();
+        }
+
+        const discardSettingsBtn = document.getElementById('discardSettingsBtn');
+        const stayOnSettingsBtn = document.getElementById('stayOnSettingsBtn');
+        if (discardSettingsBtn) discardSettingsBtn.addEventListener('click', confirmDiscardSettings);
+        if (stayOnSettingsBtn) stayOnSettingsBtn.addEventListener('click', stayOnSettings);
+
         function switchPage(pageName) {
+            const activePage = document.querySelector('.page.active');
+            const leavingSettings = activePage && activePage.id === 'settings' && pageName !== 'settings';
+            if (leavingSettings && settingsDirty) {
+                pendingPageSwitch = pageName;
+                openUnsavedModal();
+                return;
+            }
+
+            performPageSwitch(pageName);
+        }
+
+        function performPageSwitch(pageName) {
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.page === pageName);
             });
@@ -1865,9 +1995,78 @@
             return statusMap[status] || 'Unknown';
         }
 
+        function buildSettingsPayload() {
+            const ssidEl = document.getElementById('ssid');
+            if (!ssidEl) return null;
+
+            return {
+                ssid: ssidEl.value,
+                passwd: document.getElementById('passwd').value,
+                ap_mode: false,
+                elegooip: document.getElementById('elegooip').value,
+                pause_on_runout: document.getElementById('pause_on_runout').checked,
+                start_print_timeout: parseInt(document.getElementById('start_print_timeout').value) * 1000,
+                enabled: document.getElementById('enabled').checked,
+                detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
+                detection_ratio_threshold: parseInt(document.getElementById('detection_ratio_threshold').value),
+                detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
+                detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,
+                detection_hard_jam_time_ms: parseInt(document.getElementById('detection_hard_jam_time_ms').value) * 1000,
+                detection_mode: parseInt(document.getElementById('detection_mode').value),
+                sdcp_loss_behavior: parseInt(document.getElementById('sdcp_loss_behavior').value),
+                flow_telemetry_stale_ms: parseInt(document.getElementById('flow_telemetry_stale_ms').value),
+                ui_refresh_interval_ms: parseInt(document.getElementById('ui_refresh_interval_ms').value),
+                log_level: parseInt(document.getElementById('log_level').value),
+                suppress_pause_commands: document.getElementById('suppress_pause_commands').checked,
+                movement_mm_per_pulse: parseFloat(document.getElementById('movement_mm_per_pulse').value),
+                auto_calibrate_sensor: document.getElementById('auto_calibrate_sensor').checked,
+                pulse_reduction_percent: parseFloat(document.getElementById('pulse_reduction_percent').value)
+            };
+        }
+
+        function updateSettingsDirtyIndicator() {
+            const indicator = document.getElementById('settingsDirtyIndicator');
+            if (!indicator) return;
+            indicator.style.display = settingsDirty ? 'inline-flex' : 'none';
+        }
+
+        function setSettingsBaseline(payload) {
+            settingsBaseline = payload ? JSON.parse(JSON.stringify(payload)) : null;
+            settingsDirty = false;
+            updateSettingsDirtyIndicator();
+        }
+
+        function updateSettingsDirtyState() {
+            if (!settingsBaseline) {
+                settingsDirty = false;
+                updateSettingsDirtyIndicator();
+                return;
+            }
+            const payload = buildSettingsPayload();
+            if (!payload) return;
+            const dirtyNow = JSON.stringify(payload) !== JSON.stringify(settingsBaseline);
+            if (dirtyNow && !settingsDirty) {
+                settingsDirty = true;
+                updateSettingsDirtyIndicator();
+                showToast('You have unsaved settings changes.', 'warning');
+            } else if (!dirtyNow && settingsDirty) {
+                settingsDirty = false;
+                updateSettingsDirtyIndicator();
+            }
+        }
+
+        function attachSettingsChangeHandlers() {
+            const controls = document.querySelectorAll('#settingsContent input, #settingsContent select');
+            controls.forEach(control => {
+                control.addEventListener('input', updateSettingsDirtyState);
+                control.addEventListener('change', updateSettingsDirtyState);
+            });
+        }
+
         // Settings Page
         async function loadSettings() {
             const container = document.getElementById('settingsContent');
+            setSettingsBaseline(null);
 
             try {
                 const response = await fetch('/get_settings');
@@ -2025,6 +2224,9 @@
                         <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume Command</button>
                     </div>
                 `;
+
+                attachSettingsChangeHandlers();
+                setSettingsBaseline(buildSettingsPayload());
             } catch (error) {
                 showToast('Failed to load settings: ' + error.message, 'error');
                 container.innerHTML = '<p style="color: var(--error);">Failed to load settings. Please refresh.</p>';
@@ -2033,29 +2235,11 @@
 
         async function saveSettings() {
             try {
-                const settings = {
-                    ssid: document.getElementById('ssid').value,
-                    passwd: document.getElementById('passwd').value,
-                    ap_mode: false,
-                    elegooip: document.getElementById('elegooip').value,
-                    pause_on_runout: document.getElementById('pause_on_runout').checked,
-                    start_print_timeout: parseInt(document.getElementById('start_print_timeout').value) * 1000,
-                    enabled: document.getElementById('enabled').checked,
-                    detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
-                    detection_ratio_threshold: parseInt(document.getElementById('detection_ratio_threshold').value),
-                      detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
-                      detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,
-                      detection_hard_jam_time_ms: parseInt(document.getElementById('detection_hard_jam_time_ms').value) * 1000,
-                      detection_mode: parseInt(document.getElementById('detection_mode').value),
-                      sdcp_loss_behavior: parseInt(document.getElementById('sdcp_loss_behavior').value),
-                    flow_telemetry_stale_ms: parseInt(document.getElementById('flow_telemetry_stale_ms').value),
-                    ui_refresh_interval_ms: parseInt(document.getElementById('ui_refresh_interval_ms').value),
-                    log_level: parseInt(document.getElementById('log_level').value),
-                    suppress_pause_commands: document.getElementById('suppress_pause_commands').checked,
-                    movement_mm_per_pulse: parseFloat(document.getElementById('movement_mm_per_pulse').value),
-                    auto_calibrate_sensor: document.getElementById('auto_calibrate_sensor').checked,
-                    pulse_reduction_percent: parseFloat(document.getElementById('pulse_reduction_percent').value),
-                };
+                const settings = buildSettingsPayload();
+                if (!settings) {
+                    showToast('Unable to read settings from the form.', 'error');
+                    return;
+                }
 
                 const response = await fetch('/update_settings', {
                     method: 'POST',
@@ -2066,6 +2250,7 @@
                 if (response.ok) {
                     showToast('Settings saved successfully!', 'success');
                     currentSettings = settings;
+                    setSettingsBaseline(settings);
                 } else {
                     throw new Error('Failed to save settings');
                 }
@@ -2127,6 +2312,12 @@
             logAccumulator.seen = new Set();
             logAccumulator.sessionStart = new Date();
             updateLogAccumulatorStatus();
+
+            // Add scroll event listener to track user's scroll position
+            const logContainer = document.getElementById('logContainer');
+            if (logContainer) {
+                logContainer.addEventListener('scroll', debounce(updateScrollState, 150));
+            }
         }
 
         /**
@@ -2180,6 +2371,24 @@
             return parseTs(a).localeCompare(parseTs(b));
         }
 
+        function formatLogTimestamp() {
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, '0');
+            const mm = pad(now.getMonth() + 1);
+            const dd = pad(now.getDate());
+            const yy = pad(now.getFullYear() % 100);
+            const hh = pad(now.getHours());
+            const min = pad(now.getMinutes());
+            const ss = pad(now.getSeconds());
+            return `${mm}.${dd}.${yy}-${hh}:${min}:${ss}`;
+        }
+
+        function addLocalLogEntry(message) {
+            const entry = `${formatLogTimestamp()} ${message}`;
+            accumulateLogs([entry]);
+            renderLogsFromAccumulator();
+        }
+
         /**
          * Update the UI to show accumulator status
          */
@@ -2223,6 +2432,95 @@
             return result;
         }
 
+        // Scroll State Management for Logs
+        const logScrollState = {
+            isUserAtBottom: true,
+            lastScrollHeight: 0,
+            lastDisplayedCount: 0
+        };
+
+        function isAtBottom(container, threshold = 50) {
+            if (!container) return true;
+            return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        }
+
+        function updateScrollState() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+
+            logScrollState.isUserAtBottom = isAtBottom(container);
+
+            // Show/hide jump button
+            const jumpBtn = document.getElementById('jumpToLatestBtn');
+            if (jumpBtn) {
+                jumpBtn.style.display = logScrollState.isUserAtBottom ? 'none' : 'flex';
+            }
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        function renderLogsFromAccumulator() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+
+            const wasAtBottom = isAtBottom(container);
+            const displayLimit = 200;
+            const displayLogs = logAccumulator.entries.slice(-displayLimit);
+
+            const currentCount = container.children.length;
+            const newCount = displayLogs.length;
+
+            if (currentCount === 0 || newCount < currentCount) {
+                container.innerHTML = '';
+                if (newCount > 0) {
+                    const fragment = document.createDocumentFragment();
+                    displayLogs.forEach(log => {
+                        const entry = document.createElement('div');
+                        entry.className = 'log-entry';
+                        if (log.toLowerCase().includes('error')) entry.classList.add('error');
+                        else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
+                        else entry.classList.add('info');
+                        entry.textContent = log;
+                        fragment.appendChild(entry);
+                    });
+                    container.appendChild(fragment);
+                } else {
+                    container.innerHTML = '<div class="log-entry info">No logs available</div>';
+                }
+            } else if (newCount > currentCount) {
+                const fragment = document.createDocumentFragment();
+                displayLogs.slice(currentCount).forEach(log => {
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    if (log.toLowerCase().includes('error')) entry.classList.add('error');
+                    else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
+                    else entry.classList.add('info');
+                    entry.textContent = log;
+                    fragment.appendChild(entry);
+                });
+                container.appendChild(fragment);
+
+                while (container.children.length > displayLimit) {
+                    container.removeChild(container.firstChild);
+                }
+            }
+
+            if (wasAtBottom && container.children.length > 0) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight;
+                });
+            }
+
+            updateScrollState();
+            logScrollState.lastDisplayedCount = container.children.length;
+        }
+
         async function loadLogs() {
             try {
                 const response = await fetch('/api/logs_live');
@@ -2234,30 +2532,7 @@
                 // Accumulate new entries into browser-side storage
                 accumulateLogs(logs);
 
-                // Display from accumulator (show most recent entries)
-                const container = document.getElementById('logContainer');
-                container.innerHTML = '';
-
-                const displayLimit = 200;
-                const displayLogs = logAccumulator.entries.slice(-displayLimit);
-
-                if (displayLogs.length > 0) {
-                    displayLogs.forEach(log => {
-                        const entry = document.createElement('div');
-                        entry.className = 'log-entry';
-
-                        if (log.toLowerCase().includes('error')) entry.classList.add('error');
-                        else if (log.toLowerCase().includes('warning')) entry.classList.add('warning');
-                        else entry.classList.add('info');
-
-                        entry.textContent = log;
-                        container.appendChild(entry);
-                    });
-
-                    container.scrollTop = container.scrollHeight;
-                } else {
-                    container.innerHTML = '<div class="log-entry info">No logs available</div>';
-                }
+                renderLogsFromAccumulator();
             } catch (error) {
                 console.error('Failed to load logs:', error);
                 const container = document.getElementById('logContainer');
@@ -2268,6 +2543,14 @@
         async function refreshLogs() {
             await loadLogs();
             showToast('Logs refreshed', 'success');
+        }
+
+        function jumpToLatest() {
+            const container = document.getElementById('logContainer');
+            if (!container) return;
+            container.scrollTop = container.scrollHeight;
+            logScrollState.isUserAtBottom = true;
+            updateScrollState();
         }
 
         async function downloadLogs() {
@@ -2331,7 +2614,40 @@
             });
         }
 
+        function normalizeBuildVersion(raw) {
+            if (raw === undefined || raw === null) {
+                return '0.0.0';
+            }
+
+            const cleaned = String(raw).trim();
+            const vIndex = cleaned.toLowerCase().indexOf('v');
+            const afterV = vIndex === -1 ? cleaned : cleaned.slice(vIndex + 1).trim();
+
+            const match = afterV.match(/(\d+\.\d+\.\d+)(.*)/);
+            if (match) {
+                return `${match[1]}${match[2]}`;
+            }
+
+            const stripped = afterV.replace(/^v+/i, '').trim();
+            return stripped || '0.0.0';
+        }
+
         // About Page
+        async function resetDevice() {
+            addLocalLogEntry('Resetting device via web UI');
+            showToast('Resetting device...', 'info');
+
+            try {
+                const response = await fetch('/api/reset', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                addLocalLogEntry(`Reset request failed: ${error.message}`);
+                showToast('Failed to reset device: ' + error.message, 'error');
+            }
+        }
+
         async function loadAboutInfo() {
             try {
                 const response = await fetch('/version');
@@ -2340,7 +2656,7 @@
                 document.getElementById('firmwareVersion').textContent = data.firmware_version || 'Unknown';
                 document.getElementById('firmwareThumbprint').textContent = formatThumbprint(data.firmware_thumbprint);
                 document.getElementById('filesystemThumbprint').textContent = formatThumbprint(data.filesystem_thumbprint);
-                document.getElementById('buildVersion').textContent = 'v' + (data.build_version || '0.0.0');
+                document.getElementById('buildVersion').textContent = 'v' + normalizeBuildVersion(data.build_version);
                 document.getElementById('chipModel').textContent = data.chip_family || 'Unknown';
 
                 const statusResponse = await fetch('/sensor_status');
@@ -2418,7 +2734,11 @@
             setStatusHelpMessage('default');
         });
 
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', (event) => {
+            if (settingsDirty) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
             stopStatusStream();
             if (logsInterval) clearInterval(logsInterval);
         });

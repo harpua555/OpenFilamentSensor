@@ -125,7 +125,9 @@ void SystemServices::failWifi()
         if (settingsManager.save())
         {
             logger.log("Failed to connect to wifi, reverted to AP mode (first connection attempt)");
-            logger.log("Please manually restart device to enter AP mode.");
+            logger.log("Restarting to enter AP mode...");
+            delay(1000);  // Give time for serial output
+            ESP.restart();
         }
         else
         {

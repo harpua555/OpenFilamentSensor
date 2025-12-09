@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstring>
 #include <cmath>
+#include <cstdint>
 
 // Mock classes in separate namespace to avoid conflicts with actual libraries
 namespace TestMocks {
@@ -181,6 +182,8 @@ namespace SDCPDefaults {
 namespace SDCPProtocol {
 
     // Stub implementation - just returns true for testing
+    using std::uint8_t;
+
     bool buildCommandMessage(
         TestMocks::JsonDocument& doc,
         int command,

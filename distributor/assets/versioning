@@ -1,6 +1,6 @@
 {
-  "version": "0.5.1",
-  "build_date": "2025-12-07",
+  "version": "0.6.1-alpha",
+  "build_date": "2025-12-09",
   "status": "alpha",
   "release_notes": [
     "Closed Alpha",
@@ -10,7 +10,7 @@
   ],
   "boards": {
     "esp32s3": {
-      "version": "0.5.0",
+      "version": "0.6.1-alpha",
       "status": "stable~ish",
       "build_date": "12/07/2025",
       "release_notes": [
@@ -19,7 +19,7 @@
       ]
     },
     "esp32c3": {
-      "version": "0.5.0",
+      "version": "0.6.1-alpha",
       "status": "stable~ish",
       "build_date": "12/07/2025",
       "release_notes": [
@@ -28,7 +28,7 @@
       ]
     },
     "esp32": {
-      "version": "0.5.0",
+      "version": "0.6.1-alpha",
       "status": "experimental",
       "build_date": "12/07/2025",
       "release_notes": [
@@ -37,7 +37,7 @@
       ]
     },
     "seeed_esp32s3": {
-      "version": "0.5.0",
+      "version": "0.6.1-alpha",
       "status": "experimental",
       "build_date": "12/07/2025",
       "release_notes": [
@@ -46,7 +46,7 @@
       ]
     },
     "seeed_esp32c3": {
-      "version": "0.5.0",
+      "version": "0.6.1-alpha",
       "status": "experimental",
       "build_date": "12/07/2025",
       "release_notes": [

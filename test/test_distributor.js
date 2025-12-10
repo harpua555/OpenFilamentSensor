@@ -552,4 +552,7 @@ async function runAllTests() {
 }
 
 // Run tests
-process.exit(runAllTests());
+runAllTests().then((code) => process.exit(code)).catch((err) => {
+    console.log(`${COLOR_RED}TEST ERROR: ${err.message}${COLOR_RESET}`);
+    process.exit(1);
+});

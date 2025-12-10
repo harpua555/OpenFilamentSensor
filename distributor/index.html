@@ -47,8 +47,13 @@
                 <span class="card-header-icon"></span>
             </div>
             <p class="hero-copy">
-                Connect your board via USB, select the correct board below and then flash.
-                Wifi setup will need to be completed following every flash.
+                <strong>First time setup</strong> - Connect via USB, select the correct board below, optionally provide
+                WiFi credentials, and then flash. WiFi setup via AP mode (SSID centaurifilament.local) will need to be
+                completed if credentials not applied.
+            </p>
+            <p class="hero-copy">
+                <strong>Updates Only</strong> - Use the 'Download OTA Files' option instead to get the required files.
+                Same WiFi considerations as option 1.
             </p>
             <div class="hero-grid">
                 <div>
@@ -63,7 +68,7 @@
                     <p class="metric-value" id="activeFirmwareDate">—</p>
                 </div>
                 <div>
-                    <p class="metric-label">Boards validated</p>
+                    <p class="metric-label">Boards Build</p>
                     <p class="metric-value" id="boardCount">—</p>
                 </div>
             </div>
@@ -90,14 +95,6 @@
                         <p class="summary-label">Firmware status</p>
                         <p class="status-chip" id="boardStatus">—</p>
                     </div>
-                    <div>
-                        <p class="summary-label">Current version</p>
-                        <p class="summary-value" id="boardVersion">—</p>
-                    </div>
-                    <div>
-                        <p class="summary-label">Released</p>
-                        <p class="summary-value" id="boardRelease">—</p>
-                    </div>
                 </div>
                 <div class="board-notes">
                     <p class="summary-label">Release notes</p>
@@ -108,13 +105,13 @@
             <article class="card wifi-card">
                 <div class="card-header">
                     <div>
-                        <p class="eyebrow">Wi-Fi override</p>
+                        <p class="eyebrow">WiFi override</p>
                         <h3>Patch SSID &amp; password</h3>
                     </div>
                     <span class="card-header-icon"></span>
                 </div>
                 <p class="wifi-helper modified">
-                    This step is optional. You can provide your Wifi SSID and password in this form to skip AP
+                    This step is optional. You can provide your WiFi SSID and password in this form to skip AP
                     setup. This uses a script to patch the released binary file in place on the fly - the form entry and
                     patched binary are local to your browser - they are not transmitted outside of your local
                     environment. If you are not comfortable with this, simply do not use this feature.
@@ -167,7 +164,8 @@
                     </div>
                     <div class="download-actions">
                         <button class="ghost-btn" id="downloadOtaBtn" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7,10 12,15 17,10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -176,7 +174,7 @@
                         </button>
                     </div>
                 </div>
-              </article>
+            </article>
 
             <article class="card">
                 <div class="card-header">
@@ -211,19 +209,19 @@
         <div class="wifi-dialog-backdrop" data-dialog-close></div>
         <div class="wifi-dialog-panel">
             <button class="wifi-dialog-close" data-dialog-close type="button">×</button>
-            <h3>Provide Wi-Fi credentials</h3>
+            <h3>Provide WiFi credentials</h3>
             <p class="wifi-dialog-note">
-                This step is optional. You can provide your Wifi SSID and password in this form to skip AP setup. This
+                This step is optional. You can provide your WiFi SSID and password in this form to skip AP setup. This
                 uses a script to patch the released binary file in place on the fly – the form entry and patched binary
                 remain local to your browser and are never transmitted outside your environment.
             </p>
             <form id="wifiPatchForm" class="wifi-form" autocomplete="off">
                 <div class="field-group">
-                    <label for="wifiSsid">Wi-Fi SSID</label>
+                    <label for="wifiSsid">WiFi SSID</label>
                     <input id="wifiSsid" name="ssid" type="text" maxlength="20" value="your_ssid" required>
                 </div>
                 <div class="field-group">
-                    <label for="wifiPass">Wi-Fi password</label>
+                    <label for="wifiPass">WiFi password</label>
                     <input id="wifiPass" name="passwd" type="password" maxlength="20" value="your_pass" required>
                 </div>
                 <div class="wifi-actions">
@@ -249,7 +247,8 @@
                 <p class="muted">No previously authorized ports found.</p>
             </div>
             <button class="ghost-btn port-authorize-btn" id="authorizeNewPort" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
@@ -267,7 +266,7 @@
             <p class="wifi-dialog-note">
                 This will overwrite the current firmware on your device.
             </p>
-            
+
             <label class="checkbox-wrapper">
                 <input type="checkbox" id="eraseDeviceCheckbox" checked>
                 <span class="checkbox-box"></span>

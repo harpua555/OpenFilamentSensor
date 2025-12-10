@@ -2,7 +2,7 @@ const PLACEHOLDER_PATTERN = /"ssid"\s*:\s*"([^"]*)"\s*,\s*"passwd"\s*:\s*"([^"]*
 export const PLACEHOLDER_TOKEN = 'PLACEHOLDER_WIFI_STRING_32_CHARS';
 const PLACEHOLDER_TOKENS = [PLACEHOLDER_TOKEN];
 const DEFAULT_STATUS_MESSAGE =
-    '\n\nsee Github for implementation';
+    '<br><br>see Github for implementation';
 const MAX_FIELD_LENGTH = 32;
 const MAX_FIELD_MESSAGE = `SSID/password must be ${MAX_FIELD_LENGTH} characters or fewer.`;
 const isoDecoder = new TextDecoder('iso-8859-1');
@@ -123,7 +123,7 @@ export function initWifiPatcher({ installButton, openButton, resetButton, dialog
     const defaultOpenLabel = openButton.textContent;
 
     const setStatus = (message) => {
-        statusEl.textContent = message;
+        statusEl.innerHTML = message;
     };
 
     const closeDialog = () => {

@@ -488,7 +488,7 @@ const hydrateBoardDetails = (board) => {
 
 const fetchBoards = async () => {
     try {
-        const response = await fetch('./firmware/boards.json', { cache: 'no-store' });
+        const response = await fetch('./boards.json', { cache: 'no-store' });
         if (!response.ok) throw new Error(`failed to load board list (${response.status})`);
         const data = await response.json();
         state.baseBoards = data.boards || [];

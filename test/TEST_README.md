@@ -149,7 +149,7 @@ node test_distributor.js
 - ✅ `webui_lite/build.js` - Not tested (build utility)
 
 ### Configuration and Data Files
-- ✅ `distributor/firmware/boards.json` - JSON validation
+- ✅ `distributor/boards.json` - JSON validation
 - ✅ `distributor/firmware/*/manifest.json` - JSON validation
 - ✅ `data/user_settings.json` - JSON validation and structure tests
 - ✅ Test fixtures (`test/fixtures/logs_to_replay/*.txt`) - Existence validation

@@ -64,7 +64,7 @@ NEW JAVASCRIPT FILES:
   ✓ webui_lite/build.js              - Build utility (not tested)
 
 CONFIGURATION/DATA FILES:
-  ✓ distributor/firmware/boards.json     - JSON validation
+  ✓ distributor/boards.json     - JSON validation
   ✓ distributor/firmware/*/manifest.json - JSON validation
   ✓ data/user_settings.json              - JSON validation & structure
 

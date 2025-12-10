@@ -41,7 +41,7 @@ function testDistributorFilesExist() {
 function testBoardsJsonValid() {
     console.log('\n=== Test: boards.json Valid JSON ===');
     
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     
     if (fs.existsSync(boardsJsonPath)) {
         const content = fs.readFileSync(boardsJsonPath, 'utf8');
@@ -248,7 +248,7 @@ function testFlasherJsStructure() {
 }
 
 function testManifestVersionConsistency() {
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     if (fs.existsSync(boardsJsonPath)) {
         const boardsData = JSON.parse(fs.readFileSync(boardsJsonPath, 'utf8'));
         const boards = boardsData.boards || [];
@@ -264,7 +264,7 @@ function testManifestVersionConsistency() {
 }
 
 function testBoardChipFamilyValidation() {
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     
     if (fs.existsSync(boardsJsonPath)) {
         const boardsData = JSON.parse(fs.readFileSync(boardsJsonPath, 'utf8'));
@@ -291,7 +291,7 @@ function testBoardChipFamilyValidation() {
 }
 
 function testManifestBuildStructure() {
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     
     if (fs.existsSync(boardsJsonPath)) {
         console.log(`${COLOR_YELLOW}SKIP: Local manifest validation removed (assets served from Pages).${COLOR_RESET}`);
@@ -299,14 +299,14 @@ function testManifestBuildStructure() {
 }
 
 function testFirmwareBinariesExist() {
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     
     if (fs.existsSync(boardsJsonPath)) {
         console.log(`${COLOR_YELLOW}SKIP: Local firmware binaries not required; served from Pages.${COLOR_RESET}`);
     }
 }
  {
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     
     if (fs.existsSync(boardsJsonPath)) {
         const boardsData = JSON.parse(fs.readFileSync(boardsJsonPath, 'utf8'));
@@ -393,7 +393,7 @@ function fetchHead(url) {
 
 async function testRemoteAssetsAccessible() {
     console.log('\n=== Test: Remote release assets on GitHub Pages ===');
-    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'firmware', 'boards.json');
+    const boardsJsonPath = path.join(__dirname, '..', 'distributor', 'boards.json');
     if (!fs.existsSync(boardsJsonPath)) {
         console.log(`${COLOR_RED}SKIP: boards.json not found${COLOR_RESET}`);
         return;

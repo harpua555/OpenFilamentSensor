@@ -1,5 +1,5 @@
 const PLACEHOLDER_PATTERN = /"ssid"\s*:\s*"([^"]*)"\s*,\s*"passwd"\s*:\s*"([^"]*)"/i;
-const PLACEHOLDER_TOKEN = 'PLACEHOLDER_WIFI_STRING_32_CHARS';
+export const PLACEHOLDER_TOKEN = 'PLACEHOLDER_WIFI_STRING_32_CHARS';
 const PLACEHOLDER_TOKENS = [PLACEHOLDER_TOKEN];
 const DEFAULT_STATUS_MESSAGE =
     '\n\nsee Github for implementation';

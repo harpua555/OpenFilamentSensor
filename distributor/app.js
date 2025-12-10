@@ -1,4 +1,4 @@
-import { initWifiPatcher } from './wifiPatcher.js';
+import { initWifiPatcher, PLACEHOLDER_TOKEN } from './wifiPatcher.js';
 import { EspFlasher, FLASH_STATES } from './flasher.js';
 
 const GITHUB_OWNER = 'harpua555';
@@ -787,8 +787,7 @@ const downloadOtaFiles = async (board) => {
         const passwdInput = wifiForm?.querySelector('#wifiPass');
         const ssid = (ssidInput?.value || '').trim();
         const passwd = (passwdInput?.value || '').trim();
-        const placeholderToken = 'PLACEHOLDER_WIFI_STRING_32_CHARS';
-        const blankPadding = ' '.repeat(placeholderToken.length);
+        const blankPadding = ' '.repeat(PLACEHOLDER_TOKEN.length);
         const hasUserCreds = ssid && passwd && ssid !== 'your_ssid' && passwd !== 'your_pass';
         const appliedSsid = hasUserCreds ? ssid : blankPadding;
         const appliedPass = hasUserCreds ? passwd : blankPadding;

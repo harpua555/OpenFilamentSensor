@@ -291,12 +291,16 @@ const refreshBoardsForRelease = () => {
     const mapped = state.baseBoards.map((board) => buildBoardModel(board, state.release));
     const availableBoards = mapped.filter((board) => board.available);
     state.boards = availableBoards;
-    selectors.boardCount.textContent = state.boards.length;
+    if (selectors.boardCount) {
+        selectors.boardCount.textContent = state.boards.length;
+    }
     if (!availableBoards.length && mapped.length && state.release) {
         appendLog(`No boards in release ${state.release.tag} have firmware assets on Pages.`, 'warn');
     }
     renderBoards();
-    selectors.boardSelect.value = '';
+    if (selectors.boardSelect) {
+        selectors.boardSelect.value = '';
+    }
     updateButtonStates();
     hydrateBoardDetails(null);
 };
@@ -395,6 +399,7 @@ const appendFlashLog = (message, level = 'info') => {
 };
 
 const renderBoards = () => {
+    if (!selectors.boardSelect) return;
     selectors.boardSelect.innerHTML = '';
 
     // Group boards by chipFamily
@@ -466,9 +471,13 @@ const renderNotes = (target, notes = [], emptyText = 'No release notes provided 
 };
 
 const updateButtonStates = () => {
-    const hasValidBoard = state.selected !== null && selectors.boardSelect.value !== '';
-    selectors.flashTrigger.disabled = !hasValidBoard || state.flashing;
-    selectors.downloadOtaBtn.disabled = !hasValidBoard || state.flashing;
+    const hasValidBoard = state.selected !== null && selectors.boardSelect && selectors.boardSelect.value !== '';
+    if (selectors.flashTrigger) {
+        selectors.flashTrigger.disabled = !hasValidBoard || state.flashing;
+    }
+    if (selectors.downloadOtaBtn) {
+        selectors.downloadOtaBtn.disabled = !hasValidBoard || state.flashing;
+    }
 };
 
 const hydrateBoardDetails = (board) => {

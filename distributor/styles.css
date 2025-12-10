@@ -241,6 +241,16 @@ select {
     appearance: none;
 }
 
+.inline-select {
+    max-width: 260px;
+}
+
+.inline-select select {
+    padding: 10px 40px 10px 14px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
 .wifi-card input {
     width: 100%;
     padding: 12px 14px;

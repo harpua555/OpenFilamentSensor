@@ -1,7 +1,10 @@
 const PLACEHOLDER_PATTERN = /"ssid"\s*:\s*"([^"]*)"\s*,\s*"passwd"\s*:\s*"([^"]*)"/i;
+export const PLACEHOLDER_TOKEN = 'PLACEHOLDER_WIFI_STRING_32_CHARS';
+const PLACEHOLDER_TOKENS = [PLACEHOLDER_TOKEN];
 const DEFAULT_STATUS_MESSAGE =
     '\n\nsee Github for implementation';
-const MAX_FIELD_LENGTH = 20;
+const MAX_FIELD_LENGTH = 32;
+const MAX_FIELD_MESSAGE = `SSID/password must be ${MAX_FIELD_LENGTH} characters or fewer.`;
 const isoDecoder = new TextDecoder('iso-8859-1');
 
 const toIsoBytes = (value) => {
@@ -18,39 +21,69 @@ const fillRange = (target, start, length, value) => {
     target.set(bytes.subarray(0, length), start);
 };
 
+const findPlaceholderRanges = (text) => {
+    for (const token of PLACEHOLDER_TOKENS) {
+        const indices = [];
+        let cursor = text.indexOf(token);
+        while (cursor !== -1) {
+            indices.push(cursor);
+            cursor = text.indexOf(token, cursor + token.length);
+        }
+        if (indices.length >= 2) {
+            return {
+                token,
+                ranges: [
+                    { start: indices[0], length: token.length },
+                    { start: indices[1], length: token.length }
+                ]
+            };
+        }
+    }
+    return null;
+};
+
 const patchBuffer = (buffer, ssid, passwd) => {
     const text = isoDecoder.decode(buffer);
-    const match = PLACEHOLDER_PATTERN.exec(text);
-    if (!match) {
-        throw new Error('Unable to locate SSID/passwd block in the firmware image.');
+    let match = PLACEHOLDER_PATTERN.exec(text);
+
+    if (match) {
+        const snippet = match[0];
+        const snippetStart = match.index;
+
+        const extractRange = (regex) => {
+            const inner = regex.exec(snippet);
+            if (!inner) {
+                throw new Error('Failed to isolate placeholder range.');
+            }
+            const colonIdx = inner[0].indexOf(':');
+            const startQuote = inner[0].indexOf('"', colonIdx + 1);
+            const endQuote = inner[0].indexOf('"', startQuote + 1);
+            const relativeStart = inner.index + startQuote + 1;
+            const relativeLength = endQuote - (startQuote + 1);
+            return {
+                start: snippetStart + relativeStart,
+                length: relativeLength
+            };
+        };
+
+        const ssidRange = extractRange(/"ssid"\s*:\s*"([^"]*)"/i);
+        const passwdRange = extractRange(/"passwd"\s*:\s*"([^"]*)"/i);
+
+        const patched = new Uint8Array(buffer.slice(0));
+        fillRange(patched, ssidRange.start, ssidRange.length, ssid);
+        fillRange(patched, passwdRange.start, passwdRange.length, passwd);
+        return patched.buffer;
     }
 
-    const snippet = match[0];
-    const snippetStart = match.index;
+    const fallback = findPlaceholderRanges(text);
+    if (fallback) {
+        const patched = new Uint8Array(buffer.slice(0));
+        fillRange(patched, fallback.ranges[0].start, fallback.ranges[0].length, ssid);
+        fillRange(patched, fallback.ranges[1].start, fallback.ranges[1].length, passwd);
+        return patched.buffer;
+    }
 
-    const extractRange = (regex) => {
-        const inner = regex.exec(snippet);
-        if (!inner) {
-            throw new Error('Failed to isolate placeholder range.');
-        }
-        const colonIdx = inner[0].indexOf(':');
-        const startQuote = inner[0].indexOf('"', colonIdx + 1);
-        const endQuote = inner[0].indexOf('"', startQuote + 1);
-        const relativeStart = inner.index + startQuote + 1;
-        const relativeLength = endQuote - (startQuote + 1);
-        return {
-            start: snippetStart + relativeStart,
-            length: relativeLength
-        };
-    };
-
-    const ssidRange = extractRange(/"ssid"\s*:\s*"([^"]*)"/i);
-    const passwdRange = extractRange(/"passwd"\s*:\s*"([^"]*)"/i);
-
-    const patched = new Uint8Array(buffer.slice(0));
-    fillRange(patched, ssidRange.start, ssidRange.length, ssid);
-    fillRange(patched, passwdRange.start, passwdRange.length, passwd);
-    return patched.buffer;
+    throw new Error('Unable to locate SSID/passwd block in the firmware image.');
 };
 
 const defaultLog = () => { };
@@ -219,7 +252,7 @@ export function initWifiPatcher({ installButton, openButton, resetButton, dialog
             return;
         }
         if (ssid.length > MAX_FIELD_LENGTH || passwd.length > MAX_FIELD_LENGTH) {
-            setStatus('SSID/password must be 20 characters or fewer.');
+            setStatus(MAX_FIELD_MESSAGE);
             return;
         }
         if (patching) {

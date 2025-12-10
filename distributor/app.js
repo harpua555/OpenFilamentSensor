@@ -1,7 +1,12 @@
-import { initWifiPatcher } from './wifiPatcher.js';
+import { initWifiPatcher, PLACEHOLDER_TOKEN } from './wifiPatcher.js';
 import { EspFlasher, FLASH_STATES } from './flasher.js';
 
+const GITHUB_OWNER = 'harpua555';
+const GITHUB_REPO = 'centauri-carbon-motion-detector';
+const DEFAULT_RELEASE_TAG = null; // Use "latest" unless a tag is provided via query string
+
 const selectors = {
+    releaseSelect: document.getElementById('releaseSelect'),
     boardSelect: document.getElementById('boardSelect'),
     boardStatus: document.getElementById('boardStatus'),
     boardVersion: document.getElementById('boardVersion'),
@@ -13,7 +18,6 @@ const selectors = {
     logStream: document.getElementById('logStream'),
     copyLogBtn: document.getElementById('copyLogBtn'),
     clearLogBtn: document.getElementById('clearLogBtn'),
-    heroLabel: document.getElementById('activeFirmwareLabel'),
     heroDate: document.getElementById('activeFirmwareDate'),
     wifiForm: document.getElementById('wifiPatchForm'),
     wifiStatus: document.getElementById('wifiPatchStatus'),
@@ -42,6 +46,9 @@ const selectors = {
 
 const state = {
     boards: [],
+    baseBoards: [],
+    releases: [],
+    currentReleaseTag: null,
     selected: null,
     flashing: false,
     logHistoryLimit: 400,
@@ -49,7 +56,9 @@ const state = {
     versioning: null,
     flasher: null,
     selectedPort: null,
-    monitoring: false
+    monitoring: false,
+    release: null,
+    blobUrls: []
 };
 
 const normalizeVersioning = (raw) => {
@@ -82,6 +91,30 @@ const resolveAssetUrl = (path) => {
     return new URL(path, import.meta.url).href;
 };
 
+const stripLeadingV = (value) => {
+    if (!value) return value;
+    return value.replace(/^v/i, '');
+};
+
+const trackBlobUrl = (url) => {
+    if (url) {
+        state.blobUrls.push(url);
+    }
+    return url;
+};
+
+const cleanupBlobUrls = () => {
+    state.blobUrls.forEach((url) => {
+        try {
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            // Ignore failures when cleaning up
+        }
+    });
+    state.blobUrls = [];
+};
+
+
 // Scroll state tracking for log streams
 const isAtBottom = (element, threshold = 50) => {
     if (!element) return true;
@@ -94,6 +127,208 @@ const debounce = (fn, delay) => {
         clearTimeout(timer);
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
+};
+
+const buildAssetMap = (assets = []) => {
+    const map = {};
+    assets.forEach((asset) => {
+        if (asset?.name && asset?.browser_download_url) {
+            map[asset.name] = asset.browser_download_url;
+        }
+    });
+    return map;
+};
+
+const normalizeRelease = (release, index = 0) => {
+    const rawTag = release.tag_name || '';
+    const normalizedTag = rawTag ? `v${stripLeadingV(rawTag)}` : '';
+    return {
+        tag: rawTag,
+        normalizedTag,
+        publishedAt: release.published_at,
+        url: release.html_url,
+        assetMap: buildAssetMap(release.assets || []),
+        body: typeof release.body === 'string' ? release.body : '',
+        isPrerelease: !!release.prerelease,
+        isDraft: !!release.draft,
+        isCurrent: !release.draft && index === 0
+    };
+};
+
+const fetchReleasesList = async (perPage = 20) => {
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=${perPage}`;
+    const response = await fetch(url, {
+        headers: { Accept: 'application/vnd.github+json' },
+        cache: 'no-store'
+    });
+    if (!response.ok) {
+        throw new Error(`Release lookup failed (${response.status})`);
+    }
+    const releases = await response.json();
+    return (releases || []).map((rel, idx) => normalizeRelease(rel, idx));
+};
+
+const buildManifestForBoard = (board, mergedUrl, version, releaseTag) => {
+    const manifest = {
+        name: board.name || board.variant || board.id,
+        version: stripLeadingV(version || releaseTag || ''),
+        build_id: `${releaseTag || 'local'}-${board.id || 'board'}`,
+        new_install_prompt_erase: true,
+        builds: [
+            {
+                chipFamily: board.chipFamily,
+                parts: [
+                    {
+                        path: mergedUrl,
+                        offset: 0
+                    }
+                ]
+            }
+        ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    return trackBlobUrl(URL.createObjectURL(blob));
+};
+
+const renderReleaseOptions = () => {
+    const select = selectors.releaseSelect;
+    if (!select) return;
+
+    select.innerHTML = '';
+    if (!state.releases.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No releases available';
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+    }
+
+    select.disabled = false;
+    state.releases.forEach((rel) => {
+        const option = document.createElement('option');
+        option.value = rel.normalizedTag || rel.tag;
+        const markers = [];
+        if (rel.isCurrent) markers.push('current');
+        if (rel.isPrerelease) markers.push('pre');
+        const markerText = markers.length ? ` (${markers.join(', ')})` : '';
+        option.textContent = `${rel.normalizedTag || rel.tag}${markerText}`;
+        select.appendChild(option);
+    });
+
+    const targetTag =
+        state.release?.normalizedTag ||
+        state.currentReleaseTag ||
+        state.releases[0]?.normalizedTag ||
+        state.releases[0]?.tag ||
+        '';
+    select.value = targetTag;
+};
+
+const renderActiveRelease = () => {
+    if (selectors.releaseSelect) {
+        const targetTag = state.release?.normalizedTag || state.release?.tag || '';
+        if (targetTag && selectors.releaseSelect.value !== targetTag) {
+            selectors.releaseSelect.value = targetTag;
+        }
+    }
+    const published = state.release?.publishedAt ? formatDate(state.release.publishedAt) : '—';
+    if (selectors.heroDate) {
+        selectors.heroDate.textContent = published;
+    }
+};
+
+const buildBoardModel = (board, releaseInfo) => {
+    const normalizedTag = releaseInfo?.normalizedTag || (releaseInfo?.tag ? `v${stripLeadingV(releaseInfo.tag)}` : null);
+    const releaseVersion = stripLeadingV(normalizedTag || releaseInfo?.tag || '');
+    const version = releaseVersion || board.version;
+    const released = releaseInfo?.publishedAt || board.released;
+    const status = releaseInfo?.isPrerelease ? 'pre-release' : board.status;
+
+    const pagesBase = normalizedTag
+        ? `https://harpua555.github.io/centauri-carbon-motion-detector/releases/${normalizedTag}/`
+        : '';
+    const pageAsset = (suffix) => (pagesBase ? `${pagesBase}${board.id}-${suffix}` : '');
+
+    const mergedRemote = pageAsset('firmware_merged.bin');
+    const firmwareRemote = pageAsset('firmware.bin');
+    const littlefsRemote = pageAsset('littlefs.bin');
+    const bootloaderRemote = pageAsset('bootloader.bin');
+    const partitionsRemote = pageAsset('partitions.bin');
+
+    const mergedUrl = mergedRemote;
+    const firmwareUrl = firmwareRemote;
+    const littlefsUrl = littlefsRemote;
+
+    const manifestUrl = buildManifestForBoard(board, mergedUrl, version, releaseInfo?.tag || 'local');
+
+    return {
+        ...board,
+        version,
+        status,
+        released,
+        boardNotes: Array.isArray(board.notes) ? board.notes : [],
+        manifest: manifestUrl,
+        manifestUrl,
+        releaseTag: normalizedTag || releaseInfo?.tag || null,
+        available: Boolean(mergedRemote),
+        assetUrls: {
+            merged: mergedUrl,
+            firmware: firmwareUrl,
+            littlefs: littlefsUrl,
+            bootloader: bootloaderRemote || '',
+            partitions: partitionsRemote || '',
+            remote: {
+                merged: mergedRemote,
+                firmware: firmwareRemote,
+                littlefs: littlefsRemote
+            }
+        }
+    };
+};
+
+const refreshBoardsForRelease = () => {
+    if (!state.baseBoards.length) return;
+    cleanupBlobUrls();
+    const mapped = state.baseBoards.map((board) => buildBoardModel(board, state.release));
+    const availableBoards = mapped.filter((board) => board.available);
+    state.boards = availableBoards;
+    selectors.boardCount.textContent = state.boards.length;
+    if (!availableBoards.length && mapped.length && state.release) {
+        appendLog(`No boards in release ${state.release.tag} have firmware assets on Pages.`, 'warn');
+    }
+    renderBoards();
+    selectors.boardSelect.value = '';
+    updateButtonStates();
+    hydrateBoardDetails(null);
+};
+
+const setActiveRelease = (tagHint = null) => {
+    const matchRelease = (hint) =>
+        state.releases.find((r) => r.normalizedTag === hint || r.tag === hint);
+
+    const preferred =
+        matchRelease(tagHint) ||
+        state.releases.find((r) => r.isCurrent) ||
+        state.releases[0] ||
+        null;
+
+    state.release = preferred;
+    state.currentReleaseTag =
+        state.releases.find((r) => r.isCurrent)?.normalizedTag ||
+        state.release?.normalizedTag ||
+        null;
+
+    renderReleaseOptions();
+    renderActiveRelease();
+    refreshBoardsForRelease();
+
+    if (state.release?.tag) {
+        appendLog(`Release set to ${state.release.normalizedTag || state.release.tag}`, 'info');
+        if (tagHint && state.release.tag !== tagHint && state.release.normalizedTag !== tagHint) {
+            appendLog(`Requested release ${tagHint} not found; using ${state.release.normalizedTag || state.release.tag} instead.`, 'warn');
+        }
+    }
 };
 
 const appendLog = (message, level = 'info', skipFlashMirror = false) => {
@@ -189,25 +424,7 @@ const renderBoards = () => {
 
 const applyVersioningToBoard = (board) => {
     if (!board) return board;
-    if (!state.versioning) {
-        return {
-            ...board,
-            boardNotes: Array.isArray(board.notes) ? board.notes : []
-        };
-    }
-
-    const overrides = state.versioning.boards?.[board.id] || {};
-    const boardNotes = Array.isArray(overrides.release_notes)
-        ? overrides.release_notes.filter(Boolean)
-        : (Array.isArray(board.notes) ? board.notes : []);
-
-    return {
-        ...board,
-        version: overrides.version || state.versioning.version || board.version,
-        status: overrides.status || state.versioning.status || board.status,
-        released: overrides.build_date || state.versioning.buildDate || board.released,
-        boardNotes
-    };
+    return buildBoardModel(board, state.release);
 };
 
 const renderNotes = (target, notes = [], emptyText = 'No release notes provided for this build.') => {
@@ -241,8 +458,6 @@ const hydrateBoardDetails = (board) => {
         selectors.boardVersion.textContent = '--';
         selectors.boardRelease.textContent = '--';
         selectors.releaseNotesTitle.textContent = 'Release notes';
-        selectors.heroLabel.textContent = 'Please select a board';
-        selectors.heroDate.textContent = '--';
         renderNotes(selectors.boardNotes, [], 'Select a board to view release notes');
         updateButtonStates();
         state.wifiPatcher?.updateBaseManifest('');
@@ -258,12 +473,13 @@ const hydrateBoardDetails = (board) => {
     selectors.boardVersion.textContent = version;
     selectors.boardRelease.textContent = formatDate(board.released);
     selectors.releaseNotesTitle.textContent = 'Release notes';
-    selectors.heroLabel.textContent = board.variant;
-    selectors.heroDate.textContent = formatDate(board.released);
     renderNotes(selectors.boardNotes, board.boardNotes, 'No release notes for this board.');
     updateButtonStates();
 
-    const manifestUrl = resolveAssetUrl(board.manifest);
+    const manifestUrl = (board.manifest || '').startsWith('blob:')
+        || (board.manifest || '').startsWith('http')
+        ? board.manifest
+        : resolveAssetUrl(board.manifest);
     if (manifestUrl) {
         state.wifiPatcher?.updateBaseManifest(manifestUrl);
     } else {
@@ -273,17 +489,16 @@ const hydrateBoardDetails = (board) => {
 
 const fetchBoards = async () => {
     try {
-        const response = await fetch('./firmware/boards.json', { cache: 'no-store' });
+        const response = await fetch('./boards.json', { cache: 'no-store' });
         if (!response.ok) throw new Error(`failed to load board list (${response.status})`);
         const data = await response.json();
-        const boards = data.boards || [];
-        state.boards = boards.map(applyVersioningToBoard);
-        selectors.boardCount.textContent = state.boards.length;
-        renderBoards();
-        // Start with empty selection
-        selectors.boardSelect.value = '';
-        updateButtonStates();
-        hydrateBoardDetails(null);
+        state.baseBoards = data.boards || [];
+        refreshBoardsForRelease();
+        if (state.release?.tag) {
+            appendLog(`Using GitHub release ${state.release.tag} for firmware URLs.`, 'info');
+        } else {
+            appendLog('No GitHub release metadata available; falling back to local firmware paths.', 'warn');
+        }
     } catch (error) {
         appendLog(`Unable to load board list: ${error.message}`, 'error');
         selectors.boardSelect.disabled = true;
@@ -293,18 +508,32 @@ const fetchBoards = async () => {
 };
 
 const fetchVersioning = async () => {
-    try {
-        const response = await fetch('./assets/versioning', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`failed to load versioning (${response.status})`);
-        const text = await response.text();
-        const parsed = JSON.parse(text);
-        state.versioning = normalizeVersioning(parsed);
-        renderNotes(selectors.notesList, state.versioning.releaseNotes, 'No release notes provided for this build.');
-    } catch (error) {
+    if (!state.release) {
         state.versioning = null;
         renderNotes(selectors.notesList, [], 'No release notes provided for this build.');
-        appendLog(`Version info unavailable; using board metadata instead: ${error.message}`, 'warn');
+        return;
     }
+    // Use release description/changelog from GitHub Releases API
+    const releaseNotes = [];
+    const body = state.release.body || '';
+    if (body) {
+        const lines = body.split('\n').map((line) => line.trim()).filter(Boolean);
+        lines.forEach((line) => {
+            if (line.startsWith('-') || line.startsWith('*')) {
+                releaseNotes.push(line.replace(/^[-*]\s*/, ''));
+            } else {
+                releaseNotes.push(line);
+            }
+        });
+    }
+    state.versioning = {
+        version: stripLeadingV(state.release.normalizedTag || state.release.tag || ''),
+        buildDate: state.release.publishedAt || null,
+        status: state.release.isPrerelease ? 'pre-release' : 'release',
+        releaseNotes,
+        boards: {}
+    };
+    renderNotes(selectors.notesList, releaseNotes, releaseNotes.length ? '' : 'No release notes provided for this build.');
 };
 
 // Flash overlay management
@@ -486,7 +715,10 @@ const startFlashing = async () => {
 
     try {
         // Get manifest URL (use patched if WiFi credentials provided)
-        let manifestUrl = resolveAssetUrl(state.selected.manifest);
+        let manifestUrl = state.selected.manifest;
+        if (manifestUrl && !manifestUrl.startsWith('http') && !manifestUrl.startsWith('blob:')) {
+            manifestUrl = resolveAssetUrl(manifestUrl);
+        }
 
         // Check if WiFi patcher has a patched manifest
         if (state.wifiPatcher && state.wifiPatcher.getPatchedManifestUrl) {
@@ -517,7 +749,13 @@ const startFlashing = async () => {
     }
 };
 
-const downloadOtaFiles = async (boardId) => {
+const downloadOtaFiles = async (board) => {
+    if (!board) {
+        appendLog('Select a board before downloading OTA files.', 'warn');
+        return;
+    }
+
+    const boardId = board.id;
     const originalText = selectors.downloadOtaBtn.textContent;
     try {
         appendLog(`Starting OTA download for ${boardId}...`, 'info');
@@ -526,48 +764,87 @@ const downloadOtaFiles = async (boardId) => {
         selectors.downloadOtaBtn.textContent = 'Downloading...';
         selectors.downloadOtaBtn.disabled = true;
 
-        const otaFiles = ['firmware.bin', 'littlefs.bin', 'OTA_readme.md'];
+        const otaFiles = [
+            {
+                name: 'firmware.bin',
+                remoteUrl: board.assetUrls?.remote?.firmware || ''
+            },
+            {
+                name: 'littlefs.bin',
+                remoteUrl: board.assetUrls?.remote?.littlefs || '',
+                patchable: true
+            },
+            { name: 'OTA_readme.md', generator: () => {
+                const tag = board.releaseTag || board.version || 'unknown';
+                const published = board.released ? formatDate(board.released) : 'unknown date';
+                const content = `Centauri Carbon Motion Detector OTA\nBoard: ${board.variant || boardId}\nRelease: ${tag}\nPublished: ${published}\nSource: GitHub Releases (${GITHUB_OWNER}/${GITHUB_REPO})\n\nIncludes firmware.bin and littlefs.bin from the selected release.`;
+                return new Blob([content], { type: 'text/markdown' });
+            } }
+        ];
         const zip = new JSZip();
         const wifiForm = document.getElementById('wifiPatchForm');
         const ssidInput = wifiForm?.querySelector('#wifiSsid');
         const passwdInput = wifiForm?.querySelector('#wifiPass');
         const ssid = (ssidInput?.value || '').trim();
         const passwd = (passwdInput?.value || '').trim();
-        const shouldPatchLittlefs = Boolean(
-            state.wifiPatcher &&
-            ssid &&
-            passwd &&
-            ssid !== 'your_ssid' &&
-            passwd !== 'your_pass'
-        );
+        const blankPadding = ' '.repeat(PLACEHOLDER_TOKEN.length);
+        const hasUserCreds = ssid && passwd && ssid !== 'your_ssid' && passwd !== 'your_pass';
+        const appliedSsid = hasUserCreds ? ssid : blankPadding;
+        const appliedPass = hasUserCreds ? passwd : blankPadding;
 
+        appendLog(
+            hasUserCreds
+                ? 'Wi-Fi credentials provided; will patch them into littlefs.bin.'
+                : 'No Wi-Fi credentials provided; placeholder will be scrubbed (blanked) to preserve layout.',
+            hasUserCreds ? 'info' : 'warn'
+        );
         for (const file of otaFiles) {
             try {
-                const fileUrl = `./firmware/${boardId}/OTA/${file}`;
+                if (file.generator) {
+                    zip.file(file.name, file.generator());
+                    appendLog(`Added ${file.name} to OTA package`, 'info');
+                    continue;
+                }
 
-                if (file === 'littlefs.bin' && shouldPatchLittlefs) {
+                if (file.name === 'littlefs.bin') {
                     try {
-                        appendLog('Applying Wi-Fi patch to littlefs.bin...', 'info');
-                        const patchedBuffer = await state.wifiPatcher.patchFirmware(ssid, passwd, fileUrl);
-                        zip.file(file, patchedBuffer);
-                        appendLog('Wi-Fi patch applied to littlefs.bin', 'success');
+                        appendLog(hasUserCreds ? 'Applying Wi-Fi patch to littlefs.bin...' : 'Scrubbing placeholder Wi-Fi credentials...', 'info');
+                        const sourceUrl = file.remoteUrl;
+                        if (!sourceUrl) throw new Error('No littlefs source URL available.');
+                        const patchedBuffer = await state.wifiPatcher.patchFirmware(appliedSsid, appliedPass, sourceUrl);
+                        zip.file(file.name, patchedBuffer);
+                        appendLog(hasUserCreds ? 'Wi-Fi patch applied to littlefs.bin' : 'Placeholder credentials scrubbed in littlefs.bin', 'success');
                         continue;
                     } catch (patchError) {
                         appendLog(`Warning: Failed to apply Wi-Fi patch: ${patchError.message}`, 'warn');
                     }
                 }
 
-                const response = await fetch(fileUrl);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const patchNote = file === 'littlefs.bin' && shouldPatchLittlefs ? ' (no Wi-Fi patch)' : '';
-                    zip.file(file, blob);
-                    appendLog(`Added ${file} to OTA package${patchNote}`, 'info');
-                } else {
-                    appendLog(`Warning: ${file} not found in OTA directory`, 'warn');
+                let blob = null;
+                const patchNote = '';
+
+                if (file.remoteUrl) {
+                    try {
+                        const response = await fetch(file.remoteUrl);
+                        if (response.ok) {
+                            blob = await response.blob();
+                            appendLog(`Added ${file.name} from release assets${patchNote}`, 'info');
+                        } else {
+                            appendLog(`Warning: ${file.name} not accessible from release assets (HTTP ${response.status})`, 'warn');
+                        }
+                    } catch (err) {
+                        appendLog(`Warning: Failed to fetch ${file.name} from release assets: ${err.message}`, 'warn');
+                    }
                 }
+
+                if (!blob) {
+                    appendLog(`Warning: ${file.name} not available for ${board.variant || boardId}`, 'warn');
+                    continue;
+                }
+
+                zip.file(file.name, blob);
             } catch (error) {
-                appendLog(`Warning: Failed to fetch ${file}: ${error.message}`, 'warn');
+                appendLog(`Warning: Failed to fetch ${file.name}: ${error.message}`, 'warn');
             }
         }
 
@@ -597,6 +874,12 @@ const downloadOtaFiles = async (boardId) => {
 };
 
 const attachEvents = () => {
+    if (selectors.releaseSelect) {
+        selectors.releaseSelect.addEventListener('change', (event) => {
+            setActiveRelease(event.target.value);
+        });
+    }
+
     selectors.boardSelect.addEventListener('change', (event) => {
         const board = state.boards.find((item) => item.id === event.target.value);
         hydrateBoardDetails(board);
@@ -611,17 +894,7 @@ const attachEvents = () => {
             return;
         }
 
-        // Check if board has OTA directory
-        try {
-            const otaCheckResponse = await fetch(`./firmware/${state.selected.id}/OTA/firmware.bin`, { method: 'HEAD' });
-            if (!otaCheckResponse.ok) {
-                appendLog(`Warning: OTA files not available for ${state.selected.variant}. Download may be incomplete.`, 'warn');
-            }
-        } catch (error) {
-            appendLog(`Warning: Unable to verify OTA files for ${state.selected.variant}: ${error.message}`, 'warn');
-        }
-
-        await downloadOtaFiles(state.selected.id);
+        await downloadOtaFiles(state.selected);
     });
 
     selectors.copyLogBtn.addEventListener('click', async () => {
@@ -692,8 +965,23 @@ const init = async () => {
         log: appendLog
     });
 
+    const params = new URLSearchParams(window.location.search);
+    const requestedTag = params.get('tag') || params.get('release') || DEFAULT_RELEASE_TAG;
+    try {
+        state.releases = await fetchReleasesList();
+        setActiveRelease(requestedTag);
+    } catch (error) {
+        state.releases = [];
+        state.release = null;
+        renderReleaseOptions();
+        renderActiveRelease();
+        appendLog(`GitHub release metadata unavailable: ${error.message}`, 'warn');
+    }
+
     await fetchVersioning();
     await fetchBoards();
+
+    window.addEventListener('beforeunload', cleanupBlobUrls);
 };
 
 document.addEventListener('DOMContentLoaded', init);

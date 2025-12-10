@@ -1,6 +1,6 @@
 {
-  "ssid": "twentycharactrstring",
-  "passwd": "twentycharactrstring",
+  "ssid": "PLACEHOLDER_WIFI_STRING_32_CHARS",
+  "passwd": "PLACEHOLDER_WIFI_STRING_32_CHARS",
   "elegooip": "1.1.1.1",
   "ap_mode": false,
   "has_connected": false,

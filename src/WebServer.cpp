@@ -423,6 +423,10 @@ void WebServer::buildStatusJson(DynamicJsonDocument &jsonDoc, const printer_info
     elegoo["graceActive"]          = elegooStatus.graceActive;
     elegoo["expectedRateMmPerSec"] = elegooStatus.expectedRateMmPerSec;
     elegoo["actualRateMmPerSec"]   = elegooStatus.actualRateMmPerSec;
+    elegoo["runoutPausePending"]   = elegooStatus.runoutPausePending;
+    elegoo["runoutPauseRemainingMm"] = elegooStatus.runoutPauseRemainingMm;
+    elegoo["runoutPauseDelayMm"]   = elegooStatus.runoutPauseDelayMm;
+    elegoo["runoutPauseCommanded"] = elegooStatus.runoutPauseCommanded;
 }
 
 void WebServer::broadcastStatusUpdate()

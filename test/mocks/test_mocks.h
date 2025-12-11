@@ -75,6 +75,7 @@ public:
     int getDetectionHardJamTimeMs() const { return 3000; }
     int getDetectionMode() const { return 0; }  // BOTH
     bool getSuppressPauseCommands() const { return false; }
+    bool getPauseOnRunout() const { return true; }
     int getFlowTelemetryStaleMs() const { return 1500; }
 };
 

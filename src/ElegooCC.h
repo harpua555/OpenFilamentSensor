@@ -82,6 +82,10 @@ typedef struct
     sdcp_print_status_t printStatus;
     bool                filamentStopped;
     bool                filamentRunout;
+    bool                runoutPausePending;
+    bool                runoutPauseCommanded;
+    float               runoutPauseRemainingMm;
+    float               runoutPauseDelayMm;
     int                 currentLayer;
     int                 totalLayer;
     int                 progress;
@@ -143,6 +147,11 @@ class ElegooCC
     int                 PrintSpeedPct;
     bool                filamentStopped;
     bool                filamentRunout;
+    bool                runoutPausePending;
+    bool                runoutPauseCommanded;
+    float               runoutPauseRemainingMm;
+    float               runoutPauseDelayMm;
+    float               runoutPauseStartExpectedMm;
     float               expectedFilamentMM;
     float               actualFilamentMM;
     float               lastExpectedDeltaMM;
@@ -183,6 +192,7 @@ class ElegooCC
     // Jam detector state caching (for throttled updates)
     JamState      cachedJamState;
     unsigned long lastJamDetectorUpdateMs;
+    bool          pauseTriggeredByRunout;
 
     // Command tracking
     unsigned long lastPauseRequestMs;
@@ -192,6 +202,7 @@ class ElegooCC
     static constexpr unsigned long STATUS_POST_PRINT_COOLDOWN_MS    = 20000;
     static constexpr unsigned long JAM_DEBUG_INTERVAL_MS            = 1000;
     static constexpr unsigned long JAM_DETECTOR_UPDATE_INTERVAL_MS  = 250;  // 4Hz
+    static constexpr float         DEFAULT_RUNOUT_PAUSE_DELAY_MM    = 700.0f;  // TODO: make configurable
 
     ElegooCC();
 
@@ -212,6 +223,9 @@ class ElegooCC
                                    sdcp_print_status_t newStatus);
     bool isPrintStartCandidateSatisfied() const;
     void updatePrintStartCandidateTimeout(unsigned long currentTime);
+    void resetRunoutPauseState();
+    void updateRunoutPauseCountdown();
+    bool isRunoutPauseReady() const;
    public:
     void pausePrint();
     void continuePrint();

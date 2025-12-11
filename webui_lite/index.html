@@ -446,6 +446,19 @@
             gap: 10px;
         }
 
+        .status-value-stack {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .status-subtext {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+        }
+
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -1306,7 +1319,7 @@
         const statusHelpText = {
             default: 'Tap any status tile to learn more about that value.',
             printerConnected: 'Shows whether the ESP32 currently has a live SDCP connection to the printer. If disconnected, telemetry and pause commands cannot be sent.',
-            filamentRunout: 'Indicates if the printer reported a filament runout event. This relies on the Elegoo telemetry flag rather than the motion sensor.',
+            filamentRunout: 'Indicates if the printer reported a filament runout event. When tripped, the tile counts down the delayed pause distance before the pause command is sent.',
             filamentStopped: 'Tracks whether the motion sensor is detecting pulses. “Stopped” means no pulses within the tracking window, even if the printer is still requesting filament.',
             movementPulses: 'Total pulses counted by the filament sensor since the current tracking session started. This increases as filament physically moves.',
             expectedFilament: 'Amount of filament (in millimeters) that the printer has requested within the active tracking window or job.',
@@ -1893,6 +1906,11 @@
             const printerConnected = data.elegoo && data.elegoo.isWebsocketConnected;
             const filamentStopped = data.stopped || false;
             const filamentRunout = data.filamentRunout || false;
+            const runoutPausePending = data.elegoo?.runoutPausePending || false;
+            const runoutPauseRemaining = typeof data.elegoo?.runoutPauseRemainingMm === 'number'
+                ? data.elegoo.runoutPauseRemainingMm
+                : null;
+            const runoutPauseCommanded = data.elegoo?.runoutPauseCommanded || false;
             const printStatus = data.elegoo?.printStatus || 0;
             if (typeof data.elegoo?.uiRefreshIntervalMs === 'number' && data.elegoo.uiRefreshIntervalMs > 0) {
                 uiRefreshIntervalMs = data.elegoo.uiRefreshIntervalMs;
@@ -1918,6 +1936,20 @@
 
             const grid = document.getElementById('statusGrid');
             if (statusActive && grid) {
+                let runoutSubtext = '';
+                if (filamentRunout && !runoutPauseCommanded && runoutPausePending && typeof runoutPauseRemaining === 'number') {
+                    const remainingValue = Math.max(0, runoutPauseRemaining);
+                    const displayValue = remainingValue < 10 ? remainingValue.toFixed(1) : Math.ceil(remainingValue);
+                    runoutSubtext = `Pausing in ${displayValue} mm`;
+                }
+                const runoutValueClass = runoutSubtext ? 'status-value status-value-stack' : 'status-value';
+                const runoutBadgeClass = runoutPauseCommanded
+                    ? 'inactive'
+                    : (filamentRunout ? 'warning' : 'active');
+                const runoutBadgeLabel = runoutPauseCommanded
+                    ? 'Paused'
+                    : (filamentRunout ? 'Runout' : 'Normal');
+
                 grid.innerHTML = `
                     <div class="status-item" data-help-key="printerConnected">
                         <div class="status-label">Printer Connected</div>
@@ -1929,10 +1961,11 @@
                     </div>
                     <div class="status-item" data-help-key="filamentRunout">
                         <div class="status-label">Filament Runout</div>
-                        <div class="status-value">
-                            <span class="status-badge ${filamentRunout ? 'warning' : 'active'} ${isPrinting ? '' : 'no-pulse'}">
-                                ${filamentRunout ? 'Runout!' : 'Normal'}
+                        <div class="${runoutValueClass}">
+                            <span class="status-badge ${runoutBadgeClass} ${isPrinting ? '' : 'no-pulse'}">
+                                ${runoutBadgeLabel}
                             </span>
+                            ${runoutSubtext ? `<span class="status-subtext">${runoutSubtext}</span>` : ''}
                         </div>
                     </div>
                     <div class="status-item" data-help-key="filamentStopped">
@@ -1979,6 +2012,10 @@
         const DEBUG_FIELDS = [
             { label: 'Print Halted', key: 'stopped', source: 'top' },
             { label: 'Filament Runout', key: 'filamentRunout', source: 'top' },
+            { label: 'Runout Pause Pending', key: 'runoutPausePending', source: 'elegoo' },
+            { label: 'Runout Pause Remaining (mm)', key: 'runoutPauseRemainingMm', source: 'elegoo' },
+            { label: 'Runout Pause Commanded', key: 'runoutPauseCommanded', source: 'elegoo' },
+            { label: 'Runout Pause Delay (mm)', key: 'runoutPauseDelayMm', source: 'elegoo' },
             { label: 'Filament Stopped', key: 'filamentStopped', source: 'elegoo' },
             { label: 'Expected Filament (mm)', key: 'expectedFilament', source: 'elegoo' },
             { label: 'Actual Filament (mm)', key: 'actualFilament', source: 'elegoo' },

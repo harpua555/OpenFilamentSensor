@@ -1072,6 +1072,32 @@ void ElegooCC::checkFilamentRunout(unsigned long currentTime)
 
 void ElegooCC::checkFilamentMovement(unsigned long currentTime)
 {
+    // ============================================================================
+    // LOOP TIMING DIAGNOSTIC
+    // Monitor main loop performance - log warning if loop stalls exceed 20ms
+    // This helps detect WiFi/WebSocket/JSON processing that could miss pulses.
+    // ============================================================================
+    static unsigned long lastLoopTime = 0;
+    if (lastLoopTime > 0)
+    {
+        unsigned long loopDelta = currentTime - lastLoopTime;
+        if (loopDelta > 20 && cachedSettings.verboseLogging)
+        {
+            static unsigned long lastLoopWarningMs = 0;
+            if ((currentTime - lastLoopWarningMs) >= 5000)  // Log max once per 5 seconds
+            {
+                lastLoopWarningMs = currentTime;
+                logger.logf("LOOP_STALL: Main loop took %lums (>20ms may miss pulses)", loopDelta);
+            }
+        }
+    }
+    lastLoopTime = currentTime;
+
+    // ============================================================================
+    // TRACKING FROZEN STATE
+    // When tracking is frozen (printer paused after a jam), we still track pin
+    // state changes but do NOT count pulses. This preserves the post-jam display.
+    // ============================================================================
     if (trackingFrozen)
     {
         // When tracking is frozen (printer paused after a jam), just track pin changes
@@ -1093,14 +1119,22 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
 #endif
     // Test recording mode enables verbose flow logging for CSV extraction
     // Use cached settings to avoid repeated getter calls in hot path (~1000 Hz)
-    bool testRecordingMode    = cachedSettings.testRecordingMode;
-    bool debugFlow            = cachedSettings.verboseLogging || testRecordingMode;
-    bool summaryFlow          = cachedSettings.flowSummaryLogging;
-    bool currentlyPrinting    = isPrinting();
+    bool testRecordingMode = cachedSettings.testRecordingMode;
+    bool debugFlow         = cachedSettings.verboseLogging || testRecordingMode;
+    bool summaryFlow       = cachedSettings.flowSummaryLogging;
+    bool currentlyPrinting = isPrinting();
 
+    // ============================================================================
+    // PULSE COUNTING POLICY
     // Count pulses during any active print job (heating, leveling, printing, etc).
-    // The sensor is the source of truth - count ALL pulses during the print lifecycle.
-    // Only skip pulses when truly idle (no job) or frozen after jam (trackingFrozen).
+    // Uses isPrintJobActive() which returns true when:
+    //   printStatus != IDLE && printStatus != STOPPED && printStatus != COMPLETE
+    //
+    // This ensures pulses are counted from print start (step 4) until print end
+    // (step 6), matching the lifecycle managed by candidate detection logic.
+    //
+    // The trackingFrozen gate (handled above) stops counting during jam-paused state.
+    // ============================================================================
     bool shouldCountPulses = isPrintJobActive();
 
     // DIAGNOSTIC: Detect when machine status race condition would have prevented pulse counting
@@ -1120,22 +1154,22 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     if (currentMovementValue != lastMovementValue)
     {
         // Only trigger on RISING edge (LOW->HIGH, 0->1)
-          if (currentMovementValue == HIGH && lastMovementValue == LOW && shouldCountPulses)
-          {
+        if (currentMovementValue == HIGH && lastMovementValue == LOW && shouldCountPulses)
+        {
               // Apply pulse reduction filter for testing
-              // Use cached settings to avoid repeated getter calls in hot path
-              float reductionPercent = cachedSettings.pulseReductionPercent;
-              if (!shouldApplyPulseReduction(reductionPercent)) {
-                  // Even when skipping a pulse, update lastMovementValue so we don't repeatedly
-                  // re-evaluate the same HIGH level as a new rising edge in subsequent loop ticks.
-                  lastMovementValue = currentMovementValue;
-                  lastChangeTime    = currentTime;
-                  return; // Skip this pulse due to reduction setting
-              }
+            // Use cached settings to avoid repeated getter calls in hot path
+            float reductionPercent = cachedSettings.pulseReductionPercent;
+            if (!shouldApplyPulseReduction(reductionPercent)) {
+                // Even when skipping a pulse, update lastMovementValue so we don't repeatedly
+                // re-evaluate the same HIGH level as a new rising edge in subsequent loop ticks.
+                lastMovementValue = currentMovementValue;
+                lastChangeTime    = currentTime;
+                return; // Skip this pulse due to reduction setting (test feature)
+            }
 
-              float movementMm = cachedSettings.movementMmPerPulse;
-              if (movementMm <= 0.0f)
-              {
+            float movementMm = cachedSettings.movementMmPerPulse;
+            if (movementMm <= 0.0f)
+            {
                 movementMm = 2.88f;  // Default sensor spec
             }
 
@@ -1149,9 +1183,6 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
             {
                 logger.log("pulse");
             }
-
-            // Removed per-pulse logging - way too verbose, causes heap exhaustion
-            // Pulse count is shown in periodic Flow log instead
         }
 
         lastMovementValue = currentMovementValue;
@@ -1174,7 +1205,7 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     }
 
     // Only run jam detection when actively printing with valid telemetry
-    // Use machine status (not printStatus) since extrusion can happen during heating/leveling
+    // Use isPrintJobActive via shouldCountPulses since extrusion can happen during heating/leveling
     // This prevents false "jammed" state when idle with stale telemetry data
     if (!shouldCountPulses || !expectedTelemetryAvailable)
     {

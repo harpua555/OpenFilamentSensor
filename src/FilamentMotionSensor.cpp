@@ -80,6 +80,8 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
         return;
     }
 
+    /* DISABLE RETRACTION HANDLING, NOT CURRENTLY NEEDED
+    // ============================================================================
     // Handle retractions: reset windowed tracking
     if (totalExtrusionMm < lastTotalExtrusionMm)
     {
@@ -91,6 +93,7 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
         sampleCount          = 0;
         nextSampleIndex      = 0;
     }
+    */
 
     // Calculate delta for windowed tracking
     float expectedDelta = totalExtrusionMm - lastTotalExtrusionMm;

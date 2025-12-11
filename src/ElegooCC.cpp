@@ -730,6 +730,17 @@ void ElegooCC::refreshJamConfig()
     cachedJamConfig = buildJamConfigFromSettings();
 }
 
+void ElegooCC::reconnect()
+{
+    // Reconnect to the printer with the current IP from settings
+    // Called when settings are updated (e.g., after auto-discovery)
+    String configuredIp = settingsManager.getElegooIP();
+    if (configuredIp.length() > 0)
+    {
+        connect();
+    }
+}
+
 void ElegooCC::clearPrintStartCandidate()
 {
     printCandidateActive        = false;

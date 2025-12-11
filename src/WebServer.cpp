@@ -200,6 +200,7 @@ void WebServer::begin()
                 settingsManager.load();
             }
             elegooCC.refreshCaches();
+            elegooCC.reconnect();
             jsonObj.clear();
             request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
@@ -236,6 +237,7 @@ void WebServer::begin()
                   settingsManager.setElegooIP(ip);
                   settingsManager.save(true);
                   elegooCC.refreshCaches();
+                  elegooCC.reconnect();
 
                   DynamicJsonDocument jsonDoc(128);
                   jsonDoc["elegooip"] = ip;

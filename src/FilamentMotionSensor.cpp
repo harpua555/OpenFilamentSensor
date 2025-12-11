@@ -42,6 +42,8 @@ void FilamentMotionSensor::reset()
         samples[i].durationMs  = 0;
     }
 
+    preInitActualMm    = 0.0f;
+    preInitPulseCount  = 0;
     lastSensorPulseMs = millis();  // Initialize to current time
 }
 
@@ -66,6 +68,15 @@ void FilamentMotionSensor::updateExpectedPosition(float totalExtrusionMm)
         initialized           = true;
         lastExpectedUpdateMs  = currentTime;
         lastTotalExtrusionMm  = totalExtrusionMm;
+
+        // If we saw pulses before telemetry initialized, preload them as actual-only
+        if (preInitActualMm > 0.0f)
+        {
+            addSample(0.0f, preInitActualMm);
+            firstPulseReceived = true;
+            preInitActualMm    = 0.0f;
+            preInitPulseCount  = 0;
+        }
         return;
     }
 
@@ -108,6 +119,13 @@ void FilamentMotionSensor::addSensorPulse(float mmPerPulse)
 {
     if (mmPerPulse <= 0.0f || !initialized)
     {
+        if (mmPerPulse > 0.0f && !initialized)
+        {
+            // Buffer pulses seen before telemetry initialization so we can replay them
+            // once the first expected extrusion value arrives.
+            preInitActualMm += mmPerPulse;
+            preInitPulseCount++;
+        }
         return;
     }
 

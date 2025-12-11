@@ -189,6 +189,10 @@ struct printer_info_t {
     sdcp_print_status_t printStatus;
     bool                filamentStopped;
     bool                filamentRunout;
+    bool                runoutPausePending;
+    bool                runoutPauseCommanded;
+    float               runoutPauseRemainingMm;
+    float               runoutPauseDelayMm;
     int                 currentLayer;
     int                 totalLayer;
     int                 progress;
@@ -227,6 +231,11 @@ public:
     float expectedFilamentMM = 0.0f;
     float actualFilamentMM = 0.0f;
     bool filamentRunout = false;
+    bool runoutPausePending = false;
+    bool runoutPauseCommanded = false;
+    float runoutPauseRemainingMm = 0.0f;
+    float runoutPauseDelayMm = 700.0f;
+    float runoutPauseStartExpectedMm = 0.0f;
     bool expectedTelemetryAvailable = false;
     unsigned long lastSuccessfulTelemetryMs = 0;
 
@@ -246,6 +255,7 @@ public:
     bool hasBeenPaused = false;
     unsigned long lastPauseRequestMs = 0;
     unsigned long lastPrintEndMs = 0;
+    bool pauseTriggeredByRunout = false;
 
     // WebSocket state
     bool isConnected = false;
@@ -259,6 +269,11 @@ public:
         movementPulseCount = 0;
         expectedFilamentMM = 0.0f;
         actualFilamentMM = 0.0f;
+        runoutPausePending = false;
+        runoutPauseCommanded = false;
+        runoutPauseRemainingMm = 0.0f;
+        runoutPauseStartExpectedMm = 0.0f;
+        pauseTriggeredByRunout = false;
     }
 
     bool isPrinting() {
@@ -284,6 +299,8 @@ public:
     }
 
     bool shouldPausePrint(unsigned long currentTime) {
+        pauseTriggeredByRunout = false;
+
         // Skip if pause commands suppressed
         if (settingsManager.getSuppressPauseCommands()) {
             return false;
@@ -300,9 +317,32 @@ public:
             return true;
         }
 
-        // Check runout sensor
-        if (filamentRunout && settingsManager.getSuppressPauseCommands() == false) {
-            return true;
+        // Check runout sensor with delayed pause
+        if (filamentRunout && settingsManager.getPauseOnRunout()) {
+            if (!runoutPausePending) {
+                runoutPausePending = true;
+                runoutPauseStartExpectedMm = expectedFilamentMM;
+                runoutPauseRemainingMm = runoutPauseDelayMm;
+            }
+
+            float consumed = expectedFilamentMM - runoutPauseStartExpectedMm;
+            if (consumed < 0.0f) {
+                consumed = 0.0f;
+                runoutPauseStartExpectedMm = expectedFilamentMM;
+            }
+
+            runoutPauseRemainingMm = runoutPauseDelayMm - consumed;
+            if (runoutPauseRemainingMm < 0.0f) {
+                runoutPauseRemainingMm = 0.0f;
+            }
+
+            if (runoutPauseRemainingMm <= 0.0f) {
+                pauseTriggeredByRunout = true;
+                return true;
+            }
+        } else {
+            runoutPausePending = false;
+            runoutPauseRemainingMm = 0.0f;
         }
 
         return false;
@@ -325,6 +365,10 @@ public:
         info.printStatus = printStatus;
         info.filamentStopped = false;
         info.filamentRunout = filamentRunout;
+        info.runoutPausePending = runoutPausePending;
+        info.runoutPauseCommanded = runoutPauseCommanded;
+        info.runoutPauseRemainingMm = runoutPauseRemainingMm;
+        info.runoutPauseDelayMm = runoutPauseDelayMm;
         info.currentLayer = currentLayer;
         info.totalLayer = totalLayer;
         info.progress = totalLayer > 0 ? (currentLayer * 100 / totalLayer) : 0;
@@ -507,9 +551,18 @@ void testShouldPausePrintOnRunout() {
     // Set runout flag
     ecc.filamentRunout = true;
 
-    // Note: This depends on settingsManager mock returning false for suppressPauseCommands
-    // Since our mock returns false, runout should trigger pause
     bool shouldPause = ecc.shouldPausePrint(millis());
+    TEST_ASSERT(!shouldPause, "Runout should wait for delayed pause");
+
+    // Advance expected extrusion but stay below delay
+    ecc.expectedFilamentMM = ecc.runoutPauseDelayMm - 50.0f;
+    TEST_ASSERT(!ecc.shouldPausePrint(millis()), "Runout delay should still be counting down");
+
+    // Exceed delay to trigger pause
+    ecc.expectedFilamentMM = ecc.runoutPauseDelayMm + 10.0f;
+    shouldPause = ecc.shouldPausePrint(millis());
+    TEST_ASSERT(shouldPause, "Runout should pause after delay threshold");
+    TEST_ASSERT(ecc.pauseTriggeredByRunout, "Pause should be attributed to runout");
 
     TEST_PASS("Filament runout check evaluated");
 }

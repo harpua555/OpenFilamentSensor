@@ -93,6 +93,11 @@ ElegooCC::ElegooCC()
     PrintSpeedPct     = 0;
     filamentStopped   = false;
     filamentRunout    = false;
+    runoutPausePending        = false;
+    runoutPauseCommanded      = false;
+    runoutPauseRemainingMm    = 0.0f;
+    runoutPauseDelayMm        = DEFAULT_RUNOUT_PAUSE_DELAY_MM;
+    runoutPauseStartExpectedMm = 0.0f;
     transport.lastPing            = 0;
     transport.waitingForAck       = false;
     transport.pendingAckCommand   = -1;
@@ -126,6 +131,7 @@ ElegooCC::ElegooCC()
     trackingFrozen                = false;
     hasBeenPaused                 = false;
     motionSensor.reset();
+    pauseTriggeredByRunout        = false;
 
     lastPauseRequestMs = 0;
     lastPrintEndMs     = 0;
@@ -523,6 +529,7 @@ void ElegooCC::resetFilamentTracking(bool resetGrace)
     movementPulseCount         = 0;
     lastFlowLogMs              = 0;
     trackingFrozen             = false;
+    resetRunoutPauseState();
 
     // Reset the motion sensor and jam detector
     motionSensor.reset();
@@ -617,6 +624,11 @@ void ElegooCC::pausePrint()
         return;
     }
     
+    if (pauseTriggeredByRunout)
+    {
+        runoutPauseCommanded = true;
+    }
+
     trackingFrozen      = false;
     logger.logf("Pause command sent to printer");
     sendCommand(SDCP_COMMAND_PAUSE_PRINT, true);
@@ -958,6 +970,61 @@ bool ElegooCC::shouldApplyPulseReduction(float reductionPercent)
     }
 }
 
+void ElegooCC::resetRunoutPauseState()
+{
+    runoutPausePending         = false;
+    runoutPauseCommanded       = false;
+    runoutPauseRemainingMm     = 0.0f;
+    runoutPauseStartExpectedMm = expectedFilamentMM;
+    pauseTriggeredByRunout     = false;
+}
+
+void ElegooCC::updateRunoutPauseCountdown()
+{
+    if (!filamentRunout)
+    {
+        resetRunoutPauseState();
+        return;
+    }
+
+    if (!settingsManager.getPauseOnRunout())
+    {
+        runoutPausePending     = false;
+        runoutPauseRemainingMm = 0.0f;
+        pauseTriggeredByRunout = false;
+        return;
+    }
+
+    if (!runoutPausePending)
+    {
+        runoutPausePending         = true;
+        runoutPauseCommanded       = false;
+        runoutPauseStartExpectedMm = expectedFilamentMM;
+        runoutPauseRemainingMm     = runoutPauseDelayMm;
+        logger.logf("Filament runout detected; delaying pause for %.1fmm of expected extrusion (start=%.2fmm)",
+                    runoutPauseDelayMm, runoutPauseStartExpectedMm);
+    }
+
+    float consumed = expectedFilamentMM - runoutPauseStartExpectedMm;
+    if (consumed < 0.0f)
+    {
+        consumed = 0.0f;
+        runoutPauseStartExpectedMm = expectedFilamentMM;
+    }
+
+    runoutPauseRemainingMm = runoutPauseDelayMm - consumed;
+    if (runoutPauseRemainingMm < 0.0f)
+    {
+        runoutPauseRemainingMm = 0.0f;
+    }
+}
+
+bool ElegooCC::isRunoutPauseReady() const
+{
+    return filamentRunout && settingsManager.getPauseOnRunout() && runoutPausePending &&
+           runoutPauseRemainingMm <= 0.0f;
+}
+
 void ElegooCC::checkFilamentRunout(unsigned long currentTime)
 {
     // The signal output of the switch sensor is at low level when no filament is detected
@@ -971,8 +1038,13 @@ void ElegooCC::checkFilamentRunout(unsigned long currentTime)
     if (newFilamentRunout != filamentRunout)
     {
         logger.log(newFilamentRunout ? "Filament has run out" : "Filament has been detected");
+        if (!newFilamentRunout)
+        {
+            resetRunoutPauseState();
+        }
     }
     filamentRunout = newFilamentRunout;
+    updateRunoutPauseCountdown();
 }
 
 void ElegooCC::checkFilamentMovement(unsigned long currentTime)
@@ -1138,19 +1210,18 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
 
 bool ElegooCC::shouldPausePrint(unsigned long currentTime)
 {
+    pauseTriggeredByRunout = false;
+
     if (!settingsManager.getEnabled())
     {
         return false;
     }
 
-    if (filamentRunout && !settingsManager.getPauseOnRunout())
-    {
-        // if pause on runout is disabled, and filament ran out, skip checking everything else
-        // this should let the carbon take care of itself
-        return false;
-    }
-
-    bool pauseCondition = filamentRunout || filamentStopped;
+    updateRunoutPauseCountdown();
+    bool runoutPauseReady    = isRunoutPauseReady();
+    bool pauseConditionRunout = runoutPauseReady;
+    bool pauseConditionFlow  = filamentStopped;
+    bool pauseCondition      = pauseConditionRunout || pauseConditionFlow;
 
     bool           sdcpLoss      = false;
     unsigned long  lastSuccessMs = lastSuccessfulTelemetryMs;
@@ -1169,7 +1240,7 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
         }
         else if (lossBehavior == 2)
         {
-            pauseCondition = false;
+            pauseCondition = pauseConditionRunout;
         }
     }
 
@@ -1181,10 +1252,21 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
         return false;
     }
 
+    pauseTriggeredByRunout = runoutPauseReady;
+
+    if (runoutPauseReady && !runoutPauseCommanded)
+    {
+        logger.logf("Runout pause delay satisfied after %.2fmm expected (start=%.2fmm current=%.2fmm)",
+                    runoutPauseDelayMm, runoutPauseStartExpectedMm, expectedFilamentMM);
+    }
+
     // log why we paused...
-    logger.logf("Pause condition: %d", pauseCondition);
+    logger.logf("Pause condition: %d (runout_ready=%d flow=%d sdcp_loss=%d)",
+                pauseCondition, pauseConditionRunout ? 1 : 0, pauseConditionFlow ? 1 : 0,
+                sdcpLoss ? 1 : 0);
     logger.logf("Filament runout: %d", filamentRunout);
     logger.logf("Filament runout pause enabled: %d", settingsManager.getPauseOnRunout());
+    logger.logf("Runout pause remaining: %.2f / %.2f", runoutPauseRemainingMm, runoutPauseDelayMm);
     logger.logf("Filament stopped: %d", filamentStopped);
     logger.logf("Time since print start %d", currentTime - startedAt);
     logger.logf("Is Machine status printing?: %d", hasMachineStatus(SDCP_MACHINE_STATUS_PRINTING));
@@ -1242,6 +1324,10 @@ printer_info_t ElegooCC::getCurrentInformation()
 
     info.filamentStopped      = filamentStopped;
     info.filamentRunout       = filamentRunout;
+    info.runoutPausePending   = filamentRunout && runoutPausePending && settingsManager.getPauseOnRunout();
+    info.runoutPauseCommanded = runoutPauseCommanded;
+    info.runoutPauseRemainingMm = runoutPauseRemainingMm;
+    info.runoutPauseDelayMm   = runoutPauseDelayMm;
     info.mainboardID          = mainboardID;
     info.printStatus          = printStatus;
     info.isPrinting           = isPrinting();

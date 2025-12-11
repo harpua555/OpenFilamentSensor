@@ -146,6 +146,8 @@ class FilamentMotionSensor
     // Sensor pulse tracking
     unsigned long lastSensorPulseMs;  // Track when last pulse was detected
     float         lastTotalExtrusionMm;  // Last known extrusion position (reset with instance)
+    float         preInitActualMm;      // Buffer pulses seen before first telemetry init
+    unsigned long preInitPulseCount;    // Count of buffered pulses before init
 
     // Helper methods for windowed tracking
     void addSample(float expectedDeltaMm, float actualDeltaMm);

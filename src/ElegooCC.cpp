@@ -1074,10 +1074,22 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     bool summaryFlow          = settingsManager.getFlowSummaryLogging();
     bool currentlyPrinting    = isPrinting();
 
-    // Count pulses when machine status indicates printing is active, even if printStatus
-    // is in a transitional state (heating, bed leveling, etc). The machine status flag
-    // is more reliable for detecting when filament is actually being extruded.
-    bool shouldCountPulses = hasMachineStatus(SDCP_MACHINE_STATUS_PRINTING);
+    // Count pulses during any active print job (heating, leveling, printing, etc).
+    // The sensor is the source of truth - count ALL pulses during the print lifecycle.
+    // Only skip pulses when truly idle (no job) or frozen after jam (trackingFrozen).
+    bool shouldCountPulses = isPrintJobActive();
+
+    // DIAGNOSTIC: Detect when machine status race condition would have prevented pulse counting
+    // This helps validate that the fix is working (logs when we avoid the old race condition)
+    if (shouldCountPulses && !hasMachineStatus(SDCP_MACHINE_STATUS_PRINTING))
+    {
+        static unsigned long lastRaceDetectionMs = 0;
+        if ((currentTime - lastRaceDetectionMs) >= 5000)  // Log max once per 5 seconds
+        {
+            lastRaceDetectionMs = currentTime;
+            logger.log("Pulse counting protected: PRINTING status missing from machine state (old code would drop pulses)");
+        }
+    }
 
     // Track movement pulses - only count RISING edge (LOW to HIGH transition)
     // This matches typical sensor specs where 2.88mm = one complete pulse cycle

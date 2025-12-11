@@ -281,8 +281,10 @@ public:
     }
 
     bool isPrintJobActive() {
-        return machineStatusMask != 0 ||
-               printStatus != SDCP_PRINT_STATUS_IDLE;
+        // Match the real implementation in ElegooCC::isPrintJobActive()
+        return printStatus != SDCP_PRINT_STATUS_IDLE &&
+               printStatus != SDCP_PRINT_STATUS_STOPED &&
+               printStatus != SDCP_PRINT_STATUS_COMPLETE;
     }
 
     void setMachineStatuses(const int* statusArray, int arraySize) {
@@ -760,6 +762,141 @@ void testNotPrintingDoesNotTriggerPause() {
     TEST_PASS("No pause triggered when not printing");
 }
 
+void testPulseCountingDuringActivePrintStates() {
+    TEST_SECTION("Pulse counting enabled during all active print states");
+
+    // Test that pulses are counted during each active print state
+    sdcp_print_status_t activeStates[] = {
+        SDCP_PRINT_STATUS_PRINTING,
+        SDCP_PRINT_STATUS_HEATING,
+        SDCP_PRINT_STATUS_HOMING,
+        SDCP_PRINT_STATUS_BED_LEVELING,
+        SDCP_PRINT_STATUS_PAUSED,
+        SDCP_PRINT_STATUS_PAUSING
+    };
+
+    for (int i = 0; i < 6; i++) {
+        sdcp_print_status_t state = activeStates[i];
+        TestableElegooCC testEcc;
+        testEcc.printStatus = state;
+
+        // isPrintJobActive should return true for all active states
+        bool jobActive = testEcc.isPrintJobActive();
+        TEST_ASSERT(jobActive, "isPrintJobActive should be true for active print states");
+    }
+
+    TEST_PASS("Pulse counting enabled for all active print states");
+}
+
+void testNoPulseCountingWhenIdle() {
+    TEST_SECTION("Pulse counting disabled when idle/stopped/complete");
+
+    sdcp_print_status_t idleStates[] = {
+        SDCP_PRINT_STATUS_IDLE,
+        SDCP_PRINT_STATUS_STOPED,
+        SDCP_PRINT_STATUS_COMPLETE
+    };
+
+    for (int i = 0; i < 3; i++) {
+        sdcp_print_status_t state = idleStates[i];
+        TestableElegooCC testEcc;
+        testEcc.printStatus = state;
+
+        // isPrintJobActive should return false for idle states
+        bool jobActive = testEcc.isPrintJobActive();
+        TEST_ASSERT(!jobActive, "isPrintJobActive should be false for idle states");
+    }
+
+    TEST_PASS("Pulse counting disabled when idle/stopped/complete");
+}
+
+void testPulseCountingDuringSDCPLoss() {
+    TEST_SECTION("Pulses counted during machine status race condition (SDCP loss)");
+
+    TestableElegooCC ecc;
+
+    // Setup: Print is active
+    ecc.printStatus = SDCP_PRINT_STATUS_PRINTING;
+
+    // Verify initial state: both printStatus and machine status say printing
+    TEST_ASSERT(ecc.isPrintJobActive(), "Job should be active");
+
+    // Simulate SDCP loss: clear machine status bitmask (race condition)
+    int emptyStatus[] = {};
+    ecc.setMachineStatuses(emptyStatus, 0);
+
+    // Critical test: Machine status lost PRINTING bit, but...
+    TEST_ASSERT(!ecc.hasMachineStatus(SDCP_MACHINE_STATUS_PRINTING),
+                "Machine status should be cleared");
+
+    // ...isPrintJobActive (used for pulse counting) should STILL be true!
+    TEST_ASSERT(ecc.isPrintJobActive(),
+                "Print job should STILL be active despite machine status loss - this is the fix!");
+
+    TEST_PASS("Pulses counted during SDCP loss/race condition");
+}
+
+void testIsPrintingStillRequiresBothConditions() {
+    TEST_SECTION("isPrinting() still requires both printStatus AND machineStatus");
+
+    TestableElegooCC ecc;
+
+    // Setup: Print is active
+    ecc.printStatus = SDCP_PRINT_STATUS_PRINTING;
+    int printingStatus[] = { SDCP_MACHINE_STATUS_PRINTING };
+    ecc.setMachineStatuses(printingStatus, 1);
+
+    // Both conditions met: isPrinting() should be true
+    TEST_ASSERT(ecc.isPrinting(), "Should be printing with both conditions met");
+
+    // Now simulate race condition: clear machine status
+    int emptyStatus[] = {};
+    ecc.setMachineStatuses(emptyStatus, 0);
+
+    // isPrinting() should now return false (more strict, for pause decisions)
+    TEST_ASSERT(!ecc.isPrinting(), "isPrinting() should require machine status too");
+
+    // But isPrintJobActive() should still return true (for pulse counting)
+    TEST_ASSERT(ecc.isPrintJobActive(), "Job should still be active for pulse counting");
+
+    TEST_PASS("isPrinting() unaffected, remains strict for pause decisions");
+}
+
+void testMachineStatusRaceConditionProtection() {
+    TEST_SECTION("Complete lifecycle: verify pulse counting survives machine status race");
+
+    TestableElegooCC ecc;
+
+    // Start: idle
+    TEST_ASSERT(!ecc.isPrintJobActive(), "Should start idle");
+
+    // Begin print: printStatus changes to PRINTING
+    ecc.printStatus = SDCP_PRINT_STATUS_PRINTING;
+    int printingStatus[] = { SDCP_MACHINE_STATUS_PRINTING };
+    ecc.setMachineStatuses(printingStatus, 1);
+    TEST_ASSERT(ecc.isPrintJobActive(), "Should be printing");
+
+    // Race condition strikes: incomplete SDCP update clears machine status
+    int emptyStatus[] = {};
+    ecc.setMachineStatuses(emptyStatus, 0);
+
+    // CRITICAL: Pulse counting still active (this is the fix!)
+    TEST_ASSERT(ecc.isPrintJobActive(),
+                "Pulse counting should survive machine status bitmask race");
+
+    // After 250ms, SDCP sends update with PRINTING status
+    int restoredStatus[] = { SDCP_MACHINE_STATUS_PRINTING };
+    ecc.setMachineStatuses(restoredStatus, 1);
+    TEST_ASSERT(ecc.isPrintJobActive(), "Should still be printing after recovery");
+
+    // Finally, print ends: printStatus changes to COMPLETE
+    ecc.printStatus = SDCP_PRINT_STATUS_COMPLETE;
+    ecc.setMachineStatuses(emptyStatus, 0);  // Machine status also clears
+    TEST_ASSERT(!ecc.isPrintJobActive(), "Should stop counting pulses when print completes");
+
+    TEST_PASS("Machine status race condition handled throughout lifecycle");
+}
+
 int main() {
     TEST_SUITE_BEGIN("ElegooCC Unit Test Suite");
 
@@ -776,6 +913,11 @@ int main() {
     testResumeGracePeriod();
     testTrackingFreeze();
     testNotPrintingDoesNotTriggerPause();
+    testPulseCountingDuringActivePrintStates();
+    testNoPulseCountingWhenIdle();
+    testPulseCountingDuringSDCPLoss();
+    testIsPrintingStillRequiresBothConditions();
+    testMachineStatusRaceConditionProtection();
 
     TEST_SUITE_END();
 }

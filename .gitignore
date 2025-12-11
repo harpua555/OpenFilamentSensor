@@ -22,11 +22,11 @@ data/build_version.txt
 test/nul
 
 # Logs
-logs/*
-!logs/README.md
-!logs/history/
-logs/history/*
-!logs/history/README.md
+logs
+#!logs/README.md
+#!logs/history/
+#logs/history/*
+#!logs/history/README.md
 test/render/filament_log*
 
 # Merge tools

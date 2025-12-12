@@ -130,7 +130,12 @@ class ElegooCC
     TransportState        transport;
     UUID                  uuid;
     StaticJsonDocument<1200> messageDoc;
-    // Variables to track movement sensor state
+
+    // Interrupt-driven pulse counter (replaces polling-based edge detection)
+    volatile unsigned long isrPulseCounter;     // Incremented by ISR on rising edge
+    unsigned long lastIsrPulseCount;            // Last value read in main loop
+
+    // Legacy pin tracking (used only when tracking is frozen after jam pause)
     int           lastMovementValue;  // Initialize to invalid value
     unsigned long lastChangeTime;
 
@@ -264,6 +269,9 @@ class ElegooCC
    public:
     // Singleton access method
     static ElegooCC &getInstance();
+
+    // Interrupt handler for pulse detection (static, attached to GPIO interrupt)
+    static void pulseCounterISR();
 
     void setup();
     void loop();

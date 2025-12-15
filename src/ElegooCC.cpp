@@ -92,6 +92,9 @@ ElegooCC::ElegooCC()
     lastChangeTime    = 0;
 
     mainboardID       = "";
+    taskId            = "";
+    filename          = "";
+    lastTaskId        = "";
     printStatus       = SDCP_PRINT_STATUS_IDLE;
     machineStatusMask = 0;  // No statuses active initially
     currentLayer      = 0;
@@ -504,6 +507,54 @@ void ElegooCC::handleStatus(JsonDocument &doc)
         currentTicks = printInfo["CurrentTicks"];
         totalTicks   = printInfo["TotalTicks"];
         PrintSpeedPct = printInfo["PrintSpeedPct"];
+
+        // Extract job identifiers (TaskId, Filename)
+        if (printInfo.containsKey("TaskId") && !printInfo["TaskId"].isNull())
+        {
+            String newTaskId = printInfo["TaskId"].as<String>();
+            if (!newTaskId.isEmpty())
+            {
+                // Detect job transitions based on TaskId changes
+                if (lastTaskId.isEmpty())
+                {
+                    logger.logf("[JobID] NEW PRINT STARTED: TaskId='%s'", newTaskId.c_str());
+                }
+                else if (newTaskId != lastTaskId)
+                {
+                    logger.logf("[JobID] PRINT JOB CHANGED: '%s' -> '%s'",
+                                lastTaskId.c_str(), newTaskId.c_str());
+                }
+                // Same TaskId = would be a RESUME (no log needed here)
+
+                lastTaskId = newTaskId;
+                taskId = newTaskId;
+            }
+        }
+        else if (!lastTaskId.isEmpty())
+        {
+            // TaskId disappeared - job ended
+            logger.logf("[JobID] PRINT ENDED: TaskId='%s' no longer present", lastTaskId.c_str());
+            lastTaskId = "";
+            taskId = "";
+        }
+        // No else - retain existing taskId/lastTaskId if field is just missing transiently
+
+        if (printInfo.containsKey("Filename") && !printInfo["Filename"].isNull())
+        {
+            String newFilename = printInfo["Filename"].as<String>();
+            if (!newFilename.isEmpty())
+            {
+                filename = newFilename;
+            }
+        }
+        // No else - retain existing filename if field is missing
+
+        // Verbose logging for TaskId behavior observation
+        if (settingsManager.getVerboseLogging())
+        {
+            logger.logf("SDCP TaskId='%s' Filename='%s' Status=%d",
+                        taskId.c_str(), filename.c_str(), (int)newStatus);
+        }
 
         // Update extrusion tracking (expected/actual/deficit) based on any
         // TotalExtrusion / CurrentExtrusion fields present in this payload.
@@ -1430,6 +1481,8 @@ printer_info_t ElegooCC::getCurrentInformation()
     info.runoutPauseRemainingMm = runoutPauseRemainingMm;
     info.runoutPauseDelayMm   = runoutPauseDelayMm;
     info.mainboardID          = mainboardID;
+    info.taskId               = taskId;
+    info.filename             = filename;
     info.printStatus          = printStatus;
     info.isPrinting           = isPrinting();
     info.currentLayer         = currentLayer;

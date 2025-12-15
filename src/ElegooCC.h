@@ -79,6 +79,8 @@ typedef enum
 typedef struct
 {
     String              mainboardID;
+    String              taskId;
+    String              filename;
     sdcp_print_status_t printStatus;
     bool                filamentStopped;
     bool                filamentRunout;
@@ -140,6 +142,9 @@ class ElegooCC
 
     // machine/status info
     String              mainboardID;
+    String              taskId;               // Current job identifier from SDCP
+    String              filename;             // Current print filename from SDCP
+    String              lastTaskId;           // Previous TaskId for change detection
     sdcp_print_status_t printStatus;
     uint8_t             machineStatusMask;  // Bitmask for active statuses
     int                 currentLayer;

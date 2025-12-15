@@ -2873,48 +2873,54 @@
             }
         }
 
-        function checkFirmwareVersion() {
-            const currentVersion = document.getElementById('firmwareVersion').textContent;
-            if (!currentVersion || currentVersion === 'Loading...') {
+        async function checkFirmwareVersion() {
+            const currentVersionText = document.getElementById('firmwareVersion').textContent;
+            if (!currentVersionText || currentVersionText === 'Loading...') {
                 return;
             }
 
+            const banner = document.getElementById('versionBanner');
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            fetch('https://api.github.com/repos/harpua555/centauri-carbon-motion-detector/releases/latest', { signal: controller.signal })
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    if (!response.ok) {
-                        throw new Error(`GitHub API request failed with status ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    const latestVersion = data.tag_name;
-                    const banner = document.getElementById('versionBanner');
+            const parseVersion = (v) => {
+                const parts = (v || '').replace(/^v/, '').split('-')[0].split('.').map(Number);
+                const [major = 0, minor = 0, patch = 0] = parts.map(p => isNaN(p) ? 0 : p);
+                return { major, minor, patch };
+            };
 
-                    // Version comparison logic
-                    const parse = v => v.replace(/^v/, '').split('-')[0].split('.').map(Number);
-                    const [major, minor, build] = parse(currentVersion);
-                    const [latestMajor, latestMinor, latestBuild] = parse(latestVersion);
+            try {
+                const response = await fetch('https://api.github.com/repos/harpua555/centauri-carbon-motion-detector/releases/latest', { signal: controller.signal });
 
-                    if (latestMajor > major ||
-                       (latestMajor === major && latestMinor > minor) ||
-                       (latestMajor === major && latestMinor === minor && latestBuild > build)) {
+                if (!response.ok) {
+                    throw new Error(`GitHub API request failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const latestVersion = data.tag_name;
+
+                const current = parseVersion(currentVersionText);
+                const latest = parseVersion(latestVersion);
+
+                if (latest.major > current.major ||
+                   (latest.major === current.major && latest.minor > current.minor) ||
+                   (latest.major === current.major && latest.minor === current.minor && latest.patch > current.patch)) {
+                    if (banner) {
                         banner.classList.remove('hidden');
-                    } else {
-                        banner.classList.add('hidden');
                     }
-                })
-                .catch(error => {
-                    clearTimeout(timeoutId);
-                    console.warn('Firmware version check failed:', error.message);
-                    const banner = document.getElementById('versionBanner');
+                } else {
                     if (banner) {
                         banner.classList.add('hidden');
                     }
-                });
+                }
+            } catch (error) {
+                console.warn('Firmware version check failed:', error.message);
+                if (banner) {
+                    banner.classList.add('hidden');
+                }
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
         // Format thumbprint from MMDDYYHHMMSS to MM.DD.YY-HH:MM

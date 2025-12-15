@@ -269,6 +269,7 @@ class ElegooCC
     void loop();
 
     void refreshCaches();
+    void reconnect();  // Reconnect with current IP from settings
 
     // Get current printer information
     printer_info_t getCurrentInformation();

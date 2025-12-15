@@ -9,6 +9,9 @@
 #include "SDCPProtocol.h"
 #include "SettingsManager.h"
 
+// Define and initialize the static pulse counter
+volatile unsigned long ElegooCC::isrPulseCounter = 0;
+
 #define ACK_TIMEOUT_MS SDCPTiming::ACK_TIMEOUT_MS
 constexpr float        DEFAULT_FILAMENT_DEFICIT_THRESHOLD_MM = SDCPDefaults::FILAMENT_DEFICIT_THRESHOLD_MM;
 constexpr unsigned int EXPECTED_FILAMENT_SAMPLE_MS           = SDCPTiming::EXPECTED_FILAMENT_SAMPLE_MS;  // Log max once per second to prevent heap exhaustion
@@ -82,7 +85,6 @@ ElegooCC::ElegooCC()
     startedAt = 0;  // Initialize to prevent invalid grace periods
 
     // Interrupt-driven pulse counter initialization
-    isrPulseCounter = 0;
     lastIsrPulseCount = 0;
 
     // Legacy pin tracking (used only when tracking is frozen after jam pause)
@@ -1177,7 +1179,7 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     // ============================================================================
     // READ ACCUMULATED PULSES FROM ISR COUNTER
     // ============================================================================
-    unsigned long currentPulseCount = isrPulseCounter;
+    unsigned long currentPulseCount = ElegooCC::isrPulseCounter;
     unsigned long newPulses = currentPulseCount - lastIsrPulseCount;
     lastIsrPulseCount = currentPulseCount;
 
@@ -1530,8 +1532,7 @@ bool ElegooCC::discoverPrinterIP(String &outIp, unsigned long timeoutMs)
 // ============================================================================
 void IRAM_ATTR ElegooCC::pulseCounterISR()
 {
-    // Get singleton instance and increment the ISR counter
-    // The main loop will read this counter periodically
-    ElegooCC &instance = getInstance();
-    instance.isrPulseCounter++;
+    // Directly increment the static counter. This is safe to do from an ISR
+    // as it involves no flash-based code.
+    ElegooCC::isrPulseCounter++;
 }

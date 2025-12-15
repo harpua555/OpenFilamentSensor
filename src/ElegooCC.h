@@ -132,7 +132,6 @@ class ElegooCC
     StaticJsonDocument<1200> messageDoc;
 
     // Interrupt-driven pulse counter (replaces polling-based edge detection)
-    volatile unsigned long isrPulseCounter;     // Incremented by ISR on rising edge
     unsigned long lastIsrPulseCount;            // Last value read in main loop
 
     // Legacy pin tracking (used only when tracking is frozen after jam pause)
@@ -196,9 +195,15 @@ class ElegooCC
     
     // Jam detector state caching (for throttled updates)
     JamState      cachedJamState;
+    // command to the printer when it is detected.
     unsigned long lastJamDetectorUpdateMs;
     bool          pauseTriggeredByRunout;
 
+   public:
+    // Public static counter for the ISR to access safely
+    static volatile unsigned long isrPulseCounter;
+
+   private:
     // Settings caching (for hot-path optimization)
     struct CachedSettings {
         bool testRecordingMode;

@@ -2,7 +2,7 @@
 .pio/
 tools/.platformio/
 tools/.venv/
-tools/__pycache__/
+__pycache__/
 
 # IDE / editor / local config
 .vscode/
@@ -25,10 +25,23 @@ CLAUDE.md
 # Data & secrets
 data/secrets.json
 data_lite/
+data/lite/
 data/.version
 data/build_timestamp.txt
 data/build_version.txt
 test/nul
+
+# Test executables and generated files
+/test/pulse_simulator
+/test/test_jam_detector
+/test/test_sdcp_protocol
+/test/test_additional_edge_cases
+/test/test_filament_motion_sensor
+/test/test_elegoo_cc
+/test/test_settings_manager
+/test/test_logger
+/test/test_integration
+/test/generated_test_settings.h
 
 # Logs
 logs

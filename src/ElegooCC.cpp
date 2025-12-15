@@ -1136,6 +1136,9 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     // ============================================================================
     if (trackingFrozen)
     {
+        // Sync ISR counter to discard pulses accumulated while frozen
+        lastIsrPulseCount = ElegooCC::isrPulseCounter;
+
         // When tracking is frozen (printer paused after a jam), just track pin changes
         int currentMovementValue = digitalRead(MOVEMENT_SENSOR_PIN);
 #ifdef INVERT_MOVEMENT_PIN

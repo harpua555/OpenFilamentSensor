@@ -1313,6 +1313,7 @@
         let pendingPageSwitch = null;
         let statusEventSource = null;
         let logsInterval = null;
+        let versionCheckInterval = null;
         let metricsChart = null;
         let metricsData = {
             labels: [],
@@ -2866,7 +2867,8 @@
                 document.getElementById('macAddress').textContent = statusData.mac || 'Unknown';
                 document.getElementById('ipAddress').textContent = statusData.ip || 'Unknown';
                 checkFirmwareVersion();
-                setInterval(checkFirmwareVersion, 3600000); // Check every hour
+                if (versionCheckInterval) clearInterval(versionCheckInterval);
+                versionCheckInterval = setInterval(checkFirmwareVersion, 3600000); // Check every hour
 
             } catch (error) {
                 console.error('Failed to load about info:', error);

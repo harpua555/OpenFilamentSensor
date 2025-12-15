@@ -43,7 +43,8 @@ const initSelectors = () => {
         flashStage: document.getElementById('flashStage'),
         flashPercent: document.getElementById('flashPercent'),
         flashProgressFill: document.getElementById('flashProgressFill'),
-        flashLogStream: document.getElementById('flashLogStream')
+        flashLogStream: document.getElementById('flashLogStream'),
+        finishedDialog: document.getElementById('finishedDialog')
     };
 };
 
@@ -995,7 +996,16 @@ const init = async () => {
             appendFlashLog(message, level);
         },
         onStateChange: (newState) => {
-            // Handle state changes if needed
+            if (newState === FLASH_STATES.FINISHED) {
+                const dialog = selectors.finishedDialog;
+                if (dialog) {
+                    dialog.classList.remove('hidden');
+                    const closeTriggers = dialog.querySelectorAll('[data-dialog-close]');
+                    closeTriggers.forEach(trigger => {
+                        trigger.onclick = () => dialog.classList.add('hidden');
+                    });
+                }
+            }
         }
     });
 

@@ -60,6 +60,13 @@ def main():
     env = os.environ.copy()
     env["PLATFORMIO_CORE_DIR"] = str(pio_home)
 
+    # Add the virtual environment's bin directory to PATH
+    venv_bin_path = str(venv_dir / "bin")
+    if "PATH" in env:
+        env["PATH"] = venv_bin_path + os.pathsep + env["PATH"]
+    else:
+        env["PATH"] = venv_bin_path
+
     # Run build_and_flash.py with venv Python
     build_script = tools_dir / "build_and_flash.py"
 

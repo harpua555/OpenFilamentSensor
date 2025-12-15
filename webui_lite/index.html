@@ -2879,8 +2879,12 @@
                 return;
             }
 
-            fetch('https://api.github.com/repos/harpua555/centauri-carbon-motion-detector/releases/latest')
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+
+            fetch('https://api.github.com/repos/harpua555/centauri-carbon-motion-detector/releases/latest', { signal: controller.signal })
                 .then(response => {
+                    clearTimeout(timeoutId);
                     if (!response.ok) {
                         throw new Error(`GitHub API request failed with status ${response.status}`);
                     }
@@ -2904,6 +2908,7 @@
                     }
                 })
                 .catch(error => {
+                    clearTimeout(timeoutId);
                     console.warn('Firmware version check failed:', error.message);
                     const banner = document.getElementById('versionBanner');
                     if (banner) {

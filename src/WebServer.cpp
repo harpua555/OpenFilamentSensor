@@ -155,6 +155,10 @@ void WebServer::begin()
                 settingsManager.setDetectionHardJamTimeMs(
                     jsonObj["detection_hard_jam_time_ms"].as<int>());
             }
+            if (jsonObj.containsKey("detection_mode"))
+            {
+                settingsManager.setDetectionMode(jsonObj["detection_mode"].as<int>());
+            }
             if (jsonObj.containsKey("sdcp_loss_behavior"))
             {
                 settingsManager.setSdcpLossBehavior(jsonObj["sdcp_loss_behavior"].as<int>());

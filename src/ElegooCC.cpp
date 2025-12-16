@@ -700,7 +700,6 @@ void ElegooCC::pausePrint()
         runoutPauseCommanded = true;
     }
 
-    trackingFrozen      = false;
     logger.logf("Pause command sent to printer");
     sendCommand(SDCP_COMMAND_PAUSE_PRINT, true);
 }

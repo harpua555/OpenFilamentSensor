@@ -122,7 +122,7 @@ def get_process_env():
         
         # Set PLATFORMIO_CORE_DIR if pio_home exists
         if pio_home.exists():
-             env["PLATFORMIO_CORE_DIR"] = str(pio_home)
+            env["PLATFORMIO_CORE_DIR"] = str(pio_home)
              
     return env
 

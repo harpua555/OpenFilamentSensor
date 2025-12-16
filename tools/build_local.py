@@ -61,7 +61,10 @@ def main():
     env["PLATFORMIO_CORE_DIR"] = str(pio_home)
 
     # Add the virtual environment's bin directory to PATH
-    venv_bin_path = str(venv_dir / "bin")
+    if os.name == "nt":  # Windows
+        venv_bin_path = str(venv_dir / "Scripts")
+    else:  # Linux/Mac
+        venv_bin_path = str(venv_dir / "bin")
     if "PATH" in env:
         env["PATH"] = venv_bin_path + os.pathsep + env["PATH"]
     else:

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BigTreeTech Filament Motion Sensor</title>
+    <title>OpenFilamentSensor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -1035,11 +1035,11 @@
                 <div class="branding">
                     <div class="logo-container"></div>
                     <div class="title-container">
-                        <h1>BigTreeTech Filament Motion Sensor</h1>
+                        <h1>OpenFilamentSensor</h1>
                         <div class="powered-by">
                             powered by
                             <span class="opencenauri-logo"></span>
-                            <strong>OpenCentauri (v0.3.0 or later)</strong>
+                            <strong>OpenCentauri (v0.3.0 or later) and BigTreeTech SFS2.0</strong>
                         </div>
                     </div>
                 </div>
@@ -1994,7 +1994,7 @@
                     : (filamentRunout ? 'warning' : 'active');
                 const runoutBadgeLabel = runoutPauseCommanded
                     ? 'Paused'
-                    : (filamentRunout ? 'Runout' : 'Normal');
+                    : (filamentRunout ? 'Runout' : 'Present');
 
                 const filamentStatusText = filamentStopped ? 'Stopped' : (isPrinting ? 'Moving' : 'Idle');
                 const filamentStatusClass = filamentStopped ? 'warning' : (isPrinting ? 'active' : 'inactive');

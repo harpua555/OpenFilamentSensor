@@ -3,7 +3,7 @@
     {
       "id": "esp32s3",
       "name": "OpenFilamentSensor",
-      "variant": "ESP32-S3 (Generic)",
+      "variant": "ESP32-S3",
       "chipFamily": "ESP32-S3",
       "status": "stable",
       "version": "0.5.0",

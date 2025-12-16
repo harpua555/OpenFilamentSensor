@@ -898,7 +898,7 @@ const downloadOtaFiles = async (board) => {
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `centauri-carbon-${boardId}-ota.zip`;
+        a.download = `OFS-${boardId}-ota.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

@@ -279,11 +279,36 @@ bool JamDetector::evaluateSoftJam(float         expectedDistance,
     }
     else
     {
-        // Recovery: flow improved significantly
-        if (passRatio >= config.ratioThreshold * 0.85f || !extrudingNow)
+        // Recovery: decay the accumulator instead of immediate reset.
+        // When not extruding, decay faster. When flow improves above threshold,
+        // decay proportionally to how much it improved.
+        if (!extrudingNow)
         {
-            softJamAccumulatedMs = 0;
+            // Not extruding - decay at 2x rate (lose 2ms per 1ms elapsed)
+            unsigned long decayAmount = elapsedMs * 2;
+            if (softJamAccumulatedMs > decayAmount)
+            {
+                softJamAccumulatedMs -= decayAmount;
+            }
+            else
+            {
+                softJamAccumulatedMs = 0;
+            }
         }
+        else if (passRatio >= config.ratioThreshold)
+        {
+            // Flow is healthy (above threshold) - decay at 1x rate
+            if (softJamAccumulatedMs > elapsedMs)
+            {
+                softJamAccumulatedMs -= elapsedMs;
+            }
+            else
+            {
+                softJamAccumulatedMs = 0;
+            }
+        }
+        // If passRatio is between threshold and softCondition requirements,
+        // hold accumulator steady (no accumulation, no decay)
     }
 
     if (config.softJamTimeMs > 0)
@@ -357,7 +382,7 @@ JamState JamDetector::update(float         expectedDistance,
     float expectedRate = 0.0f;
     float actualRate   = 0.0f;
 
-    if constexpr (!USE_WINDOWED_RATE_SAMPLES)
+    if (!USE_WINDOWED_RATE_SAMPLES)
     {
         // First derivative: compute rates from windowed distances
         float dtSec = static_cast<float>(elapsedMs) / 1000.0f;

@@ -79,6 +79,8 @@ typedef enum
 typedef struct
 {
     String              mainboardID;
+    String              taskId;
+    String              filename;
     sdcp_print_status_t printStatus;
     bool                filamentStopped;
     bool                filamentRunout;
@@ -130,12 +132,19 @@ class ElegooCC
     TransportState        transport;
     UUID                  uuid;
     StaticJsonDocument<1200> messageDoc;
-    // Variables to track movement sensor state
+
+    // Interrupt-driven pulse counter (replaces polling-based edge detection)
+    unsigned long lastIsrPulseCount;            // Last value read in main loop
+
+    // Legacy pin tracking (used only when tracking is frozen after jam pause)
     int           lastMovementValue;  // Initialize to invalid value
     unsigned long lastChangeTime;
 
     // machine/status info
     String              mainboardID;
+    String              taskId;               // Current job identifier from SDCP
+    String              filename;             // Current print filename from SDCP
+    String              lastTaskId;           // Previous TaskId for change detection
     sdcp_print_status_t printStatus;
     uint8_t             machineStatusMask;  // Bitmask for active statuses
     int                 currentLayer;
@@ -191,8 +200,27 @@ class ElegooCC
     
     // Jam detector state caching (for throttled updates)
     JamState      cachedJamState;
+    // command to the printer when it is detected.
     unsigned long lastJamDetectorUpdateMs;
     bool          pauseTriggeredByRunout;
+
+   public:
+    // Public static counter for the ISR to access safely
+    static volatile unsigned long isrPulseCounter;
+
+   private:
+    // Settings caching (for hot-path optimization)
+    struct CachedSettings {
+        bool testRecordingMode;
+        bool verboseLogging;
+        bool flowSummaryLogging;
+        bool pinDebugLogging;
+        float pulseReductionPercent;
+        float movementMmPerPulse;
+    };
+    CachedSettings cachedSettings;
+    JamConfig cachedJamConfig;
+    portMUX_TYPE cacheLock;
 
     // Command tracking
     unsigned long lastPauseRequestMs;
@@ -216,6 +244,8 @@ class ElegooCC
     void handleCommandResponse(JsonDocument &doc);
     void handleStatus(JsonDocument &doc);
     void sendCommand(int command, bool waitForAck = false);
+    void refreshSettingsCache();
+    void refreshJamConfig();
 
     // Helpers for print start detection
     void clearPrintStartCandidate();
@@ -250,8 +280,14 @@ class ElegooCC
     // Singleton access method
     static ElegooCC &getInstance();
 
+    // Interrupt handler for pulse detection (static, attached to GPIO interrupt)
+    static void IRAM_ATTR pulseCounterISR();
+
     void setup();
     void loop();
+
+    void refreshCaches();
+    void reconnect();  // Reconnect with current IP from settings
 
     // Get current printer information
     printer_info_t getCurrentInformation();

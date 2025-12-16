@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <time.h>
 
+#include "ElegooCC.h"
 #include "Logger.h"
 #include "SettingsManager.h"
 
@@ -122,7 +123,9 @@ void SystemServices::failWifi()
     if (!settingsManager.getHasConnected())
     {
         settingsManager.setAPMode(true);
-        if (settingsManager.save())
+        bool saved = settingsManager.save();
+        elegooCC.refreshCaches();
+        if (saved)
         {
             logger.log("Failed to connect to wifi, reverted to AP mode (first connection attempt)");
             logger.log("Restarting to enter AP mode...");
@@ -164,6 +167,7 @@ void SystemServices::handleSuccessfulWifiConnection()
     {
         settingsManager.setHasConnected(true);
         settingsManager.save();
+        elegooCC.refreshCaches();
         logger.log("First successful WiFi connection recorded");
     }
 
@@ -282,6 +286,7 @@ void SystemServices::checkWifiConnection()
         {
             settingsManager.setHasConnected(true);
             settingsManager.save();
+            elegooCC.refreshCaches();
         }
     }
 }

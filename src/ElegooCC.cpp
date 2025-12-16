@@ -9,6 +9,9 @@
 #include "SDCPProtocol.h"
 #include "SettingsManager.h"
 
+// Define and initialize the static pulse counter
+volatile unsigned long ElegooCC::isrPulseCounter = 0;
+
 #define ACK_TIMEOUT_MS SDCPTiming::ACK_TIMEOUT_MS
 constexpr float        DEFAULT_FILAMENT_DEFICIT_THRESHOLD_MM = SDCPDefaults::FILAMENT_DEFICIT_THRESHOLD_MM;
 constexpr unsigned int EXPECTED_FILAMENT_SAMPLE_MS           = SDCPTiming::EXPECTED_FILAMENT_SAMPLE_MS;  // Log max once per second to prevent heap exhaustion
@@ -79,10 +82,19 @@ bool isRestPrintStatus(sdcp_print_status_t status)
 
 ElegooCC::ElegooCC()
 {
+    startedAt = 0;  // Initialize to prevent invalid grace periods
+
+    // Interrupt-driven pulse counter initialization
+    lastIsrPulseCount = 0;
+
+    // Legacy pin tracking (used only when tracking is frozen after jam pause)
+    lastMovementValue = -1;  // Initialize to invalid value
     lastChangeTime    = 0;
-    startedAt = 0;  // Initialize to prevent invalid grace periods    lastChangeTime    = 0;
 
     mainboardID       = "";
+    taskId            = "";
+    filename          = "";
+    lastTaskId        = "";
     printStatus       = SDCP_PRINT_STATUS_IDLE;
     machineStatusMask = 0;  // No statuses active initially
     currentLayer      = 0;
@@ -127,7 +139,6 @@ ElegooCC::ElegooCC()
     printCandidateSawLeveling     = false;
     printCandidateConditionsMet   = false;
     printCandidateIdleSinceMs     = 0;
-    printCandidateIdleSinceMs     = 0;
     trackingFrozen                = false;
     hasBeenPaused                 = false;
     motionSensor.reset();
@@ -136,6 +147,7 @@ ElegooCC::ElegooCC()
     lastPauseRequestMs = 0;
     lastPrintEndMs     = 0;
     lastJamDetectorUpdateMs = 0;
+    cacheLock = portMUX_INITIALIZER_UNLOCKED;
 
     // TODO: send a UDP broadcast, M99999 on Port 30000, maybe using AsyncUDP.h and listen for the
     // result. this will give us the printer IP address.
@@ -147,6 +159,18 @@ ElegooCC::ElegooCC()
 
 void ElegooCC::setup()
 {
+    // Initialize settings and config caches
+    refreshCaches();
+
+    // Set up GPIO interrupt for pulse detection on MOVEMENT_SENSOR_PIN
+    // Rising edge trigger: counts each time sensor goes LOW→HIGH
+    // IRAM_ATTR requirement handled by Arduino framework for static method
+    pinMode(MOVEMENT_SENSOR_PIN, INPUT);
+    attachInterrupt(digitalPinToInterrupt(MOVEMENT_SENSOR_PIN),
+                    ElegooCC::pulseCounterISR,
+                    RISING);
+    logger.logf("Pulse detection via GPIO%d interrupt enabled", MOVEMENT_SENSOR_PIN);
+
     bool shouldConect = !settingsManager.isAPMode();
     if (shouldConect)
     {
@@ -421,6 +445,7 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                                     // Only needs to run once to determine the correct value
                                     settingsManager.setAutoCalibrateSensor(false);
                                     settingsManager.save();
+                                    refreshCaches();
 
                                     logger.logf(
                                         "Auto-calibration: Updated mm_per_pulse from %.3f to %.3f "
@@ -481,6 +506,52 @@ void ElegooCC::handleStatus(JsonDocument &doc)
         currentTicks = printInfo["CurrentTicks"];
         totalTicks   = printInfo["TotalTicks"];
         PrintSpeedPct = printInfo["PrintSpeedPct"];
+
+        // Extract job identifiers (TaskId, Filename)
+        if (printInfo.containsKey("TaskId") && !printInfo["TaskId"].isNull())
+        {
+            String newTaskId = printInfo["TaskId"].as<String>();
+            if (!newTaskId.isEmpty())
+            {
+                // Detect job start based on TaskId appearing
+                // We only use this for START detection, not resume or end.
+                if (lastTaskId.isEmpty())
+                {
+                    // TaskId appeared from nothing -> New Print Job
+                    // Force the candidate logic to accept the next PRINTING state as a new start
+                    printCandidateActive        = true;
+                    printCandidateConditionsMet = true;
+                    printCandidateIdleSinceMs   = 0;
+
+                    if (settingsManager.getVerboseLogging())
+                    {
+                        logger.logf("New Print detected via TaskId: %s", newTaskId.c_str());
+                    }
+                }
+
+                lastTaskId = newTaskId;
+                taskId = newTaskId;
+            }
+        }
+        else if (!lastTaskId.isEmpty())
+        {
+            // TaskId disappeared - logic explicitly ignores this for print end
+            lastTaskId = "";
+            taskId = "";
+        }
+        // No else - retain existing taskId/lastTaskId if field is just missing transiently
+
+        if (printInfo.containsKey("Filename") && !printInfo["Filename"].isNull())
+        {
+            String newFilename = printInfo["Filename"].as<String>();
+            if (!newFilename.isEmpty())
+            {
+                filename = newFilename;
+            }
+        }
+        // No else - retain existing filename if field is missing
+
+        // Verbose logging for TaskId behavior observation removed as requested
 
         // Update extrusion tracking (expected/actual/deficit) based on any
         // TotalExtrusion / CurrentExtrusion fields present in this payload.
@@ -629,7 +700,6 @@ void ElegooCC::pausePrint()
         runoutPauseCommanded = true;
     }
 
-    trackingFrozen      = false;
     logger.logf("Pause command sent to printer");
     sendCommand(SDCP_COMMAND_PAUSE_PRINT, true);
 }
@@ -697,6 +767,45 @@ void ElegooCC::sendCommand(int command, bool waitForAck)
     }
 }
 
+void ElegooCC::refreshCaches()
+{
+    // Use a short critical section so cache refreshes invoked from other tasks stay consistent
+    portENTER_CRITICAL(&cacheLock);
+    refreshSettingsCache();
+    refreshJamConfig();
+    portEXIT_CRITICAL(&cacheLock);
+}
+
+void ElegooCC::refreshSettingsCache()
+{
+    // Cache frequently-read settings from hot path to avoid repeated function calls
+    // This eliminates 6+ getter calls per main loop iteration (~1000 Hz)
+    cachedSettings.testRecordingMode = settingsManager.getTestRecordingMode();
+    cachedSettings.verboseLogging = settingsManager.getVerboseLogging();
+    cachedSettings.flowSummaryLogging = settingsManager.getFlowSummaryLogging();
+    cachedSettings.pinDebugLogging = settingsManager.getPinDebugLogging();
+    cachedSettings.pulseReductionPercent = settingsManager.getPulseReductionPercent();
+    cachedSettings.movementMmPerPulse = settingsManager.getMovementMmPerPulse();
+}
+
+void ElegooCC::refreshJamConfig()
+{
+    // Cache jam detection config instead of rebuilding every 250ms with 7 settings reads
+    // This reduces getter calls and validation checks in the jam detection hot path
+    cachedJamConfig = buildJamConfigFromSettings();
+}
+
+void ElegooCC::reconnect()
+{
+    // Reconnect to the printer with the current IP from settings
+    // Called when settings are updated (e.g., after auto-discovery)
+    String configuredIp = settingsManager.getElegooIP();
+    if (configuredIp.length() > 0)
+    {
+        connect();
+    }
+}
+
 void ElegooCC::clearPrintStartCandidate()
 {
     printCandidateActive        = false;
@@ -721,7 +830,7 @@ void ElegooCC::updatePrintStartCandidate(sdcp_print_status_t previousStatus,
             if (printCandidateIdleSinceMs == 0)
             {
                 printCandidateIdleSinceMs = millis();
-                if (settingsManager.getVerboseLogging())
+                if (settingsManager.getVerboseLogging() && taskId.isEmpty())
                 {
                     logger.log("Print start candidate entered IDLE state");
                 }
@@ -729,7 +838,7 @@ void ElegooCC::updatePrintStartCandidate(sdcp_print_status_t previousStatus,
         }
         else
         {
-            if (printCandidateActive && settingsManager.getVerboseLogging())
+            if (printCandidateActive && settingsManager.getVerboseLogging() && taskId.isEmpty())
             {
                 logger.logf("Print start candidate cleared due to rest status %d",
                             (int) newStatus);
@@ -762,7 +871,7 @@ void ElegooCC::updatePrintStartCandidate(sdcp_print_status_t previousStatus,
         if (nowConditionsMet && !printCandidateConditionsMet)
         {
             printCandidateConditionsMet = true;
-            if (settingsManager.getVerboseLogging())
+            if (settingsManager.getVerboseLogging() && taskId.isEmpty())
             {
                 logger.log("Print start candidate conditions met (homing + leveling observed)");
             }
@@ -798,7 +907,7 @@ void ElegooCC::updatePrintStartCandidate(sdcp_print_status_t previousStatus,
     printCandidateConditionsMet = printCandidateSawHoming && printCandidateSawLeveling;
     printCandidateIdleSinceMs   = 0;
 
-    if (settingsManager.getVerboseLogging())
+    if (settingsManager.getVerboseLogging() && taskId.isEmpty())
     {
         logger.logf("Print start candidate found (prev=%d new=%d)",
                     (int) previousStatus, (int) newStatus);
@@ -826,7 +935,7 @@ void ElegooCC::updatePrintStartCandidateTimeout(unsigned long currentTime)
     unsigned long elapsed = currentTime - printCandidateIdleSinceMs;
     if (elapsed > 5000)
     {
-        if (settingsManager.getVerboseLogging())
+        if (settingsManager.getVerboseLogging() && taskId.isEmpty())
         {
             logger.logf("Print start candidate cleared after %lus of IDLE",
                         elapsed / 1000UL);
@@ -891,10 +1000,10 @@ void ElegooCC::connect()
 
 void ElegooCC::updateTransport(unsigned long currentTime)
 {
-    if (transport.ipAddress != settingsManager.getElegooIP())
-    {
-        connect();  // reconnect if configuration changed
-    }
+    // The IP address is set once at startup and only changes when the user
+    // manually updates settings. The WebSocket library's built-in reconnection
+    // mechanism (setReconnectInterval) handles automatic reconnection on disconnect,
+    // so there's no need to check for IP changes on every frame.
 
     if (transport.webSocket.isConnected())
     {
@@ -943,31 +1052,28 @@ void ElegooCC::loop()
 
 bool ElegooCC::shouldApplyPulseReduction(float reductionPercent)
 {
-    static int pulseSkipCounter = 0;
+    static float accumulator = 0.0f;
 
     // 100% or higher: count all pulses (normal operation)
     if (reductionPercent >= 100.0f) {
-        pulseSkipCounter = 0;  // Reset counter for next time
+        accumulator = 0.0f;  // Reset accumulator for consistency
         return true;
     }
 
     // 0% or lower: count no pulses (simulate complete blockage)
     if (reductionPercent <= 0.0f) {
-        pulseSkipCounter = 0;  // Reset counter for next time
+        accumulator = 0.0f;  // Reset accumulator for consistency
         return false;
     }
 
-    // Calculate skip ratio: how many pulses to skip between counts
-    // For example: 50% -> skipRatio = 1 (skip 1, count 1), 20% -> skipRatio = 4 (skip 4, count 1)
-    int skipRatio = (int)((100.0f / reductionPercent) - 0.5f); // Round to nearest
-
-    if (pulseSkipCounter >= skipRatio) {
-        pulseSkipCounter = 0;
+    // Accumulator-based logic for fractional pulse counting
+    accumulator += reductionPercent;
+    if (accumulator >= 100.0f) {
+        accumulator -= 100.0f;
         return true;  // Count this pulse
-    } else {
-        pulseSkipCounter++;
-        return false; // Skip this pulse
     }
+
+    return false; // Skip this pulse
 }
 
 void ElegooCC::resetRunoutPauseState()
@@ -1049,8 +1155,37 @@ void ElegooCC::checkFilamentRunout(unsigned long currentTime)
 
 void ElegooCC::checkFilamentMovement(unsigned long currentTime)
 {
+    // ============================================================================
+    // LOOP TIMING DIAGNOSTIC
+    // Monitor main loop performance - log warning if loop stalls exceed 20ms
+    // This helps detect WiFi/WebSocket/JSON processing that could miss pulses.
+    // ============================================================================
+    static unsigned long lastLoopTime = 0;
+    if (lastLoopTime > 0)
+    {
+        unsigned long loopDelta = currentTime - lastLoopTime;
+        if (loopDelta > 20 && cachedSettings.verboseLogging)
+        {
+            static unsigned long lastLoopWarningMs = 0;
+            if ((currentTime - lastLoopWarningMs) >= 5000)  // Log max once per 5 seconds
+            {
+                lastLoopWarningMs = currentTime;
+                logger.logf("LOOP_STALL: Main loop took %lums (>20ms may miss pulses)", loopDelta);
+            }
+        }
+    }
+    lastLoopTime = currentTime;
+
+    // ============================================================================
+    // TRACKING FROZEN STATE
+    // When tracking is frozen (printer paused after a jam), we still track pin
+    // state changes but do NOT count pulses. This preserves the post-jam display.
+    // ============================================================================
     if (trackingFrozen)
     {
+        // Sync ISR counter to discard pulses accumulated while frozen
+        lastIsrPulseCount = ElegooCC::isrPulseCounter;
+
         // When tracking is frozen (printer paused after a jam), just track pin changes
         int currentMovementValue = digitalRead(MOVEMENT_SENSOR_PIN);
 #ifdef INVERT_MOVEMENT_PIN
@@ -1064,42 +1199,56 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
         return;
     }
 
-    int  currentMovementValue = digitalRead(MOVEMENT_SENSOR_PIN);
-#ifdef INVERT_MOVEMENT_PIN
-    currentMovementValue = !currentMovementValue;  // Invert the logic if flag is set
-#endif
     // Test recording mode enables verbose flow logging for CSV extraction
-    bool testRecordingMode    = settingsManager.getTestRecordingMode();
-    bool debugFlow            = settingsManager.getVerboseLogging() || testRecordingMode;
-    bool summaryFlow          = settingsManager.getFlowSummaryLogging();
-    bool currentlyPrinting    = isPrinting();
+    // Use cached settings to avoid repeated getter calls in hot path (~1000 Hz)
+    bool testRecordingMode = cachedSettings.testRecordingMode;
+    bool debugFlow         = cachedSettings.verboseLogging || testRecordingMode;
+    bool summaryFlow       = cachedSettings.flowSummaryLogging;
+    bool currentlyPrinting = isPrinting();
 
-    // Count pulses when machine status indicates printing is active, even if printStatus
-    // is in a transitional state (heating, bed leveling, etc). The machine status flag
-    // is more reliable for detecting when filament is actually being extruded.
-    bool shouldCountPulses = hasMachineStatus(SDCP_MACHINE_STATUS_PRINTING);
+    // ============================================================================
+    // PULSE COUNTING POLICY (with INTERRUPT-DRIVEN DETECTION)
+    // Count pulses during any active print job (heating, leveling, printing, etc).
+    // Uses isPrintJobActive() which returns true when:
+    //   printStatus != IDLE && printStatus != STOPPED && printStatus != COMPLETE
+    //
+    // This ensures pulses are counted from print start (step 4) until print end
+    // (step 6), matching the lifecycle managed by candidate detection logic.
+    //
+    // The trackingFrozen gate (handled above) stops counting during jam-paused state.
+    //
+    // INTERRUPT-DRIVEN: Pulses are now detected via GPIO interrupt on rising edge.
+    // The ISR increments isrPulseCounter. We read and process accumulated pulses here.
+    // This guarantees NO pulses are missed, even during loop stalls or high-speed extrusion.
+    // ============================================================================
+    bool shouldCountPulses = isPrintJobActive();
 
-    // Track movement pulses - only count RISING edge (LOW to HIGH transition)
-    // This matches typical sensor specs where 2.88mm = one complete pulse cycle
-    if (currentMovementValue != lastMovementValue)
+    // ============================================================================
+    // READ ACCUMULATED PULSES FROM ISR COUNTER
+    // ============================================================================
+    unsigned long currentPulseCount = ElegooCC::isrPulseCounter;
+    unsigned long newPulses = currentPulseCount - lastIsrPulseCount;
+    lastIsrPulseCount = currentPulseCount;
+
+    // Process accumulated pulses
+    if (newPulses > 0 && shouldCountPulses)
     {
-        // Only trigger on RISING edge (LOW->HIGH, 0->1)
-          if (currentMovementValue == HIGH && lastMovementValue == LOW && shouldCountPulses)
-          {
-              // Apply pulse reduction filter for testing
-              float reductionPercent = settingsManager.getPulseReductionPercent();
-              if (!shouldApplyPulseReduction(reductionPercent)) {
-                  // Even when skipping a pulse, update lastMovementValue so we don't repeatedly
-                  // re-evaluate the same HIGH level as a new rising edge in subsequent loop ticks.
-                  lastMovementValue = currentMovementValue;
-                  lastChangeTime    = currentTime;
-                  return; // Skip this pulse due to reduction setting
-              }
+        float movementMm = cachedSettings.movementMmPerPulse;
+        if (movementMm <= 0.0f)
+        {
+            movementMm = 2.88f;  // Default sensor spec
+        }
 
-              float movementMm = settingsManager.getMovementMmPerPulse();
-              if (movementMm <= 0.0f)
-              {
-                movementMm = 2.88f;  // Default sensor spec
+        // Process each pulse through reduction filter (for test recording mode)
+        for (unsigned long i = 0; i < newPulses; i++)
+        {
+            // Apply pulse reduction filter for testing
+            // Use cached settings to avoid repeated getter calls in hot path
+            float reductionPercent = cachedSettings.pulseReductionPercent;
+            if (!shouldApplyPulseReduction(reductionPercent))
+            {
+                // Skip this pulse due to reduction setting (test feature)
+                continue;
             }
 
             // Add pulse to motion sensor (Klipper-style)
@@ -1112,18 +1261,15 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
             {
                 logger.log("pulse");
             }
-
-            // Removed per-pulse logging - way too verbose, causes heap exhaustion
-            // Pulse count is shown in periodic Flow log instead
         }
 
-        lastMovementValue = currentMovementValue;
-        lastChangeTime    = currentTime;
+        lastChangeTime = currentTime;
     }
 
     // Pin debug logging (once per second) - BEFORE early return so it always runs
     // Shows RAW pin values (before any inversion)
-    bool pinDebug = settingsManager.getPinDebugLogging();
+    // Use cached settings to avoid repeated getter calls
+    bool pinDebug = cachedSettings.pinDebugLogging;
     if (pinDebug && (currentTime - lastPinDebugLogMs) >= 1000)
     {
         lastPinDebugLogMs = currentTime;
@@ -1136,7 +1282,7 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
     }
 
     // Only run jam detection when actively printing with valid telemetry
-    // Use machine status (not printStatus) since extrusion can happen during heating/leveling
+    // Use isPrintJobActive via shouldCountPulses since extrusion can happen during heating/leveling
     // This prevents false "jammed" state when idle with stale telemetry data
     if (!shouldCountPulses || !expectedTelemetryAvailable)
     {
@@ -1148,7 +1294,9 @@ void ElegooCC::checkFilamentMovement(unsigned long currentTime)
         return;
     }
 
-    const JamConfig jamConfig = buildJamConfigFromSettings();
+    // Use cached jam config instead of rebuilding every time (~1000 Hz)
+    // This eliminates 7 settings reads + 4 validation checks every 250ms
+    const JamConfig& jamConfig = cachedJamConfig;
 
     // Get windowed distances from motion sensor
     float expectedDistance = motionSensor.getExpectedDistance();
@@ -1329,6 +1477,8 @@ printer_info_t ElegooCC::getCurrentInformation()
     info.runoutPauseRemainingMm = runoutPauseRemainingMm;
     info.runoutPauseDelayMm   = runoutPauseDelayMm;
     info.mainboardID          = mainboardID;
+    info.taskId               = taskId;
+    info.filename             = filename;
     info.printStatus          = printStatus;
     info.isPrinting           = isPrinting();
     info.currentLayer         = currentLayer;
@@ -1417,4 +1567,21 @@ bool ElegooCC::discoverPrinterIP(String &outIp, unsigned long timeoutMs)
 
     udp.stop();
     return false;
+}
+
+// ============================================================================
+// INTERRUPT SERVICE ROUTINE FOR PULSE COUNTING
+// ============================================================================
+// Static interrupt handler that increments the pulse counter on rising edge.
+// This replaces polling-based edge detection and guarantees no pulses are dropped,
+// even during loop stalls or high-speed extrusion.
+//
+// Called by GPIO interrupt on MOVEMENT_SENSOR_PIN rising edge.
+// Execution time: ~2-3 microseconds (very fast, safe for ISR).
+// ============================================================================
+void IRAM_ATTR ElegooCC::pulseCounterISR()
+{
+    // Directly increment the static counter. This is safe to do from an ISR
+    // as it involves no flash-based code.
+    ElegooCC::isrPulseCounter++;
 }

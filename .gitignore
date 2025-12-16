@@ -2,13 +2,22 @@
 .pio/
 tools/.platformio/
 tools/.venv/
-tools/__pycache__/
+__pycache__/
 
 # IDE / editor / local config
 .vscode/
 .commands
-.claude/
+
+# Common AI tools
+.claude_settings.json
+.codex_settings.json
+.gemini_settings.json
+.claude
 .codex
+.antigravity
+.gemini
+GEMINI.md
+CLAUDE.md
 
 # OS cruft
 .DS_Store
@@ -16,17 +25,29 @@ tools/__pycache__/
 # Data & secrets
 data/secrets.json
 data_lite/
+data/lite/
 data/.version
 data/build_timestamp.txt
 data/build_version.txt
 test/nul
 
+# Test executables and generated files
+/test/pulse_simulator
+/test/test_jam_detector
+/test/test_sdcp_protocol
+/test/test_additional_edge_cases
+/test/test_filament_motion_sensor
+/test/test_elegoo_cc
+/test/test_settings_manager
+/test/test_logger
+/test/test_integration
+
 # Logs
-logs/*
-!logs/README.md
-!logs/history/
-logs/history/*
-!logs/history/README.md
+logs
+#!logs/README.md
+#!logs/history/
+#logs/history/*
+#!logs/history/README.md
 test/render/filament_log*
 
 # Merge tools
@@ -40,6 +61,4 @@ webui_lite/node_modules/
 # Docs and misc
 docs/old/
 doc/new/
-CLAUDE.md
 TODO.md
-.antigravity

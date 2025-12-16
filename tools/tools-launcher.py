@@ -103,14 +103,51 @@ def check_script(path: Path) -> bool:
     return True
 
 
+def get_process_env():
+    """Return a copy of os.environ with venv paths added if they exist."""
+    env = os.environ.copy()
+    venv_dir = BASE_DIR / ".venv"
+    pio_home = BASE_DIR / ".platformio"
+    
+    if venv_dir.exists():
+        # Determine venv bin path
+        if IS_WINDOWS:
+            venv_bin = venv_dir / "Scripts"
+        else:
+            venv_bin = venv_dir / "bin"
+            
+        # Add to PATH
+        if venv_bin.exists():
+            env["PATH"] = str(venv_bin) + os.pathsep + env.get("PATH", "")
+        
+        # Set PLATFORMIO_CORE_DIR if pio_home exists
+        if pio_home.exists():
+            env["PLATFORMIO_CORE_DIR"] = str(pio_home)
+             
+    return env
+
+
+def get_python_executable():
+    """Return the venv python executable if available, otherwise sys.executable."""
+    venv_dir = BASE_DIR / ".venv"
+    if venv_dir.exists():
+        if IS_WINDOWS:
+            py = venv_dir / "Scripts" / "python.exe"
+        else:
+            py = venv_dir / "bin" / "python"
+        if py.exists():
+            return str(py)
+    return sys.executable
+
+
 def run_python_script(script: Path, args: list = None):
     """Run a Python script with optional arguments."""
     args = args or []
-    cmd = [sys.executable, str(script)] + args
+    cmd = [get_python_executable(), str(script)] + args
     print(f"\033[96mCommand: {' '.join(cmd)}\033[0m")
     print("=" * 50)
     print()
-    subprocess.run(cmd)
+    subprocess.run(cmd, env=get_process_env())
 
 
 def run_shell_script(script: Path, shell: str = "bash"):
@@ -119,7 +156,7 @@ def run_shell_script(script: Path, shell: str = "bash"):
     print(f"\033[96mCommand: {' '.join(cmd)}\033[0m")
     print("=" * 50)
     print()
-    subprocess.run(cmd)
+    subprocess.run(cmd, env=get_process_env())
 
 
 def run_powershell_script(script: Path, args: list = None):
@@ -133,7 +170,7 @@ def run_powershell_script(script: Path, args: list = None):
     print(f"\033[96mCommand: {' '.join(cmd)}\033[0m")
     print("=" * 50)
     print()
-    subprocess.run(cmd)
+    subprocess.run(cmd, env=get_process_env())
 
 
 # =========================

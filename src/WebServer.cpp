@@ -110,7 +110,12 @@ void WebServer::begin()
         [this](AsyncWebServerRequest *request, JsonVariant &json)
         {
             JsonObject jsonObj = json.as<JsonObject>();
-            settingsManager.setElegooIP(jsonObj["elegooip"].as<String>());
+            // Track if IP address changed to trigger reconnect
+            String oldIp = settingsManager.getElegooIP();
+            String newIp = jsonObj["elegooip"].as<String>();
+            bool ipChanged = (oldIp != newIp) && newIp.length() > 0;
+
+            settingsManager.setElegooIP(newIp);
             settingsManager.setSSID(jsonObj["ssid"].as<String>());
             if (jsonObj.containsKey("passwd") && jsonObj["passwd"].as<String>().length() > 0)
             {
@@ -149,6 +154,10 @@ void WebServer::begin()
             {
                 settingsManager.setDetectionHardJamTimeMs(
                     jsonObj["detection_hard_jam_time_ms"].as<int>());
+            }
+            if (jsonObj.containsKey("detection_mode"))
+            {
+                settingsManager.setDetectionMode(jsonObj["detection_mode"].as<int>());
             }
             if (jsonObj.containsKey("sdcp_loss_behavior"))
             {
@@ -199,6 +208,10 @@ void WebServer::begin()
                 // Reload settings to apply changes immediately
                 settingsManager.load();
             }
+            elegooCC.refreshCaches();
+            if (ipChanged) {
+                elegooCC.reconnect();  // Reconnect if IP address changed
+            }
             jsonObj.clear();
             request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
@@ -234,6 +247,8 @@ void WebServer::begin()
 
                   settingsManager.setElegooIP(ip);
                   settingsManager.save(true);
+                  elegooCC.refreshCaches();
+                  elegooCC.reconnect();  // Reconnect with the newly discovered IP
 
                   DynamicJsonDocument jsonDoc(128);
                   jsonDoc["elegooip"] = ip;

@@ -262,7 +262,9 @@ void testJamRecovery() {
     assert(state.softJamPercent > 50.0f);  // Building up
     
     // Now recover - good flow ratio (actualRate/expectedRate = 4.5/5.0 = 0.9)
-    _mockMillis = 4000;
+    // Extend time to 4200ms (700ms delta) to allow sufficient decay
+    // Previous 500ms delta decayed it to exactly 50%, failing the < 50% check
+    _mockMillis = 4200;
     state = detector.update(30.0f, 24.0f, 400, true, true, _mockMillis, printStartTime, config, 5.0f, 4.5f);
 
     assert(floatEquals(state.passRatio, 0.9f, 0.05f));  // 90% is good (4.5/5.0)

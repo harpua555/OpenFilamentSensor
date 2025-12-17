@@ -524,6 +524,35 @@
             margin-top: 20px;
         }
 
+        .chart-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .chart-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .chart-card-content {
+            transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+            overflow: hidden;
+        }
+
+        .chart-card-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+        }
+
         .form-group {
             margin-bottom: 24px;
         }
@@ -1085,26 +1114,43 @@
             <div class="card">
                 <div class="card-header">
                     <span>Real-Time Metrics</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleMetricsChart" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="chart-container">
-                    <canvas id="metricsChart"></canvas>
+                <div class="chart-card-content" id="metricsChartContent">
+                    <div class="chart-container">
+                        <canvas id="metricsChart"></canvas>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
                     <span>Full-Print Expected vs Actual</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleFullPrintChart" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="chart-container">
-                    <canvas id="fullPrintChart"></canvas>
+                <div class="chart-card-content" id="fullPrintChartContent">
+                    <div class="chart-container">
+                        <canvas id="fullPrintChart"></canvas>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
                     <span>Jam Proximity Trends</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleJamCharts" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="debug-chart-row">
+                <div class="chart-card-content" id="jamChartsContent">
+                    <div class="debug-chart-row">
                     <div class="chart-panel">
                         <div class="chart-panel-title">Hard Jam Proximity History</div>
                         <div class="chart-container">
@@ -1117,6 +1163,7 @@
                             <canvas id="softJamHistoryChart"></canvas>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -1359,6 +1406,14 @@
         let lastChartUpdateMs = 0;
         let lastIdleState = true;
 
+        // Chart visibility state (persisted to localStorage)
+        const CHART_PREFS_KEY = 'ofs_chart_visibility';
+        let chartVisibility = {
+            metricsChart: true,
+            fullPrintChart: true,
+            jamCharts: true
+        };
+
         // Log accumulation state - stores logs browser-side since page load
         const logAccumulator = {
             entries: [],        // Chronological array of log lines
@@ -1366,6 +1421,76 @@
             maxEntries: 100000,  // Memory safety limit
             sessionStart: null  // Timestamp when accumulation started
         };
+
+        // Chart visibility management
+        function loadChartVisibility() {
+            try {
+                const saved = localStorage.getItem(CHART_PREFS_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    chartVisibility = { ...chartVisibility, ...parsed };
+                }
+            } catch (e) {
+                console.warn('Failed to load chart visibility preferences', e);
+            }
+        }
+
+        function saveChartVisibility() {
+            try {
+                localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(chartVisibility));
+            } catch (e) {
+                console.warn('Failed to save chart visibility preferences', e);
+            }
+        }
+
+        function setChartVisible(chartKey, visible) {
+            chartVisibility[chartKey] = visible;
+            saveChartVisibility();
+
+            const contentMap = {
+                metricsChart: 'metricsChartContent',
+                fullPrintChart: 'fullPrintChartContent',
+                jamCharts: 'jamChartsContent'
+            };
+
+            const contentEl = document.getElementById(contentMap[chartKey]);
+            if (contentEl) {
+                contentEl.classList.toggle('collapsed', !visible);
+            }
+
+            // Initialize chart when toggling to visible
+            if (visible && isStatusPageActive()) {
+                if (chartKey === 'metricsChart' && !metricsChart) {
+                    initChart();
+                } else if (chartKey === 'fullPrintChart' && !fullPrintChart) {
+                    initFullPrintChart();
+                } else if (chartKey === 'jamCharts' && (!hardJamHistoryChart || !softJamHistoryChart)) {
+                    initJamCharts();
+                }
+            }
+        }
+
+        function initChartToggles() {
+            loadChartVisibility();
+
+            const toggleMap = {
+                toggleMetricsChart: 'metricsChart',
+                toggleFullPrintChart: 'fullPrintChart',
+                toggleJamCharts: 'jamCharts'
+            };
+
+            for (const [toggleId, chartKey] of Object.entries(toggleMap)) {
+                const toggle = document.getElementById(toggleId);
+                if (toggle) {
+                    toggle.checked = chartVisibility[chartKey];
+                    setChartVisible(chartKey, chartVisibility[chartKey]);
+
+                    toggle.addEventListener('change', (e) => {
+                        setChartVisible(chartKey, e.target.checked);
+                    });
+                }
+            }
+        }
 
         const statusHelpText = {
             default: 'Tap any status tile to learn more about that value.',
@@ -1511,6 +1636,8 @@
 
         // Initialize Chart
         function initChart() {
+            if (!chartVisibility.metricsChart) return;
+
             const ctx = document.getElementById('metricsChart');
             if (metricsChart) {
                 metricsChart.destroy();
@@ -1562,6 +1689,8 @@
         }
 
         function initFullPrintChart() {
+            if (!chartVisibility.fullPrintChart) return;
+
             const ctx = document.getElementById('fullPrintChart');
             if (!ctx) return;
             if (fullPrintChart) {
@@ -1685,6 +1814,8 @@
         }
 
         function initJamCharts() {
+            if (!chartVisibility.jamCharts) return;
+
             const hardCtx = document.getElementById('hardJamHistoryChart');
             const softCtx = document.getElementById('softJamHistoryChart');
             if (!hardCtx || !softCtx) return;
@@ -1730,6 +1861,8 @@
         }
 
         function recordJamHistory(hardPercent, softPercent) {
+            if (!chartVisibility.jamCharts) return;
+
             const timestamp = new Date().toLocaleTimeString();
             const hardValue = Math.max(0, Math.min(100, Number(hardPercent) || 0));
             const softValue = Math.max(0, Math.min(100, Number(softPercent) || 0));
@@ -1785,6 +1918,8 @@
 
         // Update chart
         function updateChart(expected, actual) {
+            if (!chartVisibility.metricsChart) return;
+
             const nowLabel = new Date().toLocaleTimeString();
             metricsData.labels.push(nowLabel);
             metricsData.expected.push(expected);
@@ -1802,6 +1937,8 @@
         }
 
         function updateFullPrintChart(expected, actual) {
+            if (!chartVisibility.fullPrintChart) return;
+
             const nowLabel = new Date().toLocaleTimeString();
             fullPrintData.labels.push(nowLabel);
             fullPrintData.expected.push(expected);
@@ -2993,6 +3130,7 @@
 
         window.addEventListener('load', () => {
             initLogAccumulator();  // Start browser-side log accumulation
+            initChartToggles();    // Load chart visibility preferences
             switchPage('status');
             initLiteOtaUploader();
             initStatusCardReset();

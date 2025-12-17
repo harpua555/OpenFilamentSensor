@@ -2463,12 +2463,6 @@
                         <p class="form-help">Time-based grace period after print starts before jam detection activates. Prevents false positives during print startup. The windowed tracking algorithm automatically handles purge lines and SDCP timing variations. Default: 5000ms.</p>
                     </div>
 
-                    <div class="form-group" style="opacity: 0.5; pointer-events: none;">
-                        <label class="form-label">Purge Line Filament (mm) <span style="color: var(--text-secondary); font-size: 0.9em;">(Reserved for future use)</span></label>
-                        <input type="number" class="form-input" id="purge_filament_mm" value="${(currentSettings.purge_filament_mm !== undefined ? currentSettings.purge_filament_mm : 47).toFixed(1)}" min="0" step="0.5" disabled>
-                        <p class="form-help">This setting is reserved for potential future features. Currently not used by the jam detection algorithm.</p>
-                    </div>
-
                     <h3 class="section-title">Jam Detection Thresholds</h3>
 
                     <div class="form-group">

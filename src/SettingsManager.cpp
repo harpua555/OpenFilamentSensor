@@ -107,7 +107,6 @@ static const SettingField kSettingFields[] = {
     makeFloatField("movement_mm_per_pulse", offsetof(user_settings, movement_mm_per_pulse), 2.88f),
     makeBoolField("auto_calibrate_sensor", offsetof(user_settings, auto_calibrate_sensor), false),
     makeFloatField("pulse_reduction_percent", offsetof(user_settings, pulse_reduction_percent), 100.0f),
-    makeFloatField("purge_filament_mm", offsetof(user_settings, purge_filament_mm), 47.0f),
     makeBoolField("test_recording_mode", offsetof(user_settings, test_recording_mode), false),
     makeBoolField("show_debug_page", offsetof(user_settings, show_debug_page), false),
 };
@@ -256,7 +255,6 @@ SettingsManager::SettingsManager()
     settings.movement_mm_per_pulse      = 2.88f;  // Actual sensor spec (2.88mm per pulse)
     settings.auto_calibrate_sensor      = false;  // Disabled by default
     settings.pulse_reduction_percent    = 100.0f;  // Default: no reduction
-    settings.purge_filament_mm          = 47.0f;
     settings.test_recording_mode        = false;
     settings.show_debug_page            = false;
 }

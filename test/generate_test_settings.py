@@ -24,7 +24,6 @@ def main():
         ("detection_soft_jam_time_ms", "TEST_SOFT_JAM_TIME_MS", 10000, int),
         ("detection_hard_jam_time_ms", "TEST_HARD_JAM_TIME_MS", 5000, int),
         ("detection_grace_period_ms", "TEST_GRACE_PERIOD_MS", 500, int),
-        ("tracking_window_ms", "TEST_TRACKING_WINDOW_MS", 3000, int),
     ]
 
     generated_path = script_dir / "generated_test_settings.h"

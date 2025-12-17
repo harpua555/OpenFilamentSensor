@@ -29,7 +29,6 @@ struct user_settings
     float  movement_mm_per_pulse;
     bool   auto_calibrate_sensor;  // Auto-calibrate mm_per_pulse at print end
     float  pulse_reduction_percent;  // Pulse reduction for testing (0-100, default 100)
-    float  purge_filament_mm;
     bool   test_recording_mode;    // Enable CSV test data recording to ./condensed directory
     bool   show_debug_page;        // Show Debug page in web UI (default false)
 };

@@ -144,7 +144,6 @@ struct user_settings {
     float  movement_mm_per_pulse;
     bool   auto_calibrate_sensor;
     float  pulse_reduction_percent;
-    float  purge_filament_mm;
     bool   test_recording_mode;
 };
 
@@ -184,7 +183,6 @@ public:
         settings.movement_mm_per_pulse = 2.88f;
         settings.auto_calibrate_sensor = false;
         settings.pulse_reduction_percent = 100.0f;
-        settings.purge_filament_mm = 47.0f;
         settings.test_recording_mode = false;
     }
 

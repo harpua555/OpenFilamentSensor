@@ -53,6 +53,9 @@ public:
     // Recording settings
     bool getTestRecordingMode() const { return false; }
 
+    // UI visibility settings
+    bool getShowDebugPage() const { return false; }
+
     // State
     bool getHasConnected() const { return false; }
     bool getPauseOnRunout() const { return true; }

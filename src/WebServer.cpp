@@ -209,16 +209,24 @@ void WebServer::begin()
                     jsonObj["show_debug_page"].as<bool>());
             }
             bool saved = settingsManager.save();
-            if (saved) {
+            if (saved)
+            {
                 // Reload settings to apply changes immediately
                 settingsManager.load();
+                elegooCC.refreshCaches();
+                if (ipChanged)
+                {
+                    elegooCC.reconnect();  // Reconnect if IP address changed
+                }
+                jsonObj.clear();
+                request->send(200, "application/json", "{\"status\":\"ok\"}");
             }
-            elegooCC.refreshCaches();
-            if (ipChanged) {
-                elegooCC.reconnect();  // Reconnect if IP address changed
+            else
+            {
+                jsonObj.clear();
+                request->send(500, "application/json",
+                              "{\"error\":\"Failed to save settings to flash\"}");
             }
-            jsonObj.clear();
-            request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
 
     server.on(kRouteTestPause, HTTP_POST,
@@ -235,31 +243,37 @@ void WebServer::begin()
                   request->send(200, "text/plain", "ok");
               });
 
+    // POST /discover_printer - Start discovery scan
+    server.on(kRouteDiscoverPrinter, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  if (elegooCC.isDiscoveryActive())
+                  {
+                      request->send(200, "application/json", "{\"active\":true}");
+                      return;
+                  }
+                  elegooCC.startDiscoveryAsync(5000, nullptr);  // 5 seconds with socket recycling
+                  request->send(200, "application/json", "{\"started\":true}");
+              });
+
+    // GET /discover_printer - Poll discovery status and results
     server.on(kRouteDiscoverPrinter, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
-                  String ip;
-                  // Use a 3s timeout for discovery via the ElegooCC helper.
-                  if (!elegooCC.discoverPrinterIP(ip, 3000))
+                  DynamicJsonDocument jsonDoc(1024);
+                  jsonDoc["active"] = elegooCC.isDiscoveryActive();
+
+                  JsonArray printers = jsonDoc.createNestedArray("printers");
+                  for (const auto &res : elegooCC.getDiscoveryResults())
                   {
-                      DynamicJsonDocument jsonDoc(128);
-                      jsonDoc["error"] = "No printer found";
-                      String jsonResponse;
-                      serializeJson(jsonDoc, jsonResponse);
-                      request->send(504, "application/json", jsonResponse);
-                      return;
+                      JsonObject p = printers.createNestedObject();
+                      p["ip"]      = res.ip;
+                      p["payload"] = res.payload;
                   }
 
-                  settingsManager.setElegooIP(ip);
-                  settingsManager.save(true);
-                  elegooCC.refreshCaches();
-                  elegooCC.reconnect();  // Reconnect with the newly discovered IP
-
-                  DynamicJsonDocument jsonDoc(128);
-                  jsonDoc["elegooip"] = ip;
-                  String jsonResponse;
-                  serializeJson(jsonDoc, jsonResponse);
-                  request->send(200, "application/json", jsonResponse);
+                  String response;
+                  serializeJson(jsonDoc, response);
+                  request->send(200, "application/json", response);
               });
 
     // Setup ElegantOTA

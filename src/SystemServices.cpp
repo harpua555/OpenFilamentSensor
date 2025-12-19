@@ -174,7 +174,7 @@ void SystemServices::handleSuccessfulWifiConnection()
     isReconnecting = false;
 
     MDNS.end();
-    if (!MDNS.begin("centaurifilament"))
+    if (!MDNS.begin("OFS"))
     {
         logger.log("Error setting up MDNS responder!");
     }

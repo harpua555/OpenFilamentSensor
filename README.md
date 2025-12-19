@@ -18,8 +18,61 @@ src/                 # ESP32 firmware (Arduino framework)
 test/                # Pulse simulator + fixtures
 webui_lite/          # Single-page Lite UI source
 ```
+## Quick Start Guide
 
-## Requirements
+### 1. Wiring Your Board
+
+Connect your BigTreeTech Smart Filament Sensor (or generic motion/runout sensor) to your ESP32 board. 
+
+**Common Connections:**
+*   **VCC:** Connect to 3.3V or 5V (Check your sensor's voltage requirements; ESP32 inputs are 3.3V tolerant, but best to use 3.3V supply if sensor supports it).
+*   **GND:** Connect to GND.
+
+**Signal Pin Connections:**
+
+| Board Type | Runout Signal Pin | Motion Signal Pin |
+| :--- | :--- | :--- |
+| **Generic ESP32 / ESP32-S3** | GPIO 12 | GPIO 13 |
+| **Seeed XIAO ESP32-S3** | GPIO 5 | GPIO 6 |
+| **Seeed XIAO ESP32-C3** | GPIO 3 | GPIO 2 |
+| **ESP32-C3 SuperMini** | GPIO 3 | GPIO 2 |
+
+*Note: Pins can be customized in `platformio.ini` or by rebuilding firmware if needed.*
+
+### 2. First-Time Installation
+
+The easiest way to install the firmware is using the Web Distributor.
+
+1.  **Connect via USB:** Plug your ESP32 board into your computer.
+2.  **Open Distributor:** Navigate to the distributor page at https://ofs.harpua555.dev
+3.  **Select Board:** Choose your specific board model from the dropdown menu.
+4.  **WiFi Setup (Optional):**
+    *   Enter your WiFi SSID and Password in the "WiFi override" section.
+    *   Click "Accept and provide credentials". This patches the firmware in your browser before flashing, so you don't have to connect to an AP later.
+    *   If WiFi is not set at the time of patching, the ESP32 will braodcast a network named OFS.local.  Connect to this network, go to http://ofs.local in a web browser, and enter WiFi credentials in the setup tab (save settings!)
+5.  **Flash:**
+    *   Click **"Flash firmware"**.
+    *   Select the USB serial port in the browser popup.
+    *   Wait for the process to complete (Erase + Write).
+
+### 3. OTA Updates (Over-the-Air)
+
+Once your device is up and running, you can update it wirelessly.
+
+1.  **Get Update Files:**
+    *   Open the **Web Distributor**.
+    *   Optionally complete WiFi setup again (see above)
+    *   Instead of flashing, click **"Download OTA Files"**.
+    *   This will download a `.zip` containing the latest `firmware.bin` and `littlefs.bin`. Extract this zip.
+2.  **Access Device UI:**
+    *   Connect to your ESP32 (IP or http://OFS.local).
+3.  **Upload:**
+    *   Navigate to the **Update** tab in the Web UI.
+    *   Drag and drop the `firmware.bin` and 'littlefs.bin files. The device will upload the firmware, reboot, then upload the littlefs.
+    *   The update process should only take about 30 seconds, and will display a message once both files are uploaded.
+    *   If there are any issues with OTA updates, the device can always be reflashed via USB described above
+
+## Requirements to Build Locally 
 
 - PlatformIO Core (`pip install platformio` or via VS Code extension)
 - Python 3.10+
@@ -36,7 +89,7 @@ Requires: Python 3.10+, Node.js 18+, PlatformIO Core
 # Build Lite UI + firmware and flash via USB
 python tools/build_and_flash.py
 
-# Build artifacts only (no upload) – results land in data/ and .pio/
+# Build without flashing for OTA updating only (no upload) – results land in and .pio/
 python tools/build_and_flash.py --local
 
 # Target another board (see platformio.ini for env names)
@@ -55,151 +108,7 @@ This creates an isolated build environment in `tools/.venv/` and `tools/.platfor
 ```bash
 # One-time setup (installs PlatformIO and ESP32 toolchain locally)
 python tools/setup_local_env.py
-
-# Build firmware using the portable environment
-python tools/build_local.py
-
-# Target another board
-python tools/build_local.py --env seeed_esp32c3
 ```
-
-### Option C: Quick Start Scripts
-
-```bash
-# Windows
-quick-start.bat
-
-# Linux/Mac
-./quick-start.sh
-```
-
-These scripts verify your environment and guide you through the build process.
-
-## Troubleshooting
-
-### Check Your Environment
-
-Before building, verify all dependencies are installed:
-
-```bash
-python tools/check_environment.py
-```
-
-This checks for:
-- Python 3.10+
-- Node.js 18+
-- npm
-- PlatformIO Core
-- ESP32 platform
-- ESP32 toolchain integrity
-
-### Build Fails: "FreeRTOS.h: No such file or directory"
-
-**Cause:** Corrupted or incomplete ESP32 platform installation in PlatformIO.
-
-**Solutions (try in order):**
-
-1. Clean and reinstall ESP32 platform:
-   ```bash
-   pio run --target clean
-   pio platform uninstall espressif32
-   pio platform install espressif32
-   python tools/build_and_flash.py
-   ```
-
-2. Clear global PlatformIO cache (nuclear option):
-   ```bash
-   # Windows
-   rmdir /s /q "%USERPROFILE%\.platformio"
-
-   # Linux/Mac
-   rm -rf ~/.platformio
-
-   # Then rebuild (PlatformIO will reinstall everything)
-   python tools/build_and_flash.py
-   ```
-
-3. Use the portable environment to avoid global state issues:
-   ```bash
-   python tools/setup_local_env.py
-   python tools/build_local.py
-   ```
-
-### Missing Dependencies
-
-If you're missing Python, Node.js, npm, or PlatformIO:
-
-**Python 3.10+:**
-- Download: https://www.python.org/downloads/
-- Ubuntu/Debian: `sudo apt install python3 python3-pip python3-venv`
-- macOS: `brew install python3`
-
-**Node.js 18+ (includes npm):**
-- Download: https://nodejs.org/ (LTS version recommended)
-- Ubuntu/Debian: `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install nodejs`
-- macOS: `brew install node`
-
-**PlatformIO Core:**
-```bash
-pip install platformio
-
-# Or use the portable environment
-python tools/setup_local_env.py
-```
-
-### Build Succeeds but Upload Fails
-
-**Check USB connection:**
-- Ensure ESP32 board is connected via USB
-- Check that drivers are installed (especially on Windows)
-- Try a different USB cable (data cable, not charge-only)
-
-**Find the correct port:**
-```bash
-# List available serial ports
-pio device list
-```
-
-### Settings
-
-Edit `data/user_settings.json` with your Wi-Fi SSID, password, and Elegoo printer IP.
-
-For sensitive credentials, use `data/user_settings.secrets.json` (see `user_settings.secrets.json.example` in the repo root for format). The build script merges secrets into the filesystem image during build and restores the original file afterwards, keeping your secrets out of git.
-
-## Web UI
-
-- Local development: `cd webui_lite && npm install && npm run dev`.  
-- Production build artifacts live in `data/lite/` after running `npm run build` or the Python helper.  
-- OTA firmware updates remain available via `/update` (ElegantOTA).
-
-## Testing
-
-The pulse simulator exercises hard/soft jam logic, sparse infill, retractions, replayed logs, etc.
-
-```bash
-# From repo root
-wsl bash -lc "cd /mnt/c/Users/<you>/Documents/GitHub/OpenFilamentSensor/test && bash build_tests.sh"
-```
-
-All 20 tests must pass before releasing firmware (the build script does not run them automatically).
-
-## Logging & diagnostics
-
-- Live logs: `GET /api/logs_live` (last 100 entries, plain text).  
-- Full logs: `GET /api/logs_text` (downloadable .txt).  
-- Crash logs for triage can be stored under `logs/history/` but should be moved into `test/fixtures/` if they are used by automated tests (see `test/fixtures/log_for_test.txt`).
-
-## Customize / extend
-
-- Adjust jam thresholds, ratios, and telemetry windows via `SettingsManager` in `src/SettingsManager.*`.  
-- Add new Web UI cards or settings by editing `webui_lite/index.html` (no bundler required).  
-- New PlatformIO environments (e.g., Seeed boards) can be added to `platformio.ini` – remember to define `FILAMENT_RUNOUT_PIN` and `MOVEMENT_SENSOR_PIN`.
-
-## OTA workflow
-
-1. Build + flash firmware once via USB for a baseline image.  
-2. For future updates, visit `http://device-ip/update` (ElegantOTA interface) and upload the `firmware.bin` produced by PlatformIO.  
-3. The Lite UI can also push updates by using the local upload controls from its Update tab (it simply opens `/update` in a new window).
 
 ## Contributing
 

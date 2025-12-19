@@ -18,9 +18,7 @@ src/                 # ESP32 firmware (Arduino framework)
 test/                # Pulse simulator + fixtures
 webui_lite/          # Single-page Lite UI source
 ```
-## Quick Start Guide: OpenFilamentSensor
-
-OpenFilamentSensor is a smart filament motion monitoring system for 3D printers running OpenCentauri. It combines an ESP32 microcontroller with a BigTreeTech SFS 2.0 (or similar) sensor to detect jams, clogs, and run-outs with high precision, communicating directly with your printer to pause prints automatically when issues are detected.
+## Quick Start Guide
 
 ### 1. Wiring Your Board
 

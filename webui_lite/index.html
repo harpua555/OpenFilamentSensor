@@ -27,7 +27,8 @@
             --success: #34a853;
             --warning: #fbbc04;
             --error: #ea4335;
-            --idle-color: #6a93cb; /* Light blue for idle state */
+            --idle-color: #6a93cb;
+            /* Light blue for idle state */
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -697,7 +698,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .btn {
@@ -1136,6 +1139,148 @@
             padding-bottom: 10px;
             border-bottom: 2px solid var(--border-color);
         }
+
+        /* Minimal Mode Styles */
+        .minimal-mode-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .minimal-mode-overlay.active {
+            display: block;
+        }
+
+        .minimal-header {
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .minimal-header h1 {
+            font-size: 1.4rem;
+            font-weight: normal;
+            margin: 0 0 8px 0;
+            color: #ff6b35;
+        }
+
+        .minimal-header .minimal-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .minimal-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .minimal-status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-status-label {
+            color: #aaa;
+        }
+
+        .minimal-status-value {
+            font-weight: bold;
+        }
+
+        .minimal-status-value.ok {
+            color: #4ade80;
+        }
+
+        .minimal-status-value.warning {
+            color: #fbbf24;
+        }
+
+        .minimal-status-value.error {
+            color: #f87171;
+        }
+
+        .minimal-status-value.idle {
+            color: #60a5fa;
+        }
+
+        .minimal-jam-section {
+            margin: 20px 0;
+            padding: 12px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-jam-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .minimal-jam-fill {
+            height: 100%;
+            background: #ff6b35;
+            transition: width 0.3s ease;
+        }
+
+        .minimal-jam-fill.warning {
+            background: #fbbf24;
+        }
+
+        .minimal-jam-fill.danger {
+            background: #f87171;
+        }
+
+        .minimal-controls {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #444;
+        }
+
+        .minimal-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .minimal-checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .minimal-checkbox-row label {
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .minimal-footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .minimal-last-update {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 12px;
+        }
     </style>
 </head>
 
@@ -1149,6 +1294,46 @@
                 <button type="button" class="btn" id="discardSettingsBtn">Discard changes</button>
                 <button type="button" class="btn btn-secondary" id="stayOnSettingsBtn">Stay on settings</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Minimal Mode Overlay -->
+    <div id="minimalModeOverlay" class="minimal-mode-overlay">
+        <div class="minimal-header">
+            <h1>OpenFilamentSensor</h1>
+            <div class="minimal-subtitle">Minimal Mode • Low Resource Usage</div>
+        </div>
+        <div class="minimal-status-grid" id="minimalStatusGrid">
+            <div class="minimal-status-row">
+                <span class="minimal-status-label">Loading...</span>
+                <span class="minimal-status-value">--</span>
+            </div>
+        </div>
+        <div class="minimal-jam-section">
+            <div style="display: flex; justify-content: space-between;">
+                <span class="minimal-status-label">Hard Jam Proximity</span>
+                <span id="minimalHardJamPercent" class="minimal-status-value">0%</span>
+            </div>
+            <div class="minimal-jam-bar">
+                <div id="minimalHardJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 12px;">
+                <span class="minimal-status-label">Soft Jam Proximity</span>
+                <span id="minimalSoftJamPercent" class="minimal-status-value">0%</span>
+            </div>
+            <div class="minimal-jam-bar">
+                <div id="minimalSoftJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+            </div>
+        </div>
+        <div class="minimal-last-update" id="minimalLastUpdate">Last update: --</div>
+        <div class="minimal-controls">
+            <div class="minimal-checkbox-row">
+                <input type="checkbox" id="exitMinimalMode">
+                <label for="exitMinimalMode">Exit minimal mode and return to full interface</label>
+            </div>
+        </div>
+        <div class="minimal-footer">
+            Minimal mode reduces CPU, memory, and network usage by disabling charts, animations, and SSE streaming.
         </div>
     </div>
 
@@ -1179,7 +1364,8 @@
     </header>
 
     <div id="versionBanner" class="version-banner hidden">
-        A new version is available! <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer">Update now</a>
+        A new version is available! <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer">Update
+            now</a>
     </div>
 
     <main class="container">
@@ -1191,11 +1377,11 @@
                 </div>
                 <div class="status-grid" id="statusGrid">
                     <!-- Will be populated by JavaScript -->
-                    </div>
-                    <div class="status-help" id="statusHelpMessage">
-                        Tap any status tile to learn what it means.
-                    </div>
                 </div>
+                <div class="status-help" id="statusHelpMessage">
+                    Tap any status tile to learn what it means.
+                </div>
+            </div>
 
             <div class="card">
                 <div class="card-header">
@@ -1237,19 +1423,19 @@
                 </div>
                 <div class="chart-card-content" id="jamChartsContent">
                     <div class="debug-chart-row">
-                    <div class="chart-panel">
-                        <div class="chart-panel-title">Hard Jam Proximity History</div>
-                        <div class="chart-container">
-                            <canvas id="hardJamHistoryChart"></canvas>
+                        <div class="chart-panel">
+                            <div class="chart-panel-title">Hard Jam Proximity History</div>
+                            <div class="chart-container">
+                                <canvas id="hardJamHistoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-panel">
+                            <div class="chart-panel-title">Soft Jam Proximity History</div>
+                            <div class="chart-container">
+                                <canvas id="softJamHistoryChart"></canvas>
+                            </div>
                         </div>
                     </div>
-                    <div class="chart-panel">
-                        <div class="chart-panel-title">Soft Jam Proximity History</div>
-                        <div class="chart-container">
-                            <canvas id="softJamHistoryChart"></canvas>
-                        </div>
-                    </div>
-                </div>
                 </div>
             </div>
         </div>
@@ -1259,7 +1445,8 @@
             <div class="card">
                 <div class="card-header">
                     <span>Debug Data Dump</span>
-                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from the status snapshot</small>
+                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from
+                        the status snapshot</small>
                 </div>
                 <div class="status-grid" id="debugGrid">
                     <!-- Populated by JavaScript -->
@@ -1329,7 +1516,9 @@
             <div class="card">
                 <div class="card-header">
                     <span>Device Configuration</span>
-                    <span id="settingsDirtyIndicator" style="display: none; margin-left: auto; color: var(--warning); font-size: 0.9rem; font-weight: 600;">Unsaved changes</span>
+                    <span id="settingsDirtyIndicator"
+                        style="display: none; margin-left: auto; color: var(--warning); font-size: 0.9rem; font-weight: 600;">Unsaved
+                        changes</span>
                 </div>
                 <div id="settingsContent">
                     <div class="spinner-container">
@@ -1344,7 +1533,8 @@
             <div class="card">
                 <div class="card-header">
                     <span>System Logs</span>
-                    <span id="logAccumulatorStatus" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
+                    <span id="logAccumulatorStatus"
+                        style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
                 </div>
                 <div class="btn-group">
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
@@ -1353,7 +1543,8 @@
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
                 <p class="form-help" style="margin: 12px 0;">
-                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer on the device.
+                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer
+                    on the device.
                 </p>
                 <div style="position: relative;">
                     <div class="log-container" id="logContainer">
@@ -1372,7 +1563,8 @@
         <div id="update" class="page">
             <div class="info-banner">
                 <span>Looking to install the latest version? Use the web flasher to get the newest firmware.</span>
-                <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open Web Flasher</a>
+                <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer"
+                    class="btn btn-secondary">Open Web Flasher</a>
             </div>
             <div class="card">
                 <div class="card-header">
@@ -1408,15 +1600,18 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Firmware Thumbprint</span>
-                    <span class="info-value" id="firmwareThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="firmwareThumbprint"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Filesystem Thumbprint</span>
-                    <span class="info-value" id="filesystemThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="filesystemThumbprint"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Version</span>
-                    <span class="info-value" id="buildVersion" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="buildVersion"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
 
                 <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Hardware / Network</h3>
@@ -1575,6 +1770,218 @@
                         setChartVisible(chartKey, e.target.checked);
                     });
                 }
+            }
+        }
+
+        // Minimal Mode Management
+        const MINIMAL_MODE_KEY = 'ofs_minimal_mode';
+        let minimalModeActive = false;
+        let minimalModePollInterval = null;
+        const MINIMAL_POLL_INTERVAL_MS = 5000;  // 5 seconds for minimal mode
+
+        function isMinimalModeEnabled() {
+            try {
+                return localStorage.getItem(MINIMAL_MODE_KEY) === 'true';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function setMinimalModeEnabled(enabled) {
+            try {
+                localStorage.setItem(MINIMAL_MODE_KEY, enabled ? 'true' : 'false');
+            } catch (e) {
+                console.warn('Failed to save minimal mode preference', e);
+            }
+        }
+
+        function activateMinimalMode() {
+            if (minimalModeActive) return;
+            minimalModeActive = true;
+
+            // Stop full UI features
+            stopStatusStream();
+            stopStatusPolling();
+            if (logsInterval) clearInterval(logsInterval);
+
+            // Show minimal overlay
+            const overlay = document.getElementById('minimalModeOverlay');
+            if (overlay) overlay.classList.add('active');
+
+            // Start minimal polling
+            startMinimalPolling();
+
+            // Set up exit checkbox handler
+            const exitCheckbox = document.getElementById('exitMinimalMode');
+            if (exitCheckbox) {
+                exitCheckbox.checked = false;
+                exitCheckbox.onchange = () => {
+                    if (exitCheckbox.checked) {
+                        setMinimalModeEnabled(false);
+                        deactivateMinimalMode();
+                    }
+                };
+            }
+        }
+
+        function deactivateMinimalMode() {
+            if (!minimalModeActive) return;
+            minimalModeActive = false;
+
+            // Stop minimal polling
+            stopMinimalPolling();
+
+            // Hide minimal overlay
+            const overlay = document.getElementById('minimalModeOverlay');
+            if (overlay) overlay.classList.remove('active');
+
+            // Restart full UI - reload the page for clean state
+            window.location.reload();
+        }
+
+        function startMinimalPolling() {
+            if (minimalModePollInterval) return;
+            fetchMinimalStatus();  // Initial fetch
+            minimalModePollInterval = setInterval(fetchMinimalStatus, MINIMAL_POLL_INTERVAL_MS);
+        }
+
+        function stopMinimalPolling() {
+            if (minimalModePollInterval) {
+                clearInterval(minimalModePollInterval);
+                minimalModePollInterval = null;
+            }
+        }
+
+        async function fetchMinimalStatus() {
+            try {
+                const response = await fetch('/sensor_status');
+                const data = await response.json();
+                renderMinimalStatus(data);
+            } catch (error) {
+                console.error('Minimal mode fetch failed:', error);
+                renderMinimalStatusError();
+            }
+        }
+
+        function renderMinimalStatus(data) {
+            const grid = document.getElementById('minimalStatusGrid');
+            if (!grid) return;
+
+            const printerConnected = data.elegoo && data.elegoo.isWebsocketConnected;
+            const filamentStopped = data.stopped || false;
+            const filamentRunout = data.filamentRunout || false;
+            const printStatus = data.elegoo?.printStatus || 0;
+            const isPrinting = printStatus !== 0 && printStatus !== 9;
+
+            // Determine statuses
+            const connStatus = printerConnected ? 'Connected' : 'Disconnected';
+            const connClass = printerConnected ? 'ok' : 'warning';
+
+            const filamentStatus = filamentStopped ? 'STOPPED' : (isPrinting ? 'Moving' : 'Idle');
+            const filamentClass = filamentStopped ? 'error' : (isPrinting ? 'ok' : 'idle');
+
+            const runoutStatus = filamentRunout ? 'RUNOUT' : 'Present';
+            const runoutClass = filamentRunout ? 'warning' : 'ok';
+
+            const expected = (data.elegoo?.expectedFilament || 0).toFixed(2);
+            const actual = (data.elegoo?.actualFilament || 0).toFixed(2);
+            const deficit = (data.elegoo?.currentDeficitMm || 0).toFixed(2);
+            const pulses = (data.elegoo?.movementPulses || 0).toLocaleString();
+
+            grid.innerHTML = `
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Printer</span>
+                    <span class="minimal-status-value ${connClass}">${connStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Print Status</span>
+                    <span class="minimal-status-value ${isPrinting ? 'ok' : 'idle'}">${getPrintStatus(printStatus)}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Filament</span>
+                    <span class="minimal-status-value ${filamentClass}">${filamentStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Runout</span>
+                    <span class="minimal-status-value ${runoutClass}">${runoutStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Expected</span>
+                    <span class="minimal-status-value">${expected} mm</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Actual</span>
+                    <span class="minimal-status-value">${actual} mm</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Deficit</span>
+                    <span class="minimal-status-value">${deficit} mm</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Pulses</span>
+                    <span class="minimal-status-value">${pulses}</span>
+                </div>
+            `;
+
+            // Update jam gauges
+            const hardJamPercent = Math.max(0, Math.min(100, data.elegoo?.hardJamPercent || 0));
+            const softJamPercent = Math.max(0, Math.min(100, data.elegoo?.softJamPercent || 0));
+
+            const hardJamEl = document.getElementById('minimalHardJamPercent');
+            const hardJamFill = document.getElementById('minimalHardJamFill');
+            const softJamEl = document.getElementById('minimalSoftJamPercent');
+            const softJamFill = document.getElementById('minimalSoftJamFill');
+
+            if (hardJamEl) hardJamEl.textContent = Math.round(hardJamPercent) + '%';
+            if (hardJamFill) {
+                hardJamFill.style.width = hardJamPercent + '%';
+                hardJamFill.className = 'minimal-jam-fill' + (hardJamPercent > 75 ? ' danger' : (hardJamPercent > 50 ? ' warning' : ''));
+            }
+            if (softJamEl) softJamEl.textContent = Math.round(softJamPercent) + '%';
+            if (softJamFill) {
+                softJamFill.style.width = softJamPercent + '%';
+                softJamFill.className = 'minimal-jam-fill' + (softJamPercent > 75 ? ' danger' : (softJamPercent > 50 ? ' warning' : ''));
+            }
+
+            // Update timestamp
+            const lastUpdate = document.getElementById('minimalLastUpdate');
+            if (lastUpdate) {
+                lastUpdate.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+            }
+        }
+
+        function renderMinimalStatusError() {
+            const grid = document.getElementById('minimalStatusGrid');
+            if (!grid) return;
+            grid.innerHTML = `
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Status</span>
+                    <span class="minimal-status-value error">Connection Error</span>
+                </div>
+            `;
+            const lastUpdate = document.getElementById('minimalLastUpdate');
+            if (lastUpdate) {
+                lastUpdate.textContent = 'Last update: Failed - ' + new Date().toLocaleTimeString();
+            }
+        }
+
+        function initMinimalMode() {
+            if (isMinimalModeEnabled()) {
+                activateMinimalMode();
+                return true;  // Indicate minimal mode is active
+            }
+            return false;
+        }
+
+        function handleMinimalModeSettingsToggle() {
+            const checkbox = document.getElementById('enable_minimal_mode');
+            if (checkbox) {
+                checkbox.onchange = () => {
+                    setMinimalModeEnabled(checkbox.checked);
+                    if (checkbox.checked) {
+                        activateMinimalMode();
+                    }
+                };
             }
         }
 
@@ -2380,7 +2787,7 @@
                 return;
             }
             lastSnapshotMs = now;
-            fetchStatusSnapshot({ suppressToast: true }).catch(() => {});
+            fetchStatusSnapshot({ suppressToast: true }).catch(() => { });
         }
 
         function setStatusHelpMessage(helpKey) {
@@ -2669,6 +3076,12 @@
                         <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Show the Debug page in the navigation menu. Useful for troubleshooting.</p>
                     </div>
 
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="enable_minimal_mode" ${isMinimalModeEnabled() ? 'checked' : ''}>
+                        <label class="form-label" for="enable_minimal_mode" style="margin: 0;">Enable Minimal Mode</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Switch to a lightweight text-only interface. Disables charts, animations, and SSE streaming to reduce CPU/memory usage on low-power devices. This preference is saved in your browser.</p>
+                    </div>
+
                     <div class="btn-group">
                         <button type="button" class="btn" onclick="saveSettings()">Save Settings</button>
                         <button type="button" class="btn btn-secondary" onclick="testPause()">Send Pause Command</button>
@@ -2677,6 +3090,7 @@
                 `;
 
                 attachSettingsChangeHandlers();
+                handleMinimalModeSettingsToggle();  // Set up minimal mode toggle
                 setSettingsBaseline(buildSettingsPayload());
                 loadSavedPrinters();  // Restore discovered printers from localStorage
             } catch (error) {
@@ -2829,7 +3243,7 @@
                     if (discoveryPassCount < MAX_DISCOVERY_PASSES) {
                         // Small delay before next pass
                         setTimeout(() => {
-                            runDiscoveryPass().catch(() => {});
+                            runDiscoveryPass().catch(() => { });
                         }, 300);
                         return;
                     }
@@ -3093,7 +3507,7 @@
 
         function debounce(fn, delay) {
             let timer;
-            return function(...args) {
+            return function (...args) {
                 clearTimeout(timer);
                 timer = setTimeout(() => fn.apply(this, args), delay);
             };
@@ -3345,8 +3759,8 @@
                 const latest = parseVersion(latestVersion);
 
                 if (latest.major > current.major ||
-                   (latest.major === current.major && latest.minor > current.minor) ||
-                   (latest.major === current.major && latest.minor === current.minor && latest.patch > current.patch)) {
+                    (latest.major === current.major && latest.minor > current.minor) ||
+                    (latest.major === current.major && latest.minor === current.minor && latest.patch > current.patch)) {
                     if (banner) {
                         banner.classList.remove('hidden');
                     }
@@ -3422,6 +3836,11 @@
         }
 
         window.addEventListener('load', () => {
+            // Check for minimal mode first - if enabled, skip full UI initialization
+            if (initMinimalMode()) {
+                return;  // Minimal mode is active, don't initialize full UI
+            }
+
             initLogAccumulator();  // Start browser-side log accumulation
             initChartToggles();    // Load chart visibility preferences
             switchPage('status');

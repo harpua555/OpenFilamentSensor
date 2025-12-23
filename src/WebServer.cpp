@@ -113,19 +113,40 @@ void WebServer::begin()
             JsonObject jsonObj = json.as<JsonObject>();
             // Track if IP address changed to trigger reconnect
             String oldIp = settingsManager.getElegooIP();
-            String newIp = jsonObj["elegooip"].as<String>();
-            bool ipChanged = (oldIp != newIp) && newIp.length() > 0;
+            bool ipChanged = false;
 
-            settingsManager.setElegooIP(newIp);
-            settingsManager.setSSID(jsonObj["ssid"].as<String>());
+            // Only update fields that are present in the request
+            // This prevents partial updates (like timezone sync) from corrupting other fields
+            if (jsonObj.containsKey("elegooip"))
+            {
+                String newIp = jsonObj["elegooip"].as<String>();
+                ipChanged = (oldIp != newIp) && newIp.length() > 0;
+                settingsManager.setElegooIP(newIp);
+            }
+            if (jsonObj.containsKey("ssid"))
+            {
+                settingsManager.setSSID(jsonObj["ssid"].as<String>());
+            }
             if (jsonObj.containsKey("passwd") && jsonObj["passwd"].as<String>().length() > 0)
             {
                 settingsManager.setPassword(jsonObj["passwd"].as<String>());
             }
-            settingsManager.setAPMode(jsonObj["ap_mode"].as<bool>());
-            settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
-            settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
-            settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
+            if (jsonObj.containsKey("ap_mode"))
+            {
+                settingsManager.setAPMode(jsonObj["ap_mode"].as<bool>());
+            }
+            if (jsonObj.containsKey("pause_on_runout"))
+            {
+                settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
+            }
+            if (jsonObj.containsKey("enabled"))
+            {
+                settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
+            }
+            if (jsonObj.containsKey("start_print_timeout"))
+            {
+                settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
+            }
             if (jsonObj.containsKey("detection_length_mm"))
             {
                 settingsManager.setDetectionLengthMM(jsonObj["detection_length_mm"].as<float>());

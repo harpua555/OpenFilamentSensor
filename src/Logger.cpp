@@ -82,19 +82,7 @@ void Logger::logInternal(const char *message, LogLevel level)
         return;  // Don't log messages above current level
     }
 
-    // Print to serial first
-    unsigned long timestamp = getTime();
-    time_t localTimestamp = (time_t)timestamp;
-    struct tm *timeinfo = localtime(&localTimestamp);
-     if (timeinfo != nullptr) {
-        char timeStr[24];
-        strftime(timeStr, sizeof(timeStr), "[%Y-%m-%d %H:%M:%S] ", timeinfo);
-        Serial.print(timeStr);
-    } else {
-        Serial.print("[");
-        Serial.print(timestamp);
-        Serial.print("] ");
-    }
+    // Print to serial first (keep simple to avoid blocking WiFi stack)
     Serial.println(message);
 
     if (logCapacity == 0 || logBuffer == nullptr)
@@ -107,8 +95,7 @@ void Logger::logInternal(const char *message, LogLevel level)
     generateUUID(uuid);
 
     // Get current timestamp
-    // Timestamp already captured at start of function
-    // unsigned long timestamp = getTime();
+    unsigned long timestamp = getTime();
 
     // Store in circular buffer with fixed-size copy
     strncpy(logBuffer[currentIndex].uuid, uuid, sizeof(logBuffer[currentIndex].uuid) - 1);

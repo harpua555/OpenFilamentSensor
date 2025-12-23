@@ -88,8 +88,6 @@ void SystemServices::loop()
         }
         else if (currentTime - lastNTPSyncAttempt >= NTP_SYNC_INTERVAL_MS)
         {
-            // Re-apply configTime to ensure offset changes take effect
-            configTime(gmtOffset_sec, 0, NTP_SERVER);
             syncTimeWithNTP(currentTime);
         }
     }

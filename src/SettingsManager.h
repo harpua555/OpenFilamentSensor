@@ -116,10 +116,6 @@ class SettingsManager
     void setTimezoneOffsetMinutes(int offsetMinutes);
 
     String toJson(bool includePassword = true);
-
-    // Update settings from a JSON object (only updates fields present in the JSON)
-    // Returns true if elegooip changed
-    bool updateFromJson(JsonObject &json);
 };
 
 #define settingsManager SettingsManager::getInstance()

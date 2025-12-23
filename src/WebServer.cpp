@@ -112,8 +112,65 @@ void WebServer::begin()
         {
             JsonObject jsonObj = json.as<JsonObject>();
 
-            // Update settings from JSON (only updates fields present in the request)
-            bool ipChanged = settingsManager.updateFromJson(jsonObj);
+            // Track if IP address changed to trigger reconnect
+            String oldIp = settingsManager.getElegooIP();
+            bool ipChanged = false;
+
+            // Only update fields that are present in the request
+            if (jsonObj.containsKey("elegooip"))
+            {
+                String newIp = jsonObj["elegooip"].as<String>();
+                ipChanged = (oldIp != newIp) && newIp.length() > 0;
+                settingsManager.setElegooIP(newIp);
+            }
+            if (jsonObj.containsKey("ssid"))
+                settingsManager.setSSID(jsonObj["ssid"].as<String>());
+            if (jsonObj.containsKey("passwd") && jsonObj["passwd"].as<String>().length() > 0)
+                settingsManager.setPassword(jsonObj["passwd"].as<String>());
+            if (jsonObj.containsKey("ap_mode"))
+                settingsManager.setAPMode(jsonObj["ap_mode"].as<bool>());
+            if (jsonObj.containsKey("pause_on_runout"))
+                settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
+            if (jsonObj.containsKey("enabled"))
+                settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
+            if (jsonObj.containsKey("start_print_timeout"))
+                settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
+            if (jsonObj.containsKey("detection_length_mm"))
+                settingsManager.setDetectionLengthMM(jsonObj["detection_length_mm"].as<float>());
+            if (jsonObj.containsKey("detection_grace_period_ms"))
+                settingsManager.setDetectionGracePeriodMs(jsonObj["detection_grace_period_ms"].as<int>());
+            if (jsonObj.containsKey("detection_ratio_threshold"))
+                settingsManager.setDetectionRatioThreshold(jsonObj["detection_ratio_threshold"].as<int>());
+            if (jsonObj.containsKey("detection_hard_jam_mm"))
+                settingsManager.setDetectionHardJamMm(jsonObj["detection_hard_jam_mm"].as<float>());
+            if (jsonObj.containsKey("detection_soft_jam_time_ms"))
+                settingsManager.setDetectionSoftJamTimeMs(jsonObj["detection_soft_jam_time_ms"].as<int>());
+            if (jsonObj.containsKey("detection_hard_jam_time_ms"))
+                settingsManager.setDetectionHardJamTimeMs(jsonObj["detection_hard_jam_time_ms"].as<int>());
+            if (jsonObj.containsKey("detection_mode"))
+                settingsManager.setDetectionMode(jsonObj["detection_mode"].as<int>());
+            if (jsonObj.containsKey("sdcp_loss_behavior"))
+                settingsManager.setSdcpLossBehavior(jsonObj["sdcp_loss_behavior"].as<int>());
+            if (jsonObj.containsKey("flow_telemetry_stale_ms"))
+                settingsManager.setFlowTelemetryStaleMs(jsonObj["flow_telemetry_stale_ms"].as<int>());
+            if (jsonObj.containsKey("ui_refresh_interval_ms"))
+                settingsManager.setUiRefreshIntervalMs(jsonObj["ui_refresh_interval_ms"].as<int>());
+            if (jsonObj.containsKey("suppress_pause_commands"))
+                settingsManager.setSuppressPauseCommands(jsonObj["suppress_pause_commands"].as<bool>());
+            if (jsonObj.containsKey("log_level"))
+                settingsManager.setLogLevel(jsonObj["log_level"].as<int>());
+            if (jsonObj.containsKey("movement_mm_per_pulse"))
+                settingsManager.setMovementMmPerPulse(jsonObj["movement_mm_per_pulse"].as<float>());
+            if (jsonObj.containsKey("auto_calibrate_sensor"))
+                settingsManager.setAutoCalibrateSensor(jsonObj["auto_calibrate_sensor"].as<bool>());
+            if (jsonObj.containsKey("pulse_reduction_percent"))
+                settingsManager.setPulseReductionPercent(jsonObj["pulse_reduction_percent"].as<float>());
+            if (jsonObj.containsKey("test_recording_mode"))
+                settingsManager.setTestRecordingMode(jsonObj["test_recording_mode"].as<bool>());
+            if (jsonObj.containsKey("show_debug_page"))
+                settingsManager.setShowDebugPage(jsonObj["show_debug_page"].as<bool>());
+            if (jsonObj.containsKey("timezone_offset_minutes"))
+                settingsManager.setTimezoneOffsetMinutes(jsonObj["timezone_offset_minutes"].as<int>());
 
             bool saved = settingsManager.save();
             if (saved)

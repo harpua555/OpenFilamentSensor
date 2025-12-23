@@ -1180,7 +1180,7 @@
 
         .minimal-status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 8px;
             margin-bottom: 20px;
         }
@@ -1218,17 +1218,25 @@
         }
 
         .minimal-jam-section {
-            margin: 20px 0;
-            padding: 12px;
+            margin: 0;
+            padding: 8px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-jam-card {
+            display: flex;
+            flex-direction: column;
+            padding: 6px 10px;
             background: #252540;
             border-radius: 4px;
         }
 
         .minimal-jam-bar {
-            height: 8px;
+            height: 6px;
             background: #333;
             border-radius: 4px;
-            margin: 8px 0;
+            margin: 4px 0 0 0;
             overflow: hidden;
         }
 
@@ -1302,7 +1310,7 @@
     <div id="minimalModeOverlay" class="minimal-mode-overlay">
         <div class="minimal-header">
             <h1>OpenFilamentSensor</h1>
-            <div class="minimal-subtitle">Minimal Mode • Low Resource Usage</div>
+            <div class="minimal-subtitle">Minimal Mode</div>
         </div>
         <div class="minimal-status-grid" id="minimalStatusGrid">
             <div class="minimal-status-row">
@@ -1310,20 +1318,24 @@
                 <span class="minimal-status-value">--</span>
             </div>
         </div>
-        <div class="minimal-jam-section">
-            <div style="display: flex; justify-content: space-between;">
-                <span class="minimal-status-label">Hard Jam Proximity</span>
-                <span id="minimalHardJamPercent" class="minimal-status-value">0%</span>
+        <div class="minimal-status-grid">
+            <div class="minimal-jam-card" id="minimalHardJamCard">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span class="minimal-status-label">Hard Jam Proximity</span>
+                    <span id="minimalHardJamPercent" class="minimal-status-value">0%</span>
+                </div>
+                <div class="minimal-jam-bar">
+                    <div id="minimalHardJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+                </div>
             </div>
-            <div class="minimal-jam-bar">
-                <div id="minimalHardJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 12px;">
-                <span class="minimal-status-label">Soft Jam Proximity</span>
-                <span id="minimalSoftJamPercent" class="minimal-status-value">0%</span>
-            </div>
-            <div class="minimal-jam-bar">
-                <div id="minimalSoftJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+            <div class="minimal-jam-card" id="minimalSoftJamCard">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span class="minimal-status-label">Soft Jam Proximity</span>
+                    <span id="minimalSoftJamPercent" class="minimal-status-value">0%</span>
+                </div>
+                <div class="minimal-jam-bar">
+                    <div id="minimalSoftJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+                </div>
             </div>
         </div>
         <div class="minimal-last-update" id="minimalLastUpdate">Last update: --</div>
@@ -1902,6 +1914,7 @@
             const deficit = (data.elegoo?.currentDeficitMm || 0).toFixed(2);
             const pulses = (data.elegoo?.movementPulses || 0).toLocaleString();
 
+            // 2x5 grid layout (10 cells)
             grid.innerHTML = `
                 <div class="minimal-status-row">
                     <span class="minimal-status-label">Printer</span>

@@ -2919,7 +2919,6 @@
                 ap_mode: false,
                 elegooip: document.getElementById('elegooip').value,
                 pause_on_runout: document.getElementById('pause_on_runout').checked,
-                start_print_timeout: parseInt(document.getElementById('start_print_timeout').value) * 1000,
                 enabled: document.getElementById('enabled').checked,
                 detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
                 detection_ratio_threshold: parseInt(document.getElementById('detection_ratio_threshold').value),
@@ -3053,8 +3052,8 @@
 
                     <div class="form-group">
                         <label class="form-label">Detection Grace Period (ms)</label>
-                        <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 8000}" min="0" max="15000" step="100">
-                        <p class="form-help">Time-based grace period after print starts before jam detection activates. Prevents false positives during print startup. The windowed tracking algorithm automatically handles purge lines and SDCP timing variations. Default: 18000ms.</p>
+                        <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 10000}" min="0" max="30000" step="100">
+                        <p class="form-help">Grace period after print starts or resumes before jam detection activates. Prevents false positives during startup and after pause/resume. Default: 10000ms (10 seconds).</p>
                     </div>
 
                     <h3 class="section-title">Jam Detection Thresholds</h3>
@@ -3084,12 +3083,6 @@
                     </div>
 
                     <h3 class="section-title">Behavior Settings</h3>
-
-                    <div class="form-group">
-                        <label class="form-label">Start Print Timeout (seconds)</label>
-                        <input type="number" class="form-input" id="start_print_timeout" value="${(currentSettings.start_print_timeout / 1000 || 10)}" min="1" max="60">
-                        <p class="form-help">Delay before filament runout detection becomes active after print starts. Prevents false triggers during initial purge/prime moves.</p>
-                    </div>
 
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="pause_on_runout" ${currentSettings.pause_on_runout ? 'checked' : ''}>

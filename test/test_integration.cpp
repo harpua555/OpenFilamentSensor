@@ -79,8 +79,7 @@ public:
 
     IntegrationTestHarness() : printStartTime(0), isPrinting(false), pulseCount(0) {
         // Default config
-        config.graceTimeMs = 5000;
-        config.startTimeoutMs = 10000;
+        config.graceTimeMs = 10000;
         config.hardJamMm = 5.0f;
         config.softJamTimeMs = 5000;
         config.hardJamTimeMs = 3000;
@@ -175,7 +174,7 @@ void testFullPipelineNormalPrint() {
         JamState state = harness.runDetection();
 
         // After grace period, should be actively detecting but not jammed
-        if (millis() - harness.printStartTime > harness.config.startTimeoutMs) {
+        if (millis() - harness.printStartTime > harness.config.graceTimeMs) {
             TEST_ASSERT(!state.jammed, "Should not jam with good flow");
         }
     }
@@ -193,7 +192,7 @@ void testFullPipelineHardJam() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;  // Disable grace for test
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
     harness.config.hardJamTimeMs = 2000;  // 2 second hard jam threshold
 
     _mockMillis = 1000;
@@ -249,7 +248,7 @@ void testFullPipelineSoftJam() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
     harness.config.ratioThreshold = 0.70f;  // 70% threshold
 
     _mockMillis = 1000;
@@ -295,7 +294,7 @@ void testJamRecoveryClearsState() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
 
     _mockMillis = 1000;
     harness.startPrint();
@@ -339,8 +338,7 @@ void testPauseResumeGracePeriod() {
 
     resetMockTime();
     IntegrationTestHarness harness;
-    harness.config.graceTimeMs = 5000;
-    harness.config.startTimeoutMs = 10000;
+    harness.config.graceTimeMs = 10000;
 
     _mockMillis = 1000;
     harness.startPrint();
@@ -384,7 +382,7 @@ void testMultipleJamRecoveryCycles() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
 
     _mockMillis = 1000;
     harness.startPrint();
@@ -440,7 +438,7 @@ void testTelemetryLossDoesNotTriggerJam() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
 
     _mockMillis = 1000;
     harness.startPrint();
@@ -496,7 +494,7 @@ void testSettingsChangeAffectsBehavior() {
     resetMockTime();
     IntegrationTestHarness harness;
     harness.config.graceTimeMs = 0;
-    harness.config.startTimeoutMs = 0;
+    harness.config.graceTimeMs = 0;
 
     _mockMillis = 1000;
     harness.startPrint();

@@ -11,7 +11,6 @@ struct user_settings
     bool   ap_mode;
     String elegooip;
     bool   pause_on_runout;
-    int    start_print_timeout;
     bool   enabled;
     bool   has_connected;
     float  detection_length_mm;          // DEPRECATED: Use ratio-based detection instead
@@ -63,7 +62,6 @@ class SettingsManager
     bool   isAPMode();
     String getElegooIP();
     bool   getPauseOnRunout();
-    int    getStartPrintTimeout();
     bool   getEnabled();
     bool   getHasConnected();
     float  getDetectionLengthMM();          // DEPRECATED: Use ratio-based detection
@@ -92,7 +90,6 @@ class SettingsManager
     void setAPMode(bool apMode);
     void setElegooIP(const String &ip);
     void setPauseOnRunout(bool pauseOnRunout);
-    void setStartPrintTimeout(int timeoutMs);
     void setEnabled(bool enabled);
     void setHasConnected(bool hasConnected);
     void setDetectionLengthMM(float value);            // DEPRECATED: Use ratio-based detection

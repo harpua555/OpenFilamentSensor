@@ -83,13 +83,12 @@ static const SettingField kSettingFields[] = {
     makeStringField("passwd", offsetof(user_settings, passwd), "", true, true, true),
     makeStringField("elegooip", offsetof(user_settings, elegooip), "", true),
     makeBoolField("pause_on_runout", offsetof(user_settings, pause_on_runout), true),
-    makeIntField("start_print_timeout", offsetof(user_settings, start_print_timeout), 10000),
     makeBoolField("enabled", offsetof(user_settings, enabled), true),
     makeBoolField("has_connected", offsetof(user_settings, has_connected), false),
     makeFloatField("detection_length_mm", offsetof(user_settings, detection_length_mm), 10.0f,
                    false),
     makeIntField("detection_grace_period_ms", offsetof(user_settings, detection_grace_period_ms),
-                 8000),
+                 10000),
     makeIntField("detection_ratio_threshold", offsetof(user_settings, detection_ratio_threshold),
                  25),  // 25 = 25% passing threshold
     makeFloatField("detection_hard_jam_mm", offsetof(user_settings, detection_hard_jam_mm), 5.0f),
@@ -238,11 +237,10 @@ SettingsManager::SettingsManager()
     settings.passwd              = "";
     settings.elegooip            = "";
     settings.pause_on_runout     = true;
-    settings.start_print_timeout = 10000;
     settings.enabled             = true;
     settings.has_connected       = false;
     settings.detection_length_mm        = 10.0f;  // DEPRECATED: Use ratio-based detection
-    settings.detection_grace_period_ms  = 5000;   // 5000ms grace period for print start (reduced from 8s)
+    settings.detection_grace_period_ms  = 10000;  // 10s grace period for print start and resume
     settings.detection_ratio_threshold  = 25;     // 25% passing threshold (~75% deficit)
     settings.detection_hard_jam_mm      = 5.0f;   // 5mm expected with zero movement = hard jam
     settings.detection_soft_jam_time_ms = 7000;   // 7 seconds to signal slow clog (balanced for quick detection)
@@ -395,11 +393,6 @@ String SettingsManager::getElegooIP()
 bool SettingsManager::getPauseOnRunout()
 {
     return getSettings().pause_on_runout;
-}
-
-int SettingsManager::getStartPrintTimeout()
-{
-    return getSettings().start_print_timeout;
 }
 
 bool SettingsManager::getEnabled()
@@ -568,13 +561,6 @@ void SettingsManager::setPauseOnRunout(bool pauseOnRunout)
     if (!isLoaded)
         load();
     settings.pause_on_runout = pauseOnRunout;
-}
-
-void SettingsManager::setStartPrintTimeout(int timeoutMs)
-{
-    if (!isLoaded)
-        load();
-    settings.start_print_timeout = timeoutMs;
 }
 
 void SettingsManager::setEnabled(bool enabled)

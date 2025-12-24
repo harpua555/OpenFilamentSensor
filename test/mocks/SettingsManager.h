@@ -32,7 +32,6 @@ public:
     int getDetectionMode() const { return 0; }  // BOTH
     bool getSuppressPauseCommands() const { return false; }
     int getFlowTelemetryStaleMs() const { return 1500; }
-    int getStartPrintTimeoutMs() const { return 10000; }
     bool getEnabled() const { return true; }
     float getDetectionLengthMm() const { return 10.0f; }
 

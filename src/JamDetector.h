@@ -58,8 +58,7 @@ struct JamConfig
     float        hardJamMm;        // Hard jam window threshold (mm)
     uint16_t     softJamTimeMs;    // Soft jam accumulation time (ms)
     uint16_t     hardJamTimeMs;    // Hard jam accumulation time (ms)
-    uint16_t     graceTimeMs;      // Grace period after print start (ms)
-    uint16_t     startTimeoutMs;   // Total timeout before detection starts (ms)
+    uint16_t     graceTimeMs;      // Grace period after print start and resume (ms)
     DetectionMode detectionMode = DetectionMode::BOTH;
 };
 

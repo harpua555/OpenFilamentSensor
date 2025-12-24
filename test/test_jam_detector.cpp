@@ -59,8 +59,7 @@ void testGracePeriodStartup() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 5000;
-    config.startTimeoutMs = 10000;
+    config.graceTimeMs = 10000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 10000;
     config.hardJamTimeMs = 5000;
@@ -119,8 +118,7 @@ void testHardJamDetection() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;  // No grace for this test
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 10000;
     config.hardJamTimeMs = 2000;  // 2 seconds (MAX_EVAL_INTERVAL_MS caps each update to 1s)
     config.ratioThreshold = 0.25f;
@@ -180,8 +178,7 @@ void testSoftJamDetection() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 2000;  // 2 seconds (MAX_EVAL_INTERVAL_MS caps each update to 1s)
     config.hardJamTimeMs = 3000;
     config.ratioThreshold = 0.70f;  // 70% threshold
@@ -241,8 +238,7 @@ void testJamRecovery() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 3000;
     config.hardJamTimeMs = 2000;
     config.ratioThreshold = 0.70f;
@@ -280,8 +276,7 @@ void testResumeGrace() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -326,8 +321,7 @@ void testDetectionModes() {
     JamDetector hardDetector;
     JamConfig hardConfig;
     hardConfig.graceTimeMs = 0;
-    hardConfig.startTimeoutMs = 0;
-    hardConfig.hardJamMm = 5.0f;
+        hardConfig.hardJamMm = 5.0f;
     hardConfig.softJamTimeMs = 3000;
     hardConfig.hardJamTimeMs = 2000;
     hardConfig.ratioThreshold = 0.70f;
@@ -372,8 +366,7 @@ void testRateBasedDetection() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
     config.ratioThreshold = 0.70f;
@@ -414,8 +407,7 @@ void testMinimumThresholds() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 2000;
     config.hardJamTimeMs = 2000;
     config.ratioThreshold = 0.70f;
@@ -471,8 +463,7 @@ void testEdgeCaseZeroExpected() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
     config.ratioThreshold = 0.70f;
@@ -511,8 +502,7 @@ void testNotPrintingState() {
     JamDetector detector;
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
-    config.hardJamMm = 5.0f;
+        config.hardJamMm = 5.0f;
     config.softJamTimeMs = 3000;
     config.hardJamTimeMs = 2000;
     config.ratioThreshold = 0.70f;

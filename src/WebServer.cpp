@@ -133,8 +133,6 @@ void WebServer::begin()
                 settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
             if (jsonObj.containsKey("enabled"))
                 settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
-            if (jsonObj.containsKey("start_print_timeout"))
-                settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
             if (jsonObj.containsKey("detection_length_mm"))
                 settingsManager.setDetectionLengthMM(jsonObj["detection_length_mm"].as<float>());
             if (jsonObj.containsKey("detection_grace_period_ms"))

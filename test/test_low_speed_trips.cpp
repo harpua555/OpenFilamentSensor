@@ -34,7 +34,6 @@ int testsFailed = 0;
 JamConfig createDefaultConfig() {
     JamConfig config;
     config.graceTimeMs = 0;      // No grace for these tests
-    config.startTimeoutMs = 0;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 3000;
     config.hardJamTimeMs = 2000;

@@ -54,7 +54,6 @@ JamConfig buildJamConfigFromSettings()
     }
 
     config.graceTimeMs    = settingsManager.getDetectionGracePeriodMs();
-    config.startTimeoutMs = settingsManager.getStartPrintTimeout();
     config.detectionMode   = static_cast<DetectionMode>(settingsManager.getDetectionMode());
     return config;
 }
@@ -1253,7 +1252,7 @@ bool ElegooCC::shouldPausePrint(unsigned long currentTime)
         }
     }
 
-    if (currentTime - startedAt < settingsManager.getStartPrintTimeout() ||
+    if (currentTime - startedAt < settingsManager.getDetectionGracePeriodMs() ||
         !transport.webSocket.isConnected() || transport.waitingForAck || !isPrinting() ||
         !pauseCondition ||
         (lastPauseRequestMs != 0 && (currentTime - lastPauseRequestMs) < PAUSE_REARM_DELAY_MS))

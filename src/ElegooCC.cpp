@@ -346,6 +346,12 @@ void ElegooCC::handleStatus(JsonDocument &doc)
 
                     newPrintDetected = false;
                 }
+                else if (!hasBeenPaused && !jamDetector.isPauseRequested() && startedAt == 0)
+                {
+                    // Ensure grace period starts even if TaskId arrives late.
+                    logger.log("Print status changed to printing (no TaskId yet)");
+                    startedAt = statusTimestamp;
+                }
             }
             else if (wasPrinting)
             {
@@ -474,6 +480,11 @@ void ElegooCC::handleStatus(JsonDocument &doc)
             if (!newTaskId.isEmpty())
             {
                 newPrintDetected = true;
+                if (printStatus == SDCP_PRINT_STATUS_PRINTING && startedAt == 0)
+                {
+                    // TaskId arrived after PRINTING transition; arm grace period.
+                    startedAt = statusTimestamp;
+                }
                 if (settingsManager.getVerboseLogging())
                 {
                     logger.logf("New Print detected via TaskId: %s", newTaskId.c_str());

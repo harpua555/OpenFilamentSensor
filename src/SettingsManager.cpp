@@ -83,32 +83,30 @@ static const SettingField kSettingFields[] = {
     makeStringField("passwd", offsetof(user_settings, passwd), "", true, true, true),
     makeStringField("elegooip", offsetof(user_settings, elegooip), "", true),
     makeBoolField("pause_on_runout", offsetof(user_settings, pause_on_runout), true),
-    makeIntField("start_print_timeout", offsetof(user_settings, start_print_timeout), 10000),
     makeBoolField("enabled", offsetof(user_settings, enabled), true),
     makeBoolField("has_connected", offsetof(user_settings, has_connected), false),
-    makeFloatField("detection_length_mm", offsetof(user_settings, detection_length_mm), 10.0f,
-                   false),
     makeIntField("detection_grace_period_ms", offsetof(user_settings, detection_grace_period_ms),
-                 8000),
+                 18000),  // 18s grace period for print start and resume
     makeIntField("detection_ratio_threshold", offsetof(user_settings, detection_ratio_threshold),
-                 25),  // 25 = 25% passing threshold
-    makeFloatField("detection_hard_jam_mm", offsetof(user_settings, detection_hard_jam_mm), 5.0f),
+                 40),  // 40 = 40% passing threshold
+    makeFloatField("detection_hard_jam_mm", offsetof(user_settings, detection_hard_jam_mm), 12.0f),
     makeIntField("detection_soft_jam_time_ms",
                  offsetof(user_settings, detection_soft_jam_time_ms), 10000),
     makeIntField("detection_hard_jam_time_ms",
-                 offsetof(user_settings, detection_hard_jam_time_ms), 5000),
+                 offsetof(user_settings, detection_hard_jam_time_ms), 3000),
     makeIntField("detection_mode", offsetof(user_settings, detection_mode), 0),
     makeIntField("sdcp_loss_behavior", offsetof(user_settings, sdcp_loss_behavior), 2),
-    makeIntField("flow_telemetry_stale_ms", offsetof(user_settings, flow_telemetry_stale_ms), 1000),
+    makeIntField("flow_telemetry_stale_ms", offsetof(user_settings, flow_telemetry_stale_ms), 1500),
     makeIntField("ui_refresh_interval_ms", offsetof(user_settings, ui_refresh_interval_ms), 1000),
     makeIntField("log_level", offsetof(user_settings, log_level), 0),
     makeBoolField("suppress_pause_commands", offsetof(user_settings, suppress_pause_commands),
                   false),
-    makeFloatField("movement_mm_per_pulse", offsetof(user_settings, movement_mm_per_pulse), 2.88f),
+    makeFloatField("movement_mm_per_pulse", offsetof(user_settings, movement_mm_per_pulse), 3.055f),
     makeBoolField("auto_calibrate_sensor", offsetof(user_settings, auto_calibrate_sensor), false),
     makeFloatField("pulse_reduction_percent", offsetof(user_settings, pulse_reduction_percent), 100.0f),
-    makeFloatField("purge_filament_mm", offsetof(user_settings, purge_filament_mm), 47.0f),
     makeBoolField("test_recording_mode", offsetof(user_settings, test_recording_mode), false),
+    makeBoolField("show_debug_page", offsetof(user_settings, show_debug_page), false),
+    makeIntField("timezone_offset_minutes", offsetof(user_settings, timezone_offset_minutes), 0),
 };
 
 constexpr size_t SETTINGS_JSON_CAPACITY = 1536;  // Increased from 1152 to prevent truncation
@@ -237,26 +235,25 @@ SettingsManager::SettingsManager()
     settings.passwd              = "";
     settings.elegooip            = "";
     settings.pause_on_runout     = true;
-    settings.start_print_timeout = 10000;
     settings.enabled             = true;
     settings.has_connected       = false;
-    settings.detection_length_mm        = 10.0f;  // DEPRECATED: Use ratio-based detection
-    settings.detection_grace_period_ms  = 5000;   // 5000ms grace period for print start (reduced from 8s)
-    settings.detection_ratio_threshold  = 25;     // 25% passing threshold (~75% deficit)
-    settings.detection_hard_jam_mm      = 5.0f;   // 5mm expected with zero movement = hard jam
-    settings.detection_soft_jam_time_ms = 7000;   // 7 seconds to signal slow clog (balanced for quick detection)
-    settings.detection_hard_jam_time_ms = 3000;   // 3 seconds of negligible flow (quick response to complete jams)
+    settings.detection_grace_period_ms  = 18000;  // 18s grace period for print start and resume
+    settings.detection_ratio_threshold  = 40;     // 40% passing threshold
+    settings.detection_hard_jam_mm      = 12.0f;  // 12mm expected with zero movement = hard jam
+    settings.detection_soft_jam_time_ms = 10000;  // 10 seconds to signal slow clog
+    settings.detection_hard_jam_time_ms = 3000;   // 3 seconds of negligible flow
     settings.detection_mode = 0;                  // 0 = both hard + soft detection
     settings.sdcp_loss_behavior         = 2;
-    settings.flow_telemetry_stale_ms    = 1000;
+    settings.flow_telemetry_stale_ms    = 1500;
     settings.ui_refresh_interval_ms     = 1000;
     settings.log_level                  = 0;      // Default to Normal logging
     settings.suppress_pause_commands    = false;  // Pause commands enabled by default
-    settings.movement_mm_per_pulse      = 2.88f;  // Actual sensor spec (2.88mm per pulse)
+    settings.movement_mm_per_pulse      = 3.055f;  // Calibrated sensor value
     settings.auto_calibrate_sensor      = false;  // Disabled by default
     settings.pulse_reduction_percent    = 100.0f;  // Default: no reduction
-    settings.purge_filament_mm          = 47.0f;
     settings.test_recording_mode        = false;
+    settings.show_debug_page            = false;
+    settings.timezone_offset_minutes    = 0;      // Default to UTC
 }
 
 bool SettingsManager::load()
@@ -395,11 +392,6 @@ bool SettingsManager::getPauseOnRunout()
     return getSettings().pause_on_runout;
 }
 
-int SettingsManager::getStartPrintTimeout()
-{
-    return getSettings().start_print_timeout;
-}
-
 bool SettingsManager::getEnabled()
 {
     return getSettings().enabled;
@@ -408,11 +400,6 @@ bool SettingsManager::getEnabled()
 bool SettingsManager::getHasConnected()
 {
     return getSettings().has_connected;
-}
-
-float SettingsManager::getDetectionLengthMM()
-{
-    return getSettings().detection_length_mm;
 }
 
 int SettingsManager::getDetectionGracePeriodMs()
@@ -510,6 +497,11 @@ bool SettingsManager::getTestRecordingMode()
     return getSettings().test_recording_mode;
 }
 
+bool SettingsManager::getShowDebugPage()
+{
+    return getSettings().show_debug_page;
+}
+
 void SettingsManager::setSSID(const String &ssid)
 {
     if (!isLoaded)
@@ -563,13 +555,6 @@ void SettingsManager::setPauseOnRunout(bool pauseOnRunout)
     settings.pause_on_runout = pauseOnRunout;
 }
 
-void SettingsManager::setStartPrintTimeout(int timeoutMs)
-{
-    if (!isLoaded)
-        load();
-    settings.start_print_timeout = timeoutMs;
-}
-
 void SettingsManager::setEnabled(bool enabled)
 {
     if (!isLoaded)
@@ -582,13 +567,6 @@ void SettingsManager::setHasConnected(bool hasConnected)
     if (!isLoaded)
         load();
     settings.has_connected = hasConnected;
-}
-
-void SettingsManager::setDetectionLengthMM(float value)
-{
-    if (!isLoaded)
-        load();
-    settings.detection_length_mm = value;
 }
 
 void SettingsManager::setDetectionGracePeriodMs(int periodMs)
@@ -715,6 +693,25 @@ void SettingsManager::setTestRecordingMode(bool enabled)
     if (!isLoaded)
         load();
     settings.test_recording_mode = enabled;
+}
+
+void SettingsManager::setShowDebugPage(bool show)
+{
+    if (!isLoaded)
+        load();
+    settings.show_debug_page = show;
+}
+
+int SettingsManager::getTimezoneOffsetMinutes()
+{
+    return getSettings().timezone_offset_minutes;
+}
+
+void SettingsManager::setTimezoneOffsetMinutes(int offsetMinutes)
+{
+    if (!isLoaded)
+        load();
+    settings.timezone_offset_minutes = offsetMinutes;
 }
 
 String SettingsManager::toJson(bool includePassword)

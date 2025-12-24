@@ -4,11 +4,14 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WebSocketsClient.h>
+#include <WiFiUdp.h>
+#include <functional>
 
 #include "FilamentMotionSensor.h"
 #include "JamDetector.h"
 //#include "JamDetector_iface.h"
 #include "UUID.h"
+#include <vector>
 
 #define CARBON_CENTAURI_PORT 3030
 
@@ -109,6 +112,7 @@ typedef struct
     float               hardJamPercent;
     float               softJamPercent;
     bool                graceActive;
+    uint8_t             graceState;  // GraceState enum value (0=IDLE, 1=START_GRACE, 2=RESUME_GRACE, 3=ACTIVE, 4=JAMMED)
     float               expectedRateMmPerSec;
     float               actualRateMmPerSec;
     unsigned long       movementPulseCount;
@@ -127,6 +131,8 @@ class ElegooCC
         String           pendingAckRequestId;
         unsigned long    ackWaitStartTime    = 0;
         unsigned long    lastStatusRequestMs = 0;
+        unsigned long    connectionStartMs   = 0;  // When connect() was called (for throttle bypass)
+        bool             blocked             = false;  // Discovery lockout for transport
     };
 
     TransportState        transport;
@@ -144,7 +150,6 @@ class ElegooCC
     String              mainboardID;
     String              taskId;               // Current job identifier from SDCP
     String              filename;             // Current print filename from SDCP
-    String              lastTaskId;           // Previous TaskId for change detection
     sdcp_print_status_t printStatus;
     uint8_t             machineStatusMask;  // Bitmask for active statuses
     int                 currentLayer;
@@ -186,13 +191,8 @@ class ElegooCC
     int           lastLoggedLayer;
     int           lastLoggedTotalLayer;
 
-    // Print start candidate tracking (to distinguish true job start
-    // from transient/attached PRINTING states)
-    bool          printCandidateActive;
-    bool          printCandidateSawHoming;
-    bool          printCandidateSawLeveling;
-    bool          printCandidateConditionsMet;
-    unsigned long printCandidateIdleSinceMs;
+    // Print start detection (triggered by TaskId appearance)
+    bool          newPrintDetected;
 
     // Tracking state (for UI freeze on pause)
     bool          trackingFrozen;
@@ -215,6 +215,7 @@ class ElegooCC
         bool verboseLogging;
         bool flowSummaryLogging;
         bool pinDebugLogging;
+        bool motionMonitoringEnabled;
         float pulseReductionPercent;
         float movementMmPerPulse;
     };
@@ -247,12 +248,6 @@ class ElegooCC
     void refreshSettingsCache();
     void refreshJamConfig();
 
-    // Helpers for print start detection
-    void clearPrintStartCandidate();
-    void updatePrintStartCandidate(sdcp_print_status_t previousStatus,
-                                   sdcp_print_status_t newStatus);
-    bool isPrintStartCandidateSatisfied() const;
-    void updatePrintStartCandidateTimeout(unsigned long currentTime);
     void resetRunoutPauseState();
     void updateRunoutPauseCountdown();
     bool isRunoutPauseReady() const;
@@ -291,8 +286,33 @@ class ElegooCC
 
     // Get current printer information
     printer_info_t getCurrentInformation();
+    // Discovery
+    struct DiscoveryResult {
+        String ip;
+        String payload;
+    };
+    
+    // Async discovery
+    typedef std::function<void(const std::vector<DiscoveryResult>&)> DiscoveryCallback;
+    bool startDiscoveryAsync(unsigned long timeoutMs, DiscoveryCallback callback);
+    void cancelDiscovery();
+    void updateDiscovery(unsigned long currentTime);
+    
+    // Accessors for async response handling
+    bool isDiscoveryActive() const { return discoveryState.active; }
+    std::vector<DiscoveryResult> getDiscoveryResults() const { return discoveryState.results; }
 
-    bool discoverPrinterIP(String &outIp, unsigned long timeoutMs = 3000);
+   private:
+    struct DiscoveryState {
+        bool active = false;
+        unsigned long startTime = 0;
+        unsigned long timeoutMs = 0;
+        unsigned long lastProbeTime = 0;
+        WiFiUDP udp;
+        std::vector<String> seenIps;
+        std::vector<DiscoveryResult> results;
+        DiscoveryCallback callback;
+    } discoveryState;
 };
 
 // Convenience macro for easier access

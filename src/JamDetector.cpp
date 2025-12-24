@@ -108,14 +108,7 @@ bool JamDetector::evaluateGraceState(unsigned long currentTimeMs,
         {
             unsigned long sinceStart = currentTimeMs - printStartTimeMs;
 
-            // Startup timeout: SDCP can be messy right after print start
-            if (sinceStart < config.startTimeoutMs)
-            {
-                state.graceActive = true;
-                return true;
-            }
-
-            // Grace window after timeout, regardless of flow
+            // Grace period after print start
             if (sinceStart < config.graceTimeMs)
             {
                 state.graceActive = true;

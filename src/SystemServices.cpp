@@ -68,9 +68,20 @@ void SystemServices::loop()
 
     if (stationConnected)
     {
+        // Calculate GMT offset in seconds:
+        // Browser returns minutes difference between UTC and local (positive if west of UTC)
+        // e.g., NY (UTC-5) -> 300.
+        // POSIX/configTime wants offset from UTC in seconds (negative if west of UTC?)
+        // Wait, standard configTime: gmtOffset_sec.
+        // If I want UTC+1, I pass 3600.
+        // If I want UTC-5, I pass -18000.
+        // Browser 300 -> We want -18000.
+        // (-1) * 300 * 60 = -18000. Correct.
+        long gmtOffset_sec = -1 * settingsManager.getTimezoneOffsetMinutes() * 60;
+
         if (!ntpConfigured)
         {
-            configTime(0, 0, NTP_SERVER);
+            configTime(gmtOffset_sec, 0, NTP_SERVER);
             syncTimeWithNTP(currentTime);
             logger.log("NTP setup complete");
             ntpConfigured = true;
@@ -307,7 +318,7 @@ void SystemServices::syncTimeWithNTP(unsigned long currentTime)
 
 void SystemServices::monitorHeap(unsigned long currentTime)
 {
-    if (currentTime - lastHeapCheck <= 60000)
+    if (currentTime - lastHeapCheck <= 300000)
     {
         return;
     }
@@ -328,7 +339,7 @@ void SystemServices::monitorHeap(unsigned long currentTime)
         logger.log(F("WARNING: Heap fragmentation high!"), LOG_NORMAL);
     }
 
-    if (minHeap < 20000)
+    if (minHeap < 2000)
     {
         logger.logf(LOG_NORMAL, "CRITICAL: Low memory! Min heap: %lu", minHeap);
     }

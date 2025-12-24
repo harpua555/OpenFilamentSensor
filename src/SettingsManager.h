@@ -11,10 +11,8 @@ struct user_settings
     bool   ap_mode;
     String elegooip;
     bool   pause_on_runout;
-    int    start_print_timeout;
-    bool   enabled;
+    bool   enabled;                // Motion monitoring (jam detection) enabled
     bool   has_connected;
-    float  detection_length_mm;          // DEPRECATED: Use ratio-based detection instead
     int    detection_grace_period_ms;    // Grace period after move command before checking jams
     int    detection_ratio_threshold;    // Soft jam: pass ratio threshold (25 = 25% actual allowed before alert)
     float  detection_hard_jam_mm;        // Hard jam: mm expected with zero movement to trigger
@@ -29,8 +27,9 @@ struct user_settings
     float  movement_mm_per_pulse;
     bool   auto_calibrate_sensor;  // Auto-calibrate mm_per_pulse at print end
     float  pulse_reduction_percent;  // Pulse reduction for testing (0-100, default 100)
-    float  purge_filament_mm;
     bool   test_recording_mode;    // Enable CSV test data recording to ./condensed directory
+    bool   show_debug_page;        // Show Debug page in web UI (default false)
+    int    timezone_offset_minutes; // Offset from UTC in minutes (e.g., -300 for EST)
 };
 
 class SettingsManager
@@ -62,10 +61,8 @@ class SettingsManager
     bool   isAPMode();
     String getElegooIP();
     bool   getPauseOnRunout();
-    int    getStartPrintTimeout();
-    bool   getEnabled();
+    bool   getEnabled();                    // Motion monitoring enabled
     bool   getHasConnected();
-    float  getDetectionLengthMM();          // DEPRECATED: Use ratio-based detection
     int    getDetectionGracePeriodMs();     // Grace period for look-ahead moves
     float  getDetectionRatioThreshold();    // Soft jam ratio threshold (returns 0.0-1.0 for internal use)
       float  getDetectionHardJamMm();         // Hard jam threshold
@@ -84,16 +81,15 @@ class SettingsManager
     bool   getAutoCalibrateSensor();
     float  getPulseReductionPercent();         // Get pulse reduction percentage (0-100)
     bool   getTestRecordingMode();             // Get test recording mode state
+    bool   getShowDebugPage();                   // Get show debug page state
 
     void setSSID(const String &ssid);
     void setPassword(const String &password);
     void setAPMode(bool apMode);
     void setElegooIP(const String &ip);
     void setPauseOnRunout(bool pauseOnRunout);
-    void setStartPrintTimeout(int timeoutMs);
-    void setEnabled(bool enabled);
+    void setEnabled(bool enabled);              // Motion monitoring enabled
     void setHasConnected(bool hasConnected);
-    void setDetectionLengthMM(float value);            // DEPRECATED: Use ratio-based detection
     void setDetectionGracePeriodMs(int periodMs);      // Grace period setter
     void setDetectionRatioThreshold(int thresholdPercent);  // Soft jam ratio threshold setter (0-100%)
     void setDetectionHardJamMm(float mmThreshold);     // Hard jam threshold setter
@@ -109,6 +105,9 @@ class SettingsManager
     void setAutoCalibrateSensor(bool autoCal);
     void setPulseReductionPercent(float percent);   // Set pulse reduction percentage (0-100)
     void setTestRecordingMode(bool enabled);       // Enable/disable test recording mode
+    void setShowDebugPage(bool show);             // Show/hide debug page in web UI
+    int    getTimezoneOffsetMinutes();
+    void setTimezoneOffsetMinutes(int offsetMinutes);
 
     String toJson(bool includePassword = true);
 };

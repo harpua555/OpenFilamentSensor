@@ -17,6 +17,7 @@ constexpr const char kRouteDiscoverPrinter[]  = "/discover_printer";
 constexpr const char kRouteSensorStatus[]     = "/sensor_status";
 constexpr const char kRouteLogsText[]         = "/api/logs_text";
 constexpr const char kRouteLogsLive[]         = "/api/logs_live";
+constexpr const char kRouteLogsClear[]        = "/api/logs/clear";
 constexpr const char kRouteVersion[]          = "/version";
 constexpr const char kRouteStatusEvents[]     = "/status_events";
 constexpr const char kRouteLiteRoot[]         = "/lite";
@@ -110,110 +111,80 @@ void WebServer::begin()
         [this](AsyncWebServerRequest *request, JsonVariant &json)
         {
             JsonObject jsonObj = json.as<JsonObject>();
+
             // Track if IP address changed to trigger reconnect
             String oldIp = settingsManager.getElegooIP();
-            String newIp = jsonObj["elegooip"].as<String>();
-            bool ipChanged = (oldIp != newIp) && newIp.length() > 0;
+            bool ipChanged = false;
 
-            settingsManager.setElegooIP(newIp);
-            settingsManager.setSSID(jsonObj["ssid"].as<String>());
+            // Only update fields that are present in the request
+            if (jsonObj.containsKey("elegooip"))
+            {
+                String newIp = jsonObj["elegooip"].as<String>();
+                ipChanged = (oldIp != newIp) && newIp.length() > 0;
+                settingsManager.setElegooIP(newIp);
+            }
+            if (jsonObj.containsKey("ssid"))
+                settingsManager.setSSID(jsonObj["ssid"].as<String>());
             if (jsonObj.containsKey("passwd") && jsonObj["passwd"].as<String>().length() > 0)
-            {
                 settingsManager.setPassword(jsonObj["passwd"].as<String>());
-            }
-            settingsManager.setAPMode(jsonObj["ap_mode"].as<bool>());
-            settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
-            settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
-            settingsManager.setStartPrintTimeout(jsonObj["start_print_timeout"].as<int>());
+            if (jsonObj.containsKey("ap_mode"))
+                settingsManager.setAPMode(jsonObj["ap_mode"].as<bool>());
+            if (jsonObj.containsKey("pause_on_runout"))
+                settingsManager.setPauseOnRunout(jsonObj["pause_on_runout"].as<bool>());
+            if (jsonObj.containsKey("enabled"))
+                settingsManager.setEnabled(jsonObj["enabled"].as<bool>());
             if (jsonObj.containsKey("detection_length_mm"))
-            {
-                settingsManager.setDetectionLengthMM(jsonObj["detection_length_mm"].as<float>());
-            }
+                settingsManager.setDetectionHardJamMm(jsonObj["detection_length_mm"].as<float>());
             if (jsonObj.containsKey("detection_grace_period_ms"))
-            {
-                settingsManager.setDetectionGracePeriodMs(
-                    jsonObj["detection_grace_period_ms"].as<int>());
-            }
-            // detection_min_start_mm and purge_filament_mm removed - no longer used
+                settingsManager.setDetectionGracePeriodMs(jsonObj["detection_grace_period_ms"].as<int>());
             if (jsonObj.containsKey("detection_ratio_threshold"))
-            {
-                settingsManager.setDetectionRatioThreshold(
-                    jsonObj["detection_ratio_threshold"].as<int>());
-            }
+                settingsManager.setDetectionRatioThreshold(jsonObj["detection_ratio_threshold"].as<int>());
             if (jsonObj.containsKey("detection_hard_jam_mm"))
-            {
-                settingsManager.setDetectionHardJamMm(
-                    jsonObj["detection_hard_jam_mm"].as<float>());
-            }
+                settingsManager.setDetectionHardJamMm(jsonObj["detection_hard_jam_mm"].as<float>());
             if (jsonObj.containsKey("detection_soft_jam_time_ms"))
-            {
-                settingsManager.setDetectionSoftJamTimeMs(
-                    jsonObj["detection_soft_jam_time_ms"].as<int>());
-            }
+                settingsManager.setDetectionSoftJamTimeMs(jsonObj["detection_soft_jam_time_ms"].as<int>());
             if (jsonObj.containsKey("detection_hard_jam_time_ms"))
-            {
-                settingsManager.setDetectionHardJamTimeMs(
-                    jsonObj["detection_hard_jam_time_ms"].as<int>());
-            }
+                settingsManager.setDetectionHardJamTimeMs(jsonObj["detection_hard_jam_time_ms"].as<int>());
             if (jsonObj.containsKey("detection_mode"))
-            {
                 settingsManager.setDetectionMode(jsonObj["detection_mode"].as<int>());
-            }
             if (jsonObj.containsKey("sdcp_loss_behavior"))
-            {
                 settingsManager.setSdcpLossBehavior(jsonObj["sdcp_loss_behavior"].as<int>());
-            }
             if (jsonObj.containsKey("flow_telemetry_stale_ms"))
-            {
-                settingsManager.setFlowTelemetryStaleMs(
-                    jsonObj["flow_telemetry_stale_ms"].as<int>());
-            }
+                settingsManager.setFlowTelemetryStaleMs(jsonObj["flow_telemetry_stale_ms"].as<int>());
             if (jsonObj.containsKey("ui_refresh_interval_ms"))
-            {
-                settingsManager.setUiRefreshIntervalMs(
-                    jsonObj["ui_refresh_interval_ms"].as<int>());
-            }
-            // Pause command suppression
+                settingsManager.setUiRefreshIntervalMs(jsonObj["ui_refresh_interval_ms"].as<int>());
             if (jsonObj.containsKey("suppress_pause_commands"))
-            {
                 settingsManager.setSuppressPauseCommands(jsonObj["suppress_pause_commands"].as<bool>());
-            }
-            // Unified log level
             if (jsonObj.containsKey("log_level"))
-            {
                 settingsManager.setLogLevel(jsonObj["log_level"].as<int>());
-            }
             if (jsonObj.containsKey("movement_mm_per_pulse"))
-            {
-                settingsManager.setMovementMmPerPulse(
-                    jsonObj["movement_mm_per_pulse"].as<float>());
-            }
+                settingsManager.setMovementMmPerPulse(jsonObj["movement_mm_per_pulse"].as<float>());
             if (jsonObj.containsKey("auto_calibrate_sensor"))
-            {
-                settingsManager.setAutoCalibrateSensor(
-                    jsonObj["auto_calibrate_sensor"].as<bool>());
-            }
+                settingsManager.setAutoCalibrateSensor(jsonObj["auto_calibrate_sensor"].as<bool>());
             if (jsonObj.containsKey("pulse_reduction_percent"))
-            {
-                settingsManager.setPulseReductionPercent(
-                    jsonObj["pulse_reduction_percent"].as<float>());
-            }
+                settingsManager.setPulseReductionPercent(jsonObj["pulse_reduction_percent"].as<float>());
             if (jsonObj.containsKey("test_recording_mode"))
-            {
-                settingsManager.setTestRecordingMode(
-                    jsonObj["test_recording_mode"].as<bool>());
-            }
+                settingsManager.setTestRecordingMode(jsonObj["test_recording_mode"].as<bool>());
+            if (jsonObj.containsKey("show_debug_page"))
+                settingsManager.setShowDebugPage(jsonObj["show_debug_page"].as<bool>());
+            if (jsonObj.containsKey("timezone_offset_minutes"))
+                settingsManager.setTimezoneOffsetMinutes(jsonObj["timezone_offset_minutes"].as<int>());
+
             bool saved = settingsManager.save();
-            if (saved) {
-                // Reload settings to apply changes immediately
-                settingsManager.load();
+            if (saved)
+            {
+                elegooCC.refreshCaches();
+                if (ipChanged)
+                {
+                    elegooCC.reconnect();
+                }
+                request->send(200, "application/json", "{\"status\":\"ok\"}");
             }
-            elegooCC.refreshCaches();
-            if (ipChanged) {
-                elegooCC.reconnect();  // Reconnect if IP address changed
+            else
+            {
+                request->send(500, "application/json",
+                              "{\"error\":\"Failed to save settings to flash\"}");
             }
-            jsonObj.clear();
-            request->send(saved ? 200 : 500, "text/plain", saved ? "ok" : "save failed");
         }));
 
     server.on(kRouteTestPause, HTTP_POST,
@@ -230,31 +201,37 @@ void WebServer::begin()
                   request->send(200, "text/plain", "ok");
               });
 
+    // POST /discover_printer - Start discovery scan
+    server.on(kRouteDiscoverPrinter, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  if (elegooCC.isDiscoveryActive())
+                  {
+                      request->send(200, "application/json", "{\"active\":true}");
+                      return;
+                  }
+                  elegooCC.startDiscoveryAsync(5000, nullptr);  // 5 seconds with socket recycling
+                  request->send(200, "application/json", "{\"started\":true}");
+              });
+
+    // GET /discover_printer - Poll discovery status and results
     server.on(kRouteDiscoverPrinter, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
-                  String ip;
-                  // Use a 3s timeout for discovery via the ElegooCC helper.
-                  if (!elegooCC.discoverPrinterIP(ip, 3000))
+                  DynamicJsonDocument jsonDoc(1024);
+                  jsonDoc["active"] = elegooCC.isDiscoveryActive();
+
+                  JsonArray printers = jsonDoc.createNestedArray("printers");
+                  for (const auto &res : elegooCC.getDiscoveryResults())
                   {
-                      DynamicJsonDocument jsonDoc(128);
-                      jsonDoc["error"] = "No printer found";
-                      String jsonResponse;
-                      serializeJson(jsonDoc, jsonResponse);
-                      request->send(504, "application/json", jsonResponse);
-                      return;
+                      JsonObject p = printers.createNestedObject();
+                      p["ip"]      = res.ip;
+                      p["payload"] = res.payload;
                   }
 
-                  settingsManager.setElegooIP(ip);
-                  settingsManager.save(true);
-                  elegooCC.refreshCaches();
-                  elegooCC.reconnect();  // Reconnect with the newly discovered IP
-
-                  DynamicJsonDocument jsonDoc(128);
-                  jsonDoc["elegooip"] = ip;
-                  String jsonResponse;
-                  serializeJson(jsonDoc, jsonResponse);
-                  request->send(200, "application/json", jsonResponse);
+                  String response;
+                  serializeJson(jsonDoc, response);
+                  request->send(200, "application/json", response);
               });
 
     // Setup ElegantOTA
@@ -335,6 +312,15 @@ void WebServer::begin()
               {
                   String textResponse = logger.getLogsAsText(100);  // Only last 100 entries
                   request->send(200, "text/plain", textResponse);
+              });
+
+    // Clear logs endpoint
+    server.on(kRouteLogsClear, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  logger.clearLogs();
+                  logger.log("Logs cleared via web UI");
+                  request->send(200, "text/plain", "ok");
               });
 
     // Version endpoint
@@ -436,6 +422,7 @@ void WebServer::buildStatusJson(DynamicJsonDocument &jsonDoc, const printer_info
     elegoo["uiRefreshIntervalMs"]  = settingsManager.getUiRefreshIntervalMs();
     elegoo["flowTelemetryStaleMs"] = settingsManager.getFlowTelemetryStaleMs();
     elegoo["graceActive"]          = elegooStatus.graceActive;
+    elegoo["graceState"]           = elegooStatus.graceState;
     elegoo["expectedRateMmPerSec"] = elegooStatus.expectedRateMmPerSec;
     elegoo["actualRateMmPerSec"]   = elegooStatus.actualRateMmPerSec;
     elegoo["runoutPausePending"]   = elegooStatus.runoutPausePending;

@@ -51,8 +51,7 @@ void testJamDetectorRapidStateChanges() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -98,8 +97,7 @@ void testJamDetectorVeryLongPrint() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -110,8 +108,8 @@ void testJamDetectorVeryLongPrint() {
     _mockMillis = 1000;
     detector.reset(printStartTime);
 
-    // Skip past grace period first (startTimeoutMs = 5000)
-    unsigned long graceEndTime = config.startTimeoutMs + config.graceTimeMs;
+    // Skip past grace period first (graceTimeMs = 5000)
+    unsigned long graceEndTime = config.graceTimeMs;
 
     // Simulate a very long print (24 hours), starting after grace period
     unsigned long duration = 24UL * 60UL * 60UL * 1000UL;  // 24 hours in ms
@@ -144,8 +142,7 @@ void testJamDetectorExtremelySlowPrinting() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 10000;
     config.hardJamTimeMs = 5000;
@@ -185,8 +182,7 @@ void testJamDetectorTelemetryLoss() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -245,8 +241,7 @@ void testJamDetectorMultipleResumeGraces() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -300,8 +295,7 @@ void testIntegrationJamRecoveryWithResume() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;
@@ -368,8 +362,7 @@ void testIntegrationMixedJamTypes() {
     resetMockTime();
     JamDetector detector;
     JamConfig config;
-    config.graceTimeMs = 2000;
-    config.startTimeoutMs = 5000;
+    config.graceTimeMs = 5000;
     config.hardJamMm = 3.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 2000;

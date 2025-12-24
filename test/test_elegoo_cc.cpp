@@ -504,7 +504,6 @@ void testShouldPausePrintOnJam() {
     // Simulate jam detection
     JamConfig config;
     config.graceTimeMs = 0;
-    config.startTimeoutMs = 0;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 1000;
     config.hardJamTimeMs = 1000;
@@ -692,8 +691,7 @@ void testResumeGracePeriod() {
     advanceTime(10000);
 
     JamConfig config;
-    config.graceTimeMs = 5000;
-    config.startTimeoutMs = 10000;
+    config.graceTimeMs = 10000;
     config.hardJamMm = 5.0f;
     config.softJamTimeMs = 5000;
     config.hardJamTimeMs = 3000;

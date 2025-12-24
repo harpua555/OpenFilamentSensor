@@ -126,7 +126,6 @@ struct user_settings {
     bool   ap_mode;
     String elegooip;
     bool   pause_on_runout;
-    int    start_print_timeout;
     bool   enabled;
     bool   has_connected;
     float  detection_length_mm;
@@ -144,7 +143,6 @@ struct user_settings {
     float  movement_mm_per_pulse;
     bool   auto_calibrate_sensor;
     float  pulse_reduction_percent;
-    float  purge_filament_mm;
     bool   test_recording_mode;
 };
 
@@ -166,11 +164,10 @@ public:
         settings.passwd = "";
         settings.elegooip = "";
         settings.pause_on_runout = true;
-        settings.start_print_timeout = 10000;
         settings.enabled = true;
         settings.has_connected = false;
         settings.detection_length_mm = 10.0f;
-        settings.detection_grace_period_ms = 8000;
+        settings.detection_grace_period_ms = 10000;
         settings.detection_ratio_threshold = 25;
         settings.detection_hard_jam_mm = 5.0f;
         settings.detection_soft_jam_time_ms = 10000;
@@ -184,7 +181,6 @@ public:
         settings.movement_mm_per_pulse = 2.88f;
         settings.auto_calibrate_sensor = false;
         settings.pulse_reduction_percent = 100.0f;
-        settings.purge_filament_mm = 47.0f;
         settings.test_recording_mode = false;
     }
 
@@ -355,7 +351,7 @@ void testLoadDefaultsWhenFileMissing() {
     bool result = mgr.loadFromFile("/data/user_settings.json");
 
     TEST_ASSERT(result, "Load should succeed even without file");
-    TEST_ASSERT(mgr.getDetectionGracePeriodMs() == 8000, "Grace period should be default 8000");
+    TEST_ASSERT(mgr.getDetectionGracePeriodMs() == 10000, "Grace period should be default 10000");
     TEST_ASSERT(floatEquals(mgr.getDetectionHardJamMm(), 5.0f), "Hard jam mm should be default 5.0");
     TEST_ASSERT(floatEquals(mgr.getMovementMmPerPulse(), 2.88f), "mm per pulse should be default 2.88");
 
@@ -396,7 +392,7 @@ void testLoadMalformedJsonUsesDefaults() {
     bool result = mgr.load(badJson);
 
     // Should still be usable with defaults
-    TEST_ASSERT(mgr.getDetectionGracePeriodMs() == 8000, "Should have default values");
+    TEST_ASSERT(mgr.getDetectionGracePeriodMs() == 10000, "Should have default values");
 
     TEST_PASS("load() handles malformed JSON gracefully");
 }

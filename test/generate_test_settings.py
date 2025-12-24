@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-import json
 import pathlib
-import sys
 
 
 def format_float(value):
@@ -13,14 +11,10 @@ def format_float(value):
 
 def main():
     script_dir = pathlib.Path(__file__).resolve().parent
-    settings_path = script_dir.parent / "data" / "user_settings.json"
+
+    # Unit tests should use fixed, deterministic values - not user settings
+    # This ensures tests pass regardless of user configuration
     settings = {}
-    if settings_path.exists():
-        try:
-            with open(settings_path, "r", encoding="utf-8") as inp:
-                settings = json.load(inp)
-        except Exception as exc:
-            print(f"Warning: failed to load {settings_path}: {exc}", file=sys.stderr)
 
     field_specs = [
         ("movement_mm_per_pulse", "TEST_MM_PER_PULSE", 2.88, float),
@@ -30,7 +24,6 @@ def main():
         ("detection_soft_jam_time_ms", "TEST_SOFT_JAM_TIME_MS", 10000, int),
         ("detection_hard_jam_time_ms", "TEST_HARD_JAM_TIME_MS", 5000, int),
         ("detection_grace_period_ms", "TEST_GRACE_PERIOD_MS", 500, int),
-        ("tracking_window_ms", "TEST_TRACKING_WINDOW_MS", 3000, int),
     ]
 
     generated_path = script_dir / "generated_test_settings.h"

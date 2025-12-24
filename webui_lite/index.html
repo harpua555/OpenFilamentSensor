@@ -27,7 +27,8 @@
             --success: #34a853;
             --warning: #fbbc04;
             --error: #ea4335;
-            --idle-color: #6a93cb; /* Light blue for idle state */
+            --idle-color: #6a93cb;
+            /* Light blue for idle state */
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -524,6 +525,35 @@
             margin-top: 20px;
         }
 
+        .chart-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .chart-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .chart-card-content {
+            transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+            overflow: hidden;
+        }
+
+        .chart-card-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+        }
+
         .form-group {
             margin-bottom: 24px;
         }
@@ -585,6 +615,94 @@
             accent-color: var(--accent-primary);
         }
 
+        .radio-list {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid var(--border-color);
+        }
+
+        .radio-list .empty-state {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .radio-list label {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            margin: 6px 0;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .radio-list label:hover {
+            background: var(--bg-glass);
+            border-color: var(--accent-primary);
+        }
+
+        .radio-list label:has(input:checked) {
+            border-color: var(--accent-primary);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .radio-list input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 14px;
+            accent-color: var(--accent-primary);
+            flex-shrink: 0;
+        }
+
+        .radio-list .printer-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .radio-list .printer-ip {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .radio-list .printer-payload {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            word-break: break-word;
+        }
+
+        .scan-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .scan-status .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .btn {
             padding: 14px 28px;
             background: var(--accent-gradient);
@@ -635,6 +753,24 @@
 
         .btn-secondary:hover {
             border-color: var(--accent-primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #d23a31);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #2d8f44);
+            color: white;
+        }
+
+        .btn-success:hover {
             box-shadow: var(--shadow-md);
         }
 
@@ -885,7 +1021,7 @@
         }
 
         .modal-card {
-            background: var(--bg-card);
+            background: var(--bg-secondary);
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 24px;
@@ -1021,6 +1157,164 @@
             padding-bottom: 10px;
             border-bottom: 2px solid var(--border-color);
         }
+
+        .advanced-settings {
+            display: none;
+        }
+
+        .advanced-settings.visible {
+            display: block;
+        }
+
+        /* Minimal Mode Styles */
+        .minimal-mode-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .minimal-mode-overlay.active {
+            display: block;
+        }
+
+        .minimal-header {
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .minimal-header h1 {
+            font-size: 1.4rem;
+            font-weight: normal;
+            margin: 0 0 8px 0;
+            color: #ff6b35;
+        }
+
+        .minimal-header .minimal-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .minimal-status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .minimal-status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-status-label {
+            color: #aaa;
+        }
+
+        .minimal-status-value {
+            font-weight: bold;
+        }
+
+        .minimal-status-value.ok {
+            color: #4ade80;
+        }
+
+        .minimal-status-value.warning {
+            color: #fbbf24;
+        }
+
+        .minimal-status-value.error {
+            color: #f87171;
+        }
+
+        .minimal-status-value.idle {
+            color: #60a5fa;
+        }
+
+        .minimal-jam-section {
+            margin: 0;
+            padding: 8px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-jam-card {
+            display: flex;
+            flex-direction: column;
+            padding: 6px 10px;
+            background: #252540;
+            border-radius: 4px;
+        }
+
+        .minimal-jam-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 4px;
+            margin: 4px 0 0 0;
+            overflow: hidden;
+        }
+
+        .minimal-jam-fill {
+            height: 100%;
+            background: #ff6b35;
+            transition: width 0.3s ease;
+        }
+
+        .minimal-jam-fill.warning {
+            background: #fbbf24;
+        }
+
+        .minimal-jam-fill.danger {
+            background: #f87171;
+        }
+
+        .minimal-controls {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #444;
+        }
+
+        .minimal-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .minimal-checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .minimal-checkbox-row label {
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .minimal-footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .minimal-last-update {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 12px;
+        }
     </style>
 </head>
 
@@ -1028,12 +1322,69 @@
     <div class="toast-container" id="toastContainer"></div>
     <div id="unsavedModal" class="modal-backdrop">
         <div class="modal-card">
-            <h3>Unsaved settings</h3>
-            <p>You have unsaved settings changes. Discard them and leave?</p>
+            <h3>Unsaved Changes</h3>
+            <p>Save your changes before leaving?</p>
             <div class="btn-group">
-                <button type="button" class="btn" id="discardSettingsBtn">Discard changes</button>
-                <button type="button" class="btn btn-secondary" id="stayOnSettingsBtn">Stay on settings</button>
+                <button type="button" class="btn btn-success" id="saveAndLeaveBtn">Save Changes</button>
+                <button type="button" class="btn btn-danger" id="discardSettingsBtn">Discard Changes</button>
+                <button type="button" class="btn btn-secondary" id="stayOnSettingsBtn">Return to Settings</button>
             </div>
+        </div>
+    </div>
+
+    <div id="resetModal" class="modal-backdrop">
+        <div class="modal-card">
+            <h3>Reset ESP32</h3>
+            <p>This immediately reboots the ESP32. This can disrupt an active print, drop the printer connection completely, and
+                clear in-memory logs. Only continue if it is safe to restart.</p>
+            <div class="btn-group">
+                <button type="button" class="btn btn-danger" id="confirmResetBtn">Reset Now</button>
+                <button type="button" class="btn btn-secondary" id="cancelResetBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Minimal Mode Overlay -->
+    <div id="minimalModeOverlay" class="minimal-mode-overlay">
+        <div class="minimal-header">
+            <h1>OpenFilamentSensor</h1>
+            <div class="minimal-subtitle">Minimal Mode</div>
+        </div>
+        <div class="minimal-status-grid" id="minimalStatusGrid">
+            <div class="minimal-status-row">
+                <span class="minimal-status-label">Loading...</span>
+                <span class="minimal-status-value">--</span>
+            </div>
+        </div>
+        <div class="minimal-status-grid">
+            <div class="minimal-jam-card" id="minimalHardJamCard">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span class="minimal-status-label">Hard Jam Proximity</span>
+                    <span id="minimalHardJamPercent" class="minimal-status-value">0%</span>
+                </div>
+                <div class="minimal-jam-bar">
+                    <div id="minimalHardJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="minimal-jam-card" id="minimalSoftJamCard">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span class="minimal-status-label">Soft Jam Proximity</span>
+                    <span id="minimalSoftJamPercent" class="minimal-status-value">0%</span>
+                </div>
+                <div class="minimal-jam-bar">
+                    <div id="minimalSoftJamFill" class="minimal-jam-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="minimal-last-update" id="minimalLastUpdate">Last update: --</div>
+        <div class="minimal-controls">
+            <div class="minimal-checkbox-row">
+                <input type="checkbox" id="exitMinimalMode">
+                <label for="exitMinimalMode">Exit minimal mode and return to full interface</label>
+            </div>
+        </div>
+        <div class="minimal-footer">
+            Minimal mode reduces CPU, memory, and network usage by disabling charts, animations, and SSE streaming.
         </div>
     </div>
 
@@ -1053,7 +1404,7 @@
                 </div>
                 <nav>
                     <button class="nav-btn active" data-page="status">Status</button>
-                    <button class="nav-btn" data-page="debug">Debug</button>
+                    <button class="nav-btn" data-page="debug" id="debugNavBtn" style="display: none;">Debug</button>
                     <button class="nav-btn" data-page="settings">Settings ⚙️</button>
                     <button class="nav-btn" data-page="logs">Logs</button>
                     <button class="nav-btn" data-page="update">Update</button>
@@ -1064,7 +1415,8 @@
     </header>
 
     <div id="versionBanner" class="version-banner hidden">
-        A new version is available! <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer">Update now</a>
+        A new version is available! <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer">Update
+            now</a>
     </div>
 
     <main class="container">
@@ -1076,46 +1428,91 @@
                 </div>
                 <div class="status-grid" id="statusGrid">
                     <!-- Will be populated by JavaScript -->
-                    </div>
-                    <div class="status-help" id="statusHelpMessage">
-                        Tap any status tile to learn what it means.
+                </div>
+                <div class="status-help" id="statusHelpMessage">
+                    Tap any status tile to learn what it means.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>Printer Controls</span>
+                </div>
+                <div style="padding: 16px;">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="testPause()">Send Pause Command</button>
+                        <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume Command</button>
+                        <button type="button" class="btn btn-secondary" onclick="openPrinterUi()">Open Printer UI</button>
+                        <button type="button" class="btn btn-danger" onclick="openResetModal()">Restart ESP32</button>
                     </div>
                 </div>
+            </div>
 
             <div class="card">
                 <div class="card-header">
                     <span>Real-Time Metrics</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleMetricsChart" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="chart-container">
-                    <canvas id="metricsChart"></canvas>
+                <div class="chart-card-content" id="metricsChartContent">
+                    <div class="chart-container">
+                        <canvas id="metricsChart"></canvas>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
                     <span>Full-Print Expected vs Actual</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleFullPrintChart" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="chart-container">
-                    <canvas id="fullPrintChart"></canvas>
+                <div class="chart-card-content" id="fullPrintChartContent">
+                    <div class="chart-container">
+                        <canvas id="fullPrintChart"></canvas>
+                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
                     <span>Jam Proximity Trends</span>
+                    <label class="chart-toggle">
+                        <input type="checkbox" id="toggleJamCharts" checked>
+                        Show
+                    </label>
                 </div>
-                <div class="debug-chart-row">
-                    <div class="chart-panel">
-                        <div class="chart-panel-title">Hard Jam Proximity History</div>
-                        <div class="chart-container">
-                            <canvas id="hardJamHistoryChart"></canvas>
+                <div class="chart-card-content" id="jamChartsContent">
+                    <div class="debug-chart-row">
+                        <div class="chart-panel">
+                            <div class="chart-panel-title">Hard Jam Proximity History</div>
+                            <div class="chart-container">
+                                <canvas id="hardJamHistoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-panel">
+                            <div class="chart-panel-title">Soft Jam Proximity History</div>
+                            <div class="chart-container">
+                                <canvas id="softJamHistoryChart"></canvas>
+                            </div>
                         </div>
                     </div>
-                    <div class="chart-panel">
-                        <div class="chart-panel-title">Soft Jam Proximity History</div>
-                        <div class="chart-container">
-                            <canvas id="softJamHistoryChart"></canvas>
-                        </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>Interface Options</span>
+                </div>
+                <div style="padding: 16px;">
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="enable_minimal_mode" ${isMinimalModeEnabled ? 'checked' : ''}>
+                        <label class="form-label" for="enable_minimal_mode" style="margin: 0;">Enable Minimal Mode</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Switch to a lightweight text-only interface. Disables charts, animations, and SSE streaming to reduce CPU/memory usage on low-power devices. This preference is saved in your browser.</p>
                     </div>
                 </div>
             </div>
@@ -1126,7 +1523,8 @@
             <div class="card">
                 <div class="card-header">
                     <span>Debug Data Dump</span>
-                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from the status snapshot</small>
+                    <small style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 12px;">Every field from
+                        the status snapshot</small>
                 </div>
                 <div class="status-grid" id="debugGrid">
                     <!-- Populated by JavaScript -->
@@ -1196,7 +1594,9 @@
             <div class="card">
                 <div class="card-header">
                     <span>Device Configuration</span>
-                    <span id="settingsDirtyIndicator" style="display: none; margin-left: auto; color: var(--warning); font-size: 0.9rem; font-weight: 600;">Unsaved changes</span>
+                    <span id="settingsDirtyIndicator"
+                        style="display: none; margin-left: auto; color: var(--warning); font-size: 0.9rem; font-weight: 600;">Unsaved
+                        changes</span>
                 </div>
                 <div id="settingsContent">
                     <div class="spinner-container">
@@ -1211,7 +1611,8 @@
             <div class="card">
                 <div class="card-header">
                     <span>System Logs</span>
-                    <span id="logAccumulatorStatus" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
+                    <span id="logAccumulatorStatus"
+                        style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">0 entries</span>
                 </div>
                 <div class="btn-group">
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
@@ -1220,7 +1621,8 @@
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
                 <p class="form-help" style="margin: 12px 0;">
-                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer on the device.
+                    Logs accumulate in your browser since page load. Download captures all entries, even those no longer
+                    on the device.
                 </p>
                 <div style="position: relative;">
                     <div class="log-container" id="logContainer">
@@ -1239,7 +1641,8 @@
         <div id="update" class="page">
             <div class="info-banner">
                 <span>Looking to install the latest version? Use the web flasher to get the newest firmware.</span>
-                <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open Web Flasher</a>
+                <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer"
+                    class="btn btn-secondary">Open Web Flasher</a>
             </div>
             <div class="card">
                 <div class="card-header">
@@ -1275,15 +1678,18 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Firmware Thumbprint</span>
-                    <span class="info-value" id="firmwareThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="firmwareThumbprint"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Filesystem Thumbprint</span>
-                    <span class="info-value" id="filesystemThumbprint" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="filesystemThumbprint"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Version</span>
-                    <span class="info-value" id="buildVersion" style="font-family: 'Consolas', monospace;">Loading...</span>
+                    <span class="info-value" id="buildVersion"
+                        style="font-family: 'Consolas', monospace;">Loading...</span>
                 </div>
 
                 <h3 style="color: var(--accent-primary); margin: 24px 0 16px;">Hardware / Network</h3>
@@ -1303,7 +1709,7 @@
                     <h3 style="color: var(--accent-primary); margin-bottom: 16px;">Device Actions</h3>
                     <div class="btn-group">
                         <button type="button" class="btn btn-secondary" onclick="resetDevice()"> Restart
-                            Device</button>
+                            ESP32</button>
                     </div>
                     <p class="form-help" style="margin-top: 12px;">
                         Restarts the ESP32. Connection will be lost temporarily.
@@ -1359,6 +1765,14 @@
         let lastChartUpdateMs = 0;
         let lastIdleState = true;
 
+        // Chart visibility state (persisted to localStorage)
+        const CHART_PREFS_KEY = 'ofs_chart_visibility';
+        let chartVisibility = {
+            metricsChart: true,
+            fullPrintChart: true,
+            jamCharts: true
+        };
+
         // Log accumulation state - stores logs browser-side since page load
         const logAccumulator = {
             entries: [],        // Chronological array of log lines
@@ -1366,6 +1780,290 @@
             maxEntries: 100000,  // Memory safety limit
             sessionStart: null  // Timestamp when accumulation started
         };
+
+        // Chart visibility management
+        function loadChartVisibility() {
+            try {
+                const saved = localStorage.getItem(CHART_PREFS_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    chartVisibility = { ...chartVisibility, ...parsed };
+                }
+            } catch (e) {
+                console.warn('Failed to load chart visibility preferences', e);
+            }
+        }
+
+        function saveChartVisibility() {
+            try {
+                localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(chartVisibility));
+            } catch (e) {
+                console.warn('Failed to save chart visibility preferences', e);
+            }
+        }
+
+        function setChartVisible(chartKey, visible) {
+            chartVisibility[chartKey] = visible;
+            saveChartVisibility();
+
+            const contentMap = {
+                metricsChart: 'metricsChartContent',
+                fullPrintChart: 'fullPrintChartContent',
+                jamCharts: 'jamChartsContent'
+            };
+
+            const contentEl = document.getElementById(contentMap[chartKey]);
+            if (contentEl) {
+                contentEl.classList.toggle('collapsed', !visible);
+            }
+
+            // Initialize chart when toggling to visible
+            if (visible && isStatusPageActive()) {
+                if (chartKey === 'metricsChart' && !metricsChart) {
+                    initChart();
+                } else if (chartKey === 'fullPrintChart' && !fullPrintChart) {
+                    initFullPrintChart();
+                } else if (chartKey === 'jamCharts' && (!hardJamHistoryChart || !softJamHistoryChart)) {
+                    initJamCharts();
+                }
+            }
+        }
+
+        function initChartToggles() {
+            loadChartVisibility();
+
+            const toggleMap = {
+                toggleMetricsChart: 'metricsChart',
+                toggleFullPrintChart: 'fullPrintChart',
+                toggleJamCharts: 'jamCharts'
+            };
+
+            for (const [toggleId, chartKey] of Object.entries(toggleMap)) {
+                const toggle = document.getElementById(toggleId);
+                if (toggle) {
+                    toggle.checked = chartVisibility[chartKey];
+                    setChartVisible(chartKey, chartVisibility[chartKey]);
+
+                    toggle.addEventListener('change', (e) => {
+                        setChartVisible(chartKey, e.target.checked);
+                    });
+                }
+            }
+        }
+
+        // Minimal Mode Management
+        const MINIMAL_MODE_KEY = 'ofs_minimal_mode';
+        let minimalModeActive = false;
+        let minimalModePollInterval = null;
+        const MINIMAL_POLL_INTERVAL_MS = 5000;  // 5 seconds for minimal mode
+
+        function isMinimalModeEnabled() {
+            try {
+                return localStorage.getItem(MINIMAL_MODE_KEY) === 'true';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function setMinimalModeEnabled(enabled) {
+            try {
+                localStorage.setItem(MINIMAL_MODE_KEY, enabled ? 'true' : 'false');
+            } catch (e) {
+                console.warn('Failed to save minimal mode preference', e);
+            }
+        }
+
+        function activateMinimalMode() {
+            if (minimalModeActive) return;
+            minimalModeActive = true;
+
+            // Stop full UI features
+            stopStatusStream();
+            stopStatusPolling();
+            if (logsInterval) clearInterval(logsInterval);
+
+            // Show minimal overlay
+            const overlay = document.getElementById('minimalModeOverlay');
+            if (overlay) overlay.classList.add('active');
+
+            // Start minimal polling
+            startMinimalPolling();
+
+            // Set up exit checkbox handler
+            const exitCheckbox = document.getElementById('exitMinimalMode');
+            if (exitCheckbox) {
+                exitCheckbox.checked = false;
+                exitCheckbox.onchange = () => {
+                    if (exitCheckbox.checked) {
+                        setMinimalModeEnabled(false);
+                        deactivateMinimalMode();
+                    }
+                };
+            }
+        }
+
+        function deactivateMinimalMode() {
+            if (!minimalModeActive) return;
+            minimalModeActive = false;
+
+            // Stop minimal polling
+            stopMinimalPolling();
+
+            // Hide minimal overlay
+            const overlay = document.getElementById('minimalModeOverlay');
+            if (overlay) overlay.classList.remove('active');
+
+            // Restart full UI - reload the page for clean state
+            window.location.reload();
+        }
+
+        function startMinimalPolling() {
+            if (minimalModePollInterval) return;
+            fetchMinimalStatus();  // Initial fetch
+            minimalModePollInterval = setInterval(fetchMinimalStatus, MINIMAL_POLL_INTERVAL_MS);
+        }
+
+        function stopMinimalPolling() {
+            if (minimalModePollInterval) {
+                clearInterval(minimalModePollInterval);
+                minimalModePollInterval = null;
+            }
+        }
+
+        async function fetchMinimalStatus() {
+            try {
+                const response = await fetch('/sensor_status');
+                const data = await response.json();
+                renderMinimalStatus(data);
+            } catch (error) {
+                console.error('Minimal mode fetch failed:', error);
+                renderMinimalStatusError();
+            }
+        }
+
+        function renderMinimalStatus(data) {
+            const grid = document.getElementById('minimalStatusGrid');
+            if (!grid) return;
+
+            const printerConnected = data.elegoo && data.elegoo.isWebsocketConnected;
+            const filamentStopped = data.stopped || false;
+            const filamentRunout = data.filamentRunout || false;
+            const printStatus = data.elegoo?.printStatus || 0;
+            const isPrinting = printStatus !== 0 && printStatus !== 9;
+
+            // Determine statuses
+            const connStatus = printerConnected ? 'Connected' : 'Disconnected';
+            const connClass = printerConnected ? 'ok' : 'warning';
+
+            const filamentStatus = filamentStopped ? 'STOPPED' : (isPrinting ? 'Moving' : 'Idle');
+            const filamentClass = filamentStopped ? 'error' : (isPrinting ? 'ok' : 'idle');
+
+            const runoutStatus = filamentRunout ? 'RUNOUT' : 'Present';
+            const runoutClass = filamentRunout ? 'warning' : 'ok';
+
+            const expected = (data.elegoo?.expectedFilament || 0).toFixed(2);
+            const actual = (data.elegoo?.actualFilament || 0).toFixed(2);
+            const graceState = data.elegoo?.graceState ?? 0;
+            const armedStatus = getGraceStateLabel(graceState);
+            const pulses = (data.elegoo?.movementPulses || 0).toLocaleString();
+
+            // 2x5 grid layout (10 cells)
+            grid.innerHTML = `
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Printer</span>
+                    <span class="minimal-status-value ${connClass}">${connStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Print Status</span>
+                    <span class="minimal-status-value ${isPrinting ? 'ok' : 'idle'}">${getPrintStatus(printStatus)}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Filament</span>
+                    <span class="minimal-status-value ${filamentClass}">${filamentStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Runout</span>
+                    <span class="minimal-status-value ${runoutClass}">${runoutStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Expected</span>
+                    <span class="minimal-status-value">${expected} mm</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Actual</span>
+                    <span class="minimal-status-value">${actual} mm</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Detection</span>
+                    <span class="minimal-status-value">${armedStatus}</span>
+                </div>
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Pulses</span>
+                    <span class="minimal-status-value">${pulses}</span>
+                </div>
+            `;
+
+            // Update jam gauges
+            const hardJamPercent = Math.max(0, Math.min(100, data.elegoo?.hardJamPercent || 0));
+            const softJamPercent = Math.max(0, Math.min(100, data.elegoo?.softJamPercent || 0));
+
+            const hardJamEl = document.getElementById('minimalHardJamPercent');
+            const hardJamFill = document.getElementById('minimalHardJamFill');
+            const softJamEl = document.getElementById('minimalSoftJamPercent');
+            const softJamFill = document.getElementById('minimalSoftJamFill');
+
+            if (hardJamEl) hardJamEl.textContent = Math.round(hardJamPercent) + '%';
+            if (hardJamFill) {
+                hardJamFill.style.width = hardJamPercent + '%';
+                hardJamFill.className = 'minimal-jam-fill' + (hardJamPercent > 75 ? ' danger' : (hardJamPercent > 50 ? ' warning' : ''));
+            }
+            if (softJamEl) softJamEl.textContent = Math.round(softJamPercent) + '%';
+            if (softJamFill) {
+                softJamFill.style.width = softJamPercent + '%';
+                softJamFill.className = 'minimal-jam-fill' + (softJamPercent > 75 ? ' danger' : (softJamPercent > 50 ? ' warning' : ''));
+            }
+
+            // Update timestamp
+            const lastUpdate = document.getElementById('minimalLastUpdate');
+            if (lastUpdate) {
+                lastUpdate.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+            }
+        }
+
+        function renderMinimalStatusError() {
+            const grid = document.getElementById('minimalStatusGrid');
+            if (!grid) return;
+            grid.innerHTML = `
+                <div class="minimal-status-row">
+                    <span class="minimal-status-label">Status</span>
+                    <span class="minimal-status-value error">Connection Error</span>
+                </div>
+            `;
+            const lastUpdate = document.getElementById('minimalLastUpdate');
+            if (lastUpdate) {
+                lastUpdate.textContent = 'Last update: Failed - ' + new Date().toLocaleTimeString();
+            }
+        }
+
+        function initMinimalMode() {
+            if (isMinimalModeEnabled()) {
+                activateMinimalMode();
+                return true;  // Indicate minimal mode is active
+            }
+            return false;
+        }
+
+        function handleMinimalModeStatusToggle() {
+            const checkbox = document.getElementById('enable_minimal_mode');
+            if (checkbox) {
+                checkbox.onchange = () => {
+                    setMinimalModeEnabled(checkbox.checked);
+                    if (checkbox.checked) {
+                        activateMinimalMode();
+                    }
+                };
+            }
+        }
 
         const statusHelpText = {
             default: 'Tap any status tile to learn more about that value.',
@@ -1376,6 +2074,7 @@
             expectedFilament: 'Amount of filament (in millimeters) that the printer has requested within the active tracking window or job.',
             actualFilament: 'Amount of filament that physically moved through the sensor over the same period. Compare against expected to gauge flow health.',
             deficit: 'Difference between expected and actual filament. A growing deficit indicates under-extrusion or a clog.',
+            detectionState: 'Current jam detection state. "Armed" means actively monitoring for jams. "Warming Up" and "Resuming" are grace periods where detection is paused to prevent false positives.',
             printStatus: 'Live status reported by the Elegoo controller (Idle, Printing, Heating, etc.). Use this to confirm whether the printer thinks it is running.'
         };
 
@@ -1385,6 +2084,23 @@
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        // Update debug nav button visibility based on settings
+        function updateDebugNavVisibility() {
+            const debugNavBtn = document.getElementById('debugNavBtn');
+            if (debugNavBtn && currentSettings) {
+                debugNavBtn.style.display = currentSettings.show_debug_page ? '' : 'none';
+            }
+        }
+
+        // Toggle advanced settings visibility
+        function toggleAdvancedSettings() {
+            const checkbox = document.getElementById('show_advanced_settings');
+            const section = document.getElementById('advancedSettingsSection');
+            if (checkbox && section) {
+                section.classList.toggle('visible', checkbox.checked);
+            }
         }
 
         // Toast notifications
@@ -1440,6 +2156,23 @@
             modal.classList.remove('active');
         }
 
+        function openResetModal() {
+            const modal = document.getElementById('resetModal');
+            if (!modal) return;
+            modal.classList.add('active');
+        }
+
+        function closeResetModal() {
+            const modal = document.getElementById('resetModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+        }
+
+        function confirmResetDevice() {
+            closeResetModal();
+            resetDevice();
+        }
+
         function confirmDiscardSettings() {
             settingsDirty = false;
             updateSettingsDirtyIndicator();
@@ -1456,10 +2189,28 @@
             closeUnsavedModal();
         }
 
+        async function saveAndLeave() {
+            closeUnsavedModal();
+            await saveSettings();
+            if (!settingsDirty) {
+                const target = pendingPageSwitch;
+                pendingPageSwitch = null;
+                if (target) {
+                    performPageSwitch(target);
+                }
+            }
+        }
+
+        const saveAndLeaveBtn = document.getElementById('saveAndLeaveBtn');
         const discardSettingsBtn = document.getElementById('discardSettingsBtn');
         const stayOnSettingsBtn = document.getElementById('stayOnSettingsBtn');
+        if (saveAndLeaveBtn) saveAndLeaveBtn.addEventListener('click', saveAndLeave);
         if (discardSettingsBtn) discardSettingsBtn.addEventListener('click', confirmDiscardSettings);
         if (stayOnSettingsBtn) stayOnSettingsBtn.addEventListener('click', stayOnSettings);
+        const confirmResetBtn = document.getElementById('confirmResetBtn');
+        const cancelResetBtn = document.getElementById('cancelResetBtn');
+        if (confirmResetBtn) confirmResetBtn.addEventListener('click', confirmResetDevice);
+        if (cancelResetBtn) cancelResetBtn.addEventListener('click', closeResetModal);
 
         function switchPage(pageName) {
             const activePage = document.querySelector('.page.active');
@@ -1497,6 +2248,7 @@
                 initChart();
                 initFullPrintChart();
                 initJamCharts();
+                handleMinimalModeStatusToggle();
             } else if (pageName === 'settings') {
                 loadSettings();
             } else if (pageName === 'logs') {
@@ -1511,6 +2263,8 @@
 
         // Initialize Chart
         function initChart() {
+            if (!chartVisibility.metricsChart) return;
+
             const ctx = document.getElementById('metricsChart');
             if (metricsChart) {
                 metricsChart.destroy();
@@ -1562,6 +2316,8 @@
         }
 
         function initFullPrintChart() {
+            if (!chartVisibility.fullPrintChart) return;
+
             const ctx = document.getElementById('fullPrintChart');
             if (!ctx) return;
             if (fullPrintChart) {
@@ -1685,6 +2441,8 @@
         }
 
         function initJamCharts() {
+            if (!chartVisibility.jamCharts) return;
+
             const hardCtx = document.getElementById('hardJamHistoryChart');
             const softCtx = document.getElementById('softJamHistoryChart');
             if (!hardCtx || !softCtx) return;
@@ -1730,6 +2488,8 @@
         }
 
         function recordJamHistory(hardPercent, softPercent) {
+            if (!chartVisibility.jamCharts) return;
+
             const timestamp = new Date().toLocaleTimeString();
             const hardValue = Math.max(0, Math.min(100, Number(hardPercent) || 0));
             const softValue = Math.max(0, Math.min(100, Number(softPercent) || 0));
@@ -1785,6 +2545,8 @@
 
         // Update chart
         function updateChart(expected, actual) {
+            if (!chartVisibility.metricsChart) return;
+
             const nowLabel = new Date().toLocaleTimeString();
             metricsData.labels.push(nowLabel);
             metricsData.expected.push(expected);
@@ -1802,6 +2564,8 @@
         }
 
         function updateFullPrintChart(expected, actual) {
+            if (!chartVisibility.fullPrintChart) return;
+
             const nowLabel = new Date().toLocaleTimeString();
             fullPrintData.labels.push(nowLabel);
             fullPrintData.expected.push(expected);
@@ -2045,9 +2809,9 @@
                         <div class="status-label">Actual Filament</div>
                         <div class="status-value">${(data.elegoo?.actualFilament || 0).toFixed(2)} mm</div>
                     </div>
-                    <div class="status-item" data-help-key="deficit">
-                        <div class="status-label">Deficit</div>
-                        <div class="status-value">${(data.elegoo?.currentDeficitMm || 0).toFixed(2)} mm</div>
+                    <div class="status-item" data-help-key="detectionState">
+                        <div class="status-label">Detection State</div>
+                        <div class="status-value">${getGraceStateLabel(data.elegoo?.graceState ?? 0)}</div>
                     </div>
                     <div class="status-item" data-help-key="printStatus">
                         <div class="status-label">Print Status</div>
@@ -2149,7 +2913,7 @@
                 return;
             }
             lastSnapshotMs = now;
-            fetchStatusSnapshot({ suppressToast: true }).catch(() => {});
+            fetchStatusSnapshot({ suppressToast: true }).catch(() => { });
         }
 
         function setStatusHelpMessage(helpKey) {
@@ -2198,6 +2962,17 @@
             return statusMap[status] || 'Unknown';
         }
 
+        function getGraceStateLabel(graceState) {
+            const graceStateMap = {
+                0: 'Not Printing',   // IDLE
+                1: 'Print Starting', // START_GRACE
+                2: 'Resuming',       // RESUME_GRACE
+                3: 'Armed',          // ACTIVE
+                4: 'Jammed'          // JAMMED
+            };
+            return graceStateMap[graceState] || 'Unknown';
+        }
+
         function buildSettingsPayload() {
             const ssidEl = document.getElementById('ssid');
             if (!ssidEl) return null;
@@ -2208,22 +2983,22 @@
                 ap_mode: false,
                 elegooip: document.getElementById('elegooip').value,
                 pause_on_runout: document.getElementById('pause_on_runout').checked,
-                start_print_timeout: parseInt(document.getElementById('start_print_timeout').value) * 1000,
                 enabled: document.getElementById('enabled').checked,
-                detection_grace_period_ms: parseInt(document.getElementById('detection_grace_period_ms').value),
+                detection_grace_period_ms: Math.round(parseFloat(document.getElementById('detection_grace_period_ms').value) * 1000),
                 detection_ratio_threshold: parseInt(document.getElementById('detection_ratio_threshold').value),
                 detection_hard_jam_mm: parseFloat(document.getElementById('detection_hard_jam_mm').value),
                 detection_soft_jam_time_ms: parseInt(document.getElementById('detection_soft_jam_time_ms').value) * 1000,
                 detection_hard_jam_time_ms: parseInt(document.getElementById('detection_hard_jam_time_ms').value) * 1000,
                 detection_mode: parseInt(document.getElementById('detection_mode').value),
                 sdcp_loss_behavior: parseInt(document.getElementById('sdcp_loss_behavior').value),
-                flow_telemetry_stale_ms: parseInt(document.getElementById('flow_telemetry_stale_ms').value),
-                ui_refresh_interval_ms: parseInt(document.getElementById('ui_refresh_interval_ms').value),
+                flow_telemetry_stale_ms: Math.round(parseFloat(document.getElementById('flow_telemetry_stale_ms').value) * 1000),
+                ui_refresh_interval_ms: Math.round(parseFloat(document.getElementById('ui_refresh_interval_ms').value) * 1000),
                 log_level: parseInt(document.getElementById('log_level').value),
                 suppress_pause_commands: document.getElementById('suppress_pause_commands').checked,
                 movement_mm_per_pulse: parseFloat(document.getElementById('movement_mm_per_pulse').value),
                 auto_calibrate_sensor: document.getElementById('auto_calibrate_sensor').checked,
-                pulse_reduction_percent: parseFloat(document.getElementById('pulse_reduction_percent').value)
+                pulse_reduction_percent: parseFloat(document.getElementById('pulse_reduction_percent').value),
+                show_debug_page: document.getElementById('show_debug_page').checked
             };
         }
 
@@ -2274,6 +3049,20 @@
             try {
                 const response = await fetch('/get_settings');
                 currentSettings = await response.json();
+                updateDebugNavVisibility();
+
+                // Auto-sync timezone if needed
+                const browserOffset = new Date().getTimezoneOffset();
+                if (currentSettings.timezone_offset_minutes !== browserOffset) {
+                    console.log(`Syncing timezone offset: ${currentSettings.timezone_offset_minutes} -> ${browserOffset}`);
+                    fetch('/update_settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ timezone_offset_minutes: browserOffset })
+                    }).then(() => {
+                        currentSettings.timezone_offset_minutes = browserOffset;
+                    }).catch(err => console.error('Failed to sync timezone', err));
+                }
 
                 container.innerHTML = `
                     <h3 class="section-title">WiFi Settings</h3>
@@ -2291,44 +3080,35 @@
                     <h3 class="section-title">Printer Settings</h3>
 
                     <div class="form-group">
+                        <label class="form-label">Discovered Printers</label>
+                        <div id="discoveredPrintersList" class="radio-list">
+                            <div class="empty-state">No printers discovered yet. Click "Scan for Printers" to find printers on your network.</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-secondary" onclick="scanForPrinters()">Scan for Printers</button>
+                            <button type="button" class="btn btn-secondary" onclick="clearDiscoveredPrinters()" style="opacity: 0.7;">Clear List</button>
+                        </div>
+                        <div id="scanStatus" class="scan-status" style="display: none;">
+                            <span class="spinner"></span> Scanning for printers...
+                        </div>
+                        <p class="form-help" style="margin-top: 8px;">Scan multiple times if both printer IPs don't appear. Results are merged across scans.</p>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">Elegoo Printer IP Address</label>
                         <input type="text" class="form-input" id="elegooip" value="${escapeHtml(currentSettings.elegooip)}" placeholder="xxx.xxx.xxx.xxx">
-                        <button type="button" class="btn btn-secondary" style="margin-top: 12px;" onclick="discoverPrinter()">Auto-Discover Printer</button>
+                        <p class="form-help">Select a printer from the list above, or enter the IP address manually.</p>
                     </div>
 
                     <h3 class="section-title">Detection Settings</h3>
 
                     <div class="form-group">
                         <label class="form-label">Filament Movement per Pulse (mm)</label>
-                        <input type="number" step="0.01" class="form-input" id="movement_mm_per_pulse" value="${(currentSettings.movement_mm_per_pulse || 2.88).toFixed(4)}" min="0.1" max="10">
-                        <p class="form-help">Distance filament moves per sensor rotation. Default: 2.88mm per the SFS 2.0 specification. Enable 'Auto-calibrate sensor at print end' to automatically adjust this value, or manually calibrate by measuring actual vs. expected filament usage over a test print. Different sensor batches may vary slightly.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Reduce Pulses to (%)</label>
-                        <input type="number" step="1" class="form-input" id="pulse_reduction_percent" value="${Math.round(currentSettings.pulse_reduction_percent || 100)}" min="0" max="100">
-                        <p class="form-help">Simulate under-extrusion by counting only a percentage of pulses. 100% = normal operation, 50% = every other pulse, 20% = 1 out of 5 pulses, 0% = complete blockage. Useful for testing jam detection without physically modifying filament flow.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Detection Grace Period (ms)</label>
-                        <input type="number" class="form-input" id="detection_grace_period_ms" value="${currentSettings.detection_grace_period_ms || 8000}" min="0" max="15000" step="100">
-                        <p class="form-help">Time-based grace period after print starts before jam detection activates. Prevents false positives during print startup. The windowed tracking algorithm automatically handles purge lines and SDCP timing variations. Default: 5000ms.</p>
-                    </div>
-
-                    <div class="form-group" style="opacity: 0.5; pointer-events: none;">
-                        <label class="form-label">Purge Line Filament (mm) <span style="color: var(--text-secondary); font-size: 0.9em;">(Reserved for future use)</span></label>
-                        <input type="number" class="form-input" id="purge_filament_mm" value="${(currentSettings.purge_filament_mm !== undefined ? currentSettings.purge_filament_mm : 47).toFixed(1)}" min="0" step="0.5" disabled>
-                        <p class="form-help">This setting is reserved for potential future features. Currently not used by the jam detection algorithm.</p>
+                        <input type="number" step="0.01" class="form-input" id="movement_mm_per_pulse" value="${(currentSettings.movement_mm_per_pulse || 3.055).toFixed(4)}" min="0.1" max="10">
+                        <p class="form-help">Distance filament moves per sensor rotation. Default: 3.055mm (calibrated value). Enable 'Auto-calibrate sensor at print end' to automatically adjust this value, or manually calibrate by measuring actual vs. expected filament usage over a test print. Different sensor batches may vary slightly.</p>
                     </div>
 
                     <h3 class="section-title">Jam Detection Thresholds</h3>
-
-                    <div class="form-group">
-                        <label class="form-label">Soft Jam Ratio Threshold (%)</label>
-                        <input type="number" class="form-input" id="detection_ratio_threshold" value="${currentSettings.detection_ratio_threshold || 25}" min="5" max="50">
-                        <p class="form-help">Percentage of expected filament movement that must actually occur to be considered normal. For example, 60% means if flow drops below 60% of expected for longer than the soft jam time threshold, a soft jam is triggered. Higher = more sensitive (warns on smaller deficits); lower = more tolerant (only severe under-extrusion triggers).</p>
-                    </div>
 
                     <div class="form-group">
                         <label class="form-label">Soft Jam Time Threshold (seconds)</label>
@@ -2337,33 +3117,23 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Hard Jam Distance Threshold (mm)</label>
-                        <input type="number" step="0.5" class="form-input" id="detection_hard_jam_mm" value="${(currentSettings.detection_hard_jam_mm || 5.0).toFixed(1)}" min="1" max="15">
-                        <p class="form-help">If the printer commands at least this much filament movement but the sensor detects zero pulses for the hard jam time threshold, a hard jam is triggered. Lower = more sensitive to complete blockages. Increase if you have extruder slippage or very soft filament. Default: 5mm.</p>
-                    </div>
-
-                    <div class="form-group">
                         <label class="form-label">Hard Jam Time Threshold (seconds)</label>
-                        <input type="number" class="form-input" id="detection_hard_jam_time_ms" value="${(currentSettings.detection_hard_jam_time_ms / 1000 || 5)}" min="2" max="15">
-                        <p class="form-help">How long a hard jam condition (zero sensor pulses despite commanded extrusion) must persist before triggering a pause. This delay prevents false positives from momentary sensor glitches or brief retraction events. Default: 5 seconds.</p>
+                        <input type="number" class="form-input" id="detection_hard_jam_time_ms" value="${(currentSettings.detection_hard_jam_time_ms / 1000 || 3)}" min="2" max="15">
+                        <p class="form-help">How long a hard jam condition (zero sensor pulses despite commanded extrusion) must persist before triggering a pause. This delay prevents false positives from momentary sensor glitches or brief retraction events. Default: 3 seconds.</p>
                     </div>
 
                     <h3 class="section-title">Behavior Settings</h3>
 
-                    <div class="form-group">
-                        <label class="form-label">Start Print Timeout (seconds)</label>
-                        <input type="number" class="form-input" id="start_print_timeout" value="${(currentSettings.start_print_timeout / 1000 || 10)}" min="1" max="60">
-                        <p class="form-help">Delay before filament runout detection becomes active after print starts. Prevents false triggers during initial purge/prime moves.</p>
-                    </div>
-
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="pause_on_runout" ${currentSettings.pause_on_runout ? 'checked' : ''}>
-                        <label class="form-label" for="pause_on_runout" style="margin: 0;">Pause printing when filament runs out</label>
+                        <label class="form-label" for="pause_on_runout" style="margin: 0;">Enable filament presence monitoring</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Use the runout switch to detect missing filament and pause printing after the runout delay distance is satisfied.</p>
                     </div>
 
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="enabled" ${currentSettings.enabled ? 'checked' : ''}>
-                        <label class="form-label" for="enabled" style="margin: 0;">Enable filament monitoring</label>
+                        <label class="form-label" for="enabled" style="margin: 0;">Enable filament motion monitoring</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Enable real-time jam detection by monitoring filament motion. Disable to rely only on the runout switch for end-of-filament detection.</p>
                     </div>
 
                     <div class="form-group checkbox-group">
@@ -2371,6 +3141,43 @@
                         <label class="form-label" for="auto_calibrate_sensor" style="margin: 0;">Auto-calibrate sensor at print end</label>
                         <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Automatically adjusts the 'Filament Movement per Pulse' value based on actual print data when a print completes. Enable this to fine-tune sensor accuracy over time. Requires at least one complete print to calibrate.</p>
                     </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="show_advanced_settings" onchange="toggleAdvancedSettings()">
+                        <label class="form-label" for="show_advanced_settings" style="margin: 0;">Show advanced settings</label>
+                    </div>
+
+                    <div id="advancedSettingsSection" class="advanced-settings">
+
+                      <h3 class="section-title">Advanced Detection Settings</h3>
+
+                      <div class="form-group">
+                          <label class="form-label">Detection Grace Period (seconds)</label>
+                          <input type="number" class="form-input" id="detection_grace_period_ms" value="${((currentSettings.detection_grace_period_ms || 18000) / 1000)}" min="0" max="60" step="1">
+                          <p class="form-help">Grace period after print starts or resumes before jam detection activates. Prevents false positives during startup and after pause/resume. Default: 18 seconds.</p>
+                      </div>
+
+                      <div class="form-group">
+                          <label class="form-label">Soft Jam Ratio Threshold (%)</label>
+                          <input type="number" class="form-input" id="detection_ratio_threshold" value="${currentSettings.detection_ratio_threshold || 40}" min="5" max="80">
+                          <p class="form-help">Minimum acceptable flow rate as a percentage of expected extrusion. A soft jam triggers if actual flow stays below this percentage for the soft jam duration. Default: 40%. Higher values = more sensitive (catches smaller deficits), lower values = more tolerant.</p>
+                      </div>
+
+                      <div class="form-group">
+                          <label class="form-label">Hard Jam Distance Threshold (mm)</label>
+                          <input type="number" step="0.5" class="form-input" id="detection_hard_jam_mm" value="${(currentSettings.detection_hard_jam_mm || 12.0).toFixed(1)}" min="1" max="25">
+                          <p class="form-help">If the printer commands at least this much filament movement but the sensor detects zero pulses for the hard jam time threshold, a hard jam is triggered. Lower = more sensitive to complete blockages. Increase if you have extruder slippage or very soft filament. Default: 12mm.</p>
+                      </div>
+
+                      <div class="form-group">
+                          <label class="form-label">Jam Detection Mode</label>
+                          <select class="form-select" id="detection_mode">
+                              <option value="0" ${(currentSettings.detection_mode === 0 || currentSettings.detection_mode === undefined) ? 'selected' : ''}>Soft + Hard (default)</option>
+                              <option value="1" ${currentSettings.detection_mode == 1 ? 'selected' : ''}>Hard only (ignore soft detection)</option>
+                              <option value="2" ${currentSettings.detection_mode == 2 ? 'selected' : ''}>Soft only (ignore hard detection)</option>
+                          </select>
+                          <p class="form-help">Choose how the firmware evaluates jams; use Hard only to focus on total blockages or Soft only to watch for gradual underextrusion.</p>
+                      </div>
 
                       <h3 class="section-title">Logging Settings</h3>
 
@@ -2384,21 +3191,21 @@
                           <p class="form-help">Normal = production logging (startup, successes, failures, basic stats). Verbose = detailed flow state and telemetry. Pin Values = raw pin states (very chatty, emergency debugging only).</p>
                       </div>
 
-                      <div class="form-group">
-                          <label class="form-label">Jam Detection Mode</label>
-                          <select class="form-select" id="detection_mode">
-                              <option value="0" ${(currentSettings.detection_mode === 0 || currentSettings.detection_mode === undefined) ? 'selected' : ''}>Soft + Hard (default)</option>
-                              <option value="1" ${currentSettings.detection_mode == 1 ? 'selected' : ''}>Hard only (ignore soft detection)</option>
-                              <option value="2" ${currentSettings.detection_mode == 2 ? 'selected' : ''}>Soft only (ignore hard detection)</option>
-                          </select>
-                          <p class="form-help">Choose how the firmware evaluates jams; use Hard only to focus on total blockages or Soft only to watch for gradual underextrusion.</p>
-                      </div>
-
                       <div class="form-group checkbox-group">
                           <input type="checkbox" id="suppress_pause_commands" ${currentSettings.suppress_pause_commands ? 'checked' : ''}>
-                          <label class="form-label" for="suppress_pause_commands" style="margin: 0;">Suppress Cancel Messages</label>
-                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Prevent the sensor from sending pause/cancel commands to the printer. Useful for testing and development. When enabled, pause attempts will be logged but not sent.</p>
+                          <label class="form-label" for="suppress_pause_commands" style="margin: 0;">Suppress Pause Commands</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Prevent the sensor from sending pause commands to the printer. Useful for testing and development. When enabled, pause attempts will be logged but not sent.</p>
                     </div>
+
+                    <h3 class="section-title">Testing</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Pulse Reduction (%) - Testing Only</label>
+                        <input type="number" step="1" class="form-input" id="pulse_reduction_percent" value="${Math.round(currentSettings.pulse_reduction_percent || 100)}" min="0" max="100">
+                        <p class="form-help">Simulate under-extrusion by counting only a percentage of pulses. 100% = normal operation, 50% = every other pulse, 20% = 1 out of 5 pulses, 0% = complete blockage. Useful for testing jam detection without physically modifying filament flow.</p>
+                    </div>
+
+                    <h3 class="section-title">Connection Settings</h3>
 
                     <div class="form-group">
                         <label class="form-label">Printer Connection Loss Behavior</label>
@@ -2410,26 +3217,33 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Printer Connection Timeout (ms)</label>
-                        <input type="number" class="form-input" id="flow_telemetry_stale_ms" value="${currentSettings.flow_telemetry_stale_ms || 1000}" min="250" max="60000" step="250">
-                        <p class="form-help">Time without telemetry before considering connection lost.</p>
+                        <label class="form-label">Printer Connection Timeout (seconds)</label>
+                        <input type="number" class="form-input" id="flow_telemetry_stale_ms" value="${((currentSettings.flow_telemetry_stale_ms || 1500) / 1000)}" min="0.5" max="60" step="0.5">
+                        <p class="form-help">Time without telemetry before considering connection lost. Default: 1.5 seconds.</p>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Web UI Refresh Interval (ms)</label>
-                        <input type="number" class="form-input" id="ui_refresh_interval_ms" value="${currentSettings.ui_refresh_interval_ms || 1000}" min="250" max="5000" step="250">
-                        <p class="form-help">How often the Status page updates sensor data. Lower values = more responsive display but higher CPU usage. Recommended: 500-1000ms for active monitoring, 2000-5000ms for passive monitoring.</p>
+                        <label class="form-label">Web UI Refresh Interval (seconds)</label>
+                        <input type="number" class="form-input" id="ui_refresh_interval_ms" value="${((currentSettings.ui_refresh_interval_ms || 1000) / 1000)}" min="0.25" max="5" step="0.25">
+                        <p class="form-help">How often the Status page updates sensor data. Lower values = more responsive display but higher CPU usage. Recommended: 0.5-1 second for active monitoring, 2-5 seconds for passive monitoring.</p>
                     </div>
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="show_debug_page" ${currentSettings.show_debug_page ? 'checked' : ''}>
+                        <label class="form-label" for="show_debug_page" style="margin: 0;">Show Debug Page</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Show the Debug page in the navigation menu. Useful for troubleshooting.</p>
+                    </div>
+
+                    </div><!-- end advancedSettingsSection -->
 
                     <div class="btn-group">
                         <button type="button" class="btn" onclick="saveSettings()">Save Settings</button>
-                        <button type="button" class="btn btn-secondary" onclick="testPause()">Send Pause Command</button>
-                        <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume Command</button>
                     </div>
                 `;
 
                 attachSettingsChangeHandlers();
                 setSettingsBaseline(buildSettingsPayload());
+                loadSavedPrinters();  // Restore discovered printers from localStorage
             } catch (error) {
                 showToast('Failed to load settings: ' + error.message, 'error');
                 container.innerHTML = '<p style="color: var(--error);">Failed to load settings. Please refresh.</p>';
@@ -2450,12 +3264,27 @@
                     body: JSON.stringify(settings)
                 });
 
+                const responseText = await response.text();
                 if (response.ok) {
                     showToast('Settings saved successfully!', 'success');
                     currentSettings = settings;
                     setSettingsBaseline(settings);
+                    updateDebugNavVisibility();
                 } else {
-                    throw new Error('Failed to save settings');
+                    let errorMessage = 'Failed to save settings';
+                    if (responseText) {
+                        try {
+                            const parsed = JSON.parse(responseText);
+                            if (parsed && parsed.error) {
+                                errorMessage = parsed.error;
+                            } else {
+                                errorMessage = responseText;
+                            }
+                        } catch (_) {
+                            errorMessage = responseText;
+                        }
+                    }
+                    throw new Error(errorMessage);
                 }
             } catch (error) {
                 showToast('Failed to save settings: ' + error.message, 'error');
@@ -2488,20 +3317,186 @@
             }
         }
 
-        async function discoverPrinter() {
+        // Printer Discovery - Polling-based implementation
+        let discoveryPollInterval = null;
+
+        // Track discovery passes for automatic retry
+        let discoveryPassCount = 0;
+        const MAX_DISCOVERY_PASSES = 2;  // Run 2 passes to reliably catch all devices
+
+        async function scanForPrinters() {
+            const statusEl = document.getElementById('scanStatus');
+            const listEl = document.getElementById('discoveredPrintersList');
+
+            if (statusEl) statusEl.style.display = 'flex';
+            discoveryPassCount = 0;
+
             try {
-                showToast('Discovering printer...', 'info');
+                await runDiscoveryPass();
+            } catch (error) {
+                showToast('Failed to start discovery: ' + error.message, 'error');
+                if (statusEl) statusEl.style.display = 'none';
+            }
+        }
+
+        async function runDiscoveryPass() {
+            discoveryPassCount++;
+            const statusEl = document.getElementById('scanStatus');
+
+            // Start discovery via POST
+            const startResponse = await fetch('/discover_printer', { method: 'POST' });
+            const startData = await startResponse.json();
+
+            if (startData.active && discoveryPassCount === 1) {
+                showToast('Discovery already in progress...', 'info');
+            } else if (discoveryPassCount === 1) {
+                showToast('Scanning for printers...', 'info');
+            }
+
+            // Clear any existing poll interval
+            if (discoveryPollInterval) {
+                clearInterval(discoveryPollInterval);
+            }
+
+            // Poll for results every 500ms
+            discoveryPollInterval = setInterval(pollDiscoveryStatus, 500);
+
+            // Safety timeout - stop polling after 4 seconds (backend is 2.5s)
+            setTimeout(() => {
+                if (discoveryPollInterval) {
+                    clearInterval(discoveryPollInterval);
+                    discoveryPollInterval = null;
+                    if (statusEl) statusEl.style.display = 'none';
+                }
+            }, 4000);
+        }
+
+        async function pollDiscoveryStatus() {
+            try {
                 const response = await fetch('/discover_printer');
                 const data = await response.json();
 
-                if (data.elegooip) {
-                    document.getElementById('elegooip').value = data.elegooip;
-                    showToast(`Printer found at ${data.elegooip}`, 'success');
-                } else {
-                    showToast('No printer found on network', 'error');
+                // Merge with existing results immediately (for display during scan)
+                const newPrinters = data.printers || [];
+                const mergedPrinters = mergeDiscoveredPrinters(newPrinters);
+                updatePrinterList(mergedPrinters);
+
+                // When this pass completes
+                if (!data.active) {
+                    clearInterval(discoveryPollInterval);
+                    discoveryPollInterval = null;
+
+                    // Save merged results
+                    localStorage.setItem('discoveredPrinters', JSON.stringify(mergedPrinters));
+
+                    // Run another pass if we haven't reached the limit
+                    // ESP32 UDP buffer can only hold ~2 packets, so multiple passes catch all devices
+                    if (discoveryPassCount < MAX_DISCOVERY_PASSES) {
+                        // Small delay before next pass
+                        setTimeout(() => {
+                            runDiscoveryPass().catch(() => { });
+                        }, 300);
+                        return;
+                    }
+
+                    // All passes complete - show final results
+                    const statusEl = document.getElementById('scanStatus');
+                    if (statusEl) statusEl.style.display = 'none';
+
+                    if (mergedPrinters.length > 0) {
+                        showToast(`Found ${mergedPrinters.length} printer(s)`, 'success');
+                    } else {
+                        showToast('No printers found on network', 'info');
+                    }
                 }
             } catch (error) {
-                showToast('Discovery failed: ' + error.message, 'error');
+                // Ignore poll errors silently, keep trying
+            }
+        }
+
+        function mergeDiscoveredPrinters(newPrinters) {
+            // Load existing printers from localStorage
+            let existing = [];
+            try {
+                const saved = localStorage.getItem('discoveredPrinters');
+                if (saved) {
+                    existing = JSON.parse(saved) || [];
+                }
+            } catch (e) {
+                existing = [];
+            }
+
+            // Create a map by IP for deduplication
+            const byIp = new Map();
+
+            // Add existing printers first
+            for (const p of existing) {
+                if (p.ip) {
+                    byIp.set(p.ip, p);
+                }
+            }
+
+            // Add/update with new printers (newer data takes precedence)
+            for (const p of newPrinters) {
+                if (p.ip) {
+                    byIp.set(p.ip, p);
+                }
+            }
+
+            // Convert back to array, sorted by IP
+            return Array.from(byIp.values()).sort((a, b) => a.ip.localeCompare(b.ip));
+        }
+
+        function updatePrinterList(printers) {
+            const listEl = document.getElementById('discoveredPrintersList');
+            if (!listEl) return;
+
+            const currentIp = document.getElementById('elegooip')?.value || '';
+
+            if (!printers || printers.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">No printers discovered yet. Click "Scan for Printers" to find printers on your network.</div>';
+                return;
+            }
+
+            listEl.innerHTML = printers.map((p, idx) => `
+                <label>
+                    <input type="radio" name="discoveredPrinter" value="${escapeHtml(p.ip)}"
+                           ${p.ip === currentIp ? 'checked' : ''}
+                           onchange="selectDiscoveredPrinter('${escapeHtml(p.ip)}')">
+                    <div class="printer-info">
+                        <div class="printer-ip">${escapeHtml(p.ip)}</div>
+                        ${p.payload ? `<div class="printer-payload">${escapeHtml(p.payload)}</div>` : ''}
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        function selectDiscoveredPrinter(ip) {
+            const input = document.getElementById('elegooip');
+            if (input) {
+                input.value = ip;
+                updateSettingsDirtyState();
+                showToast(`Selected ${ip}. Don't forget to Save Settings!`, 'info');
+            }
+        }
+
+        function clearDiscoveredPrinters() {
+            localStorage.removeItem('discoveredPrinters');
+            updatePrinterList([]);
+            showToast('Cleared discovered printers list', 'info');
+        }
+
+        function loadSavedPrinters() {
+            try {
+                const saved = localStorage.getItem('discoveredPrinters');
+                if (saved) {
+                    const printers = JSON.parse(saved);
+                    if (printers && printers.length > 0) {
+                        updatePrinterList(printers);
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors
             }
         }
 
@@ -2565,10 +3560,13 @@
          */
         function compareLogTimestamps(a, b) {
             // Parse MM.DD.YY-HH:MM:SS to comparable YYMMDDHHMMSS
+            // Parse [YYYY-MM-DD HH:MM:SS] or YYYY-MM-DD HH:MM:SS to comparable start
+            // Supports both bracketed (Serial) and partial (LogText) formats if mixed,
+            // but we standardize on "YYYY-MM-DD HH:MM:SS"
             const parseTs = (ts) => {
-                const match = ts.match(/^(\d{2})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})/);
-                if (!match) return '000000000000';
-                const [, mm, dd, yy, hh, min, ss] = match;
+                const match = ts.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+                if (!match) return '00000000000000';
+                const [, yy, mm, dd, hh, min, ss] = match;
                 return `${yy}${mm}${dd}${hh}${min}${ss}`;
             };
             return parseTs(a).localeCompare(parseTs(b));
@@ -2577,14 +3575,15 @@
         function formatLogTimestamp() {
             const now = new Date();
             const pad = (value) => String(value).padStart(2, '0');
+            const yy = now.getFullYear();
             const mm = pad(now.getMonth() + 1);
             const dd = pad(now.getDate());
-            const yy = pad(now.getFullYear() % 100);
             const hh = pad(now.getHours());
             const min = pad(now.getMinutes());
             const ss = pad(now.getSeconds());
-            return `${mm}.${dd}.${yy}-${hh}:${min}:${ss}`;
+            return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
         }
+
 
         function addLocalLogEntry(message) {
             const entry = `${formatLogTimestamp()} ${message}`;
@@ -2663,7 +3662,7 @@
 
         function debounce(fn, delay) {
             let timer;
-            return function(...args) {
+            return function (...args) {
                 clearTimeout(timer);
                 timer = setTimeout(() => fn.apply(this, args), delay);
             };
@@ -2790,17 +3789,40 @@
             }
         }
 
-        function clearLogsDisplay() {
-            const container = document.getElementById('logContainer');
-            container.innerHTML = '<div class="log-entry info">Display cleared. Logs will refresh automatically.</div>';
-            showToast('Display cleared (accumulated logs preserved)', 'info');
-        }
+        async function clearLogsDisplay() {
+            try {
+                // Clear logs on the ESP32 first so they don't come back on next poll
+                const response = await fetch('/api/logs/clear', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                showToast('Failed to clear device logs: ' + error.message, 'error');
+                // Continue to clear browser-side anyway
+            }
 
-        function clearAccumulatedLogs() {
             initLogAccumulator();
             const container = document.getElementById('logContainer');
-            container.innerHTML = '<div class="log-entry info">Accumulator reset. Fresh collection started.</div>';
-            showToast('Log accumulator reset', 'info');
+            container.innerHTML = '<div class="log-entry info">Display cleared. Fresh collection started.</div>';
+            showToast('Display cleared', 'success');
+        }
+
+        async function clearAccumulatedLogs() {
+            try {
+                // Clear logs on the ESP32 first so they don't come back on next poll
+                const response = await fetch('/api/logs/clear', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                showToast('Failed to clear device logs: ' + error.message, 'error');
+                // Continue to clear browser-side anyway
+            }
+
+            initLogAccumulator();
+            const container = document.getElementById('logContainer');
+            container.innerHTML = '<div class="log-entry info">Logs cleared. Fresh collection started.</div>';
+            showToast('Logs cleared', 'success');
         }
 
         // Update Page (Lite OTA helper)
@@ -2841,6 +3863,39 @@
 
             const stripped = afterV.replace(/^v+/i, '').trim();
             return stripped || '0.0.0';
+        }
+
+        async function getPrinterIpAddress() {
+            let ip = currentSettings?.elegooip;
+            if (ip) {
+                return ip;
+            }
+
+            try {
+                const response = await fetch('/get_settings');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                if (!currentSettings) {
+                    currentSettings = data;
+                }
+                ip = data.elegooip;
+            } catch (error) {
+                addLocalLogEntry(`Failed to fetch printer IP: ${error.message}`);
+            }
+
+            return ip;
+        }
+
+        async function openPrinterUi() {
+            const ip = await getPrinterIpAddress();
+            if (!ip) {
+                showToast('Printer IP not set. Configure it in Settings first.', 'warning');
+                return;
+            }
+            const url = `http://${ip}:3030`;
+            window.open(url, '_blank', 'noopener');
         }
 
         // About Page
@@ -2915,8 +3970,8 @@
                 const latest = parseVersion(latestVersion);
 
                 if (latest.major > current.major ||
-                   (latest.major === current.major && latest.minor > current.minor) ||
-                   (latest.major === current.major && latest.minor === current.minor && latest.patch > current.patch)) {
+                    (latest.major === current.major && latest.minor > current.minor) ||
+                    (latest.major === current.major && latest.minor === current.minor && latest.patch > current.patch)) {
                     if (banner) {
                         banner.classList.remove('hidden');
                     }
@@ -2992,7 +4047,13 @@
         }
 
         window.addEventListener('load', () => {
+            // Check for minimal mode first - if enabled, skip full UI initialization
+            if (initMinimalMode()) {
+                return;  // Minimal mode is active, don't initialize full UI
+            }
+
             initLogAccumulator();  // Start browser-side log accumulation
+            initChartToggles();    // Load chart visibility preferences
             switchPage('status');
             initLiteOtaUploader();
             initStatusCardReset();

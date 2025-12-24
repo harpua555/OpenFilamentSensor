@@ -82,7 +82,7 @@ void Logger::logInternal(const char *message, LogLevel level)
         return;  // Don't log messages above current level
     }
 
-    // Print to serial first
+    // Print to serial first (keep simple to avoid blocking WiFi stack)
     Serial.println(message);
 
     if (logCapacity == 0 || logBuffer == nullptr)
@@ -261,8 +261,8 @@ String Logger::getLogsAsText(int maxEntries)
         time_t localTimestamp = logBuffer[bufferIndex].timestamp;
         struct tm *timeinfo = localtime(&localTimestamp);
         if (timeinfo != nullptr) {
-            char timeStr[20];
-            strftime(timeStr, sizeof(timeStr), "%m.%d.%y-%H:%M:%S", timeinfo);
+            char timeStr[24];
+            strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
             result += timeStr;
         } else {
             result += String(logBuffer[bufferIndex].timestamp);

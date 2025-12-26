@@ -133,6 +133,12 @@ class ElegooCC
         unsigned long    lastStatusRequestMs = 0;
         unsigned long    connectionStartMs   = 0;  // When connect() was called (for throttle bypass)
         bool             blocked             = false;  // Discovery lockout for transport
+
+        // Reconnection state
+        unsigned long    lastReconnectAttemptMs = 0;   // When connect() was last called
+        unsigned long    reconnectBackoffMs     = 5000; // Current backoff interval (5s-60s max)
+        int              consecutiveFailures    = 0;    // For exponential backoff calculation
+        String           lastAttemptedIp;               // Detect IP changes for immediate reconnect
     };
 
     TransportState        transport;

@@ -159,7 +159,8 @@ void ElegooCC::webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     switch (type)
     {
         case WStype_DISCONNECTED:
-            logger.log("Disconnected from Centauri Carbon");
+            logger.logf("Disconnected from Centauri Carbon (prior failures: %d)",
+                        transport.consecutiveFailures);
             // Reset acknowledgment state on disconnect
             transport.waitingForAck       = false;
             transport.pendingAckCommand   = -1;
@@ -744,6 +745,10 @@ void ElegooCC::reconnect()
 {
     // Reconnect to the printer with the current IP from settings
     // Called when settings are updated (e.g., after auto-discovery)
+    // Reset backoff to allow immediate connection attempt
+    transport.reconnectBackoffMs  = 0;
+    transport.consecutiveFailures = 0;
+
     String configuredIp = settingsManager.getElegooIP();
     if (configuredIp.length() > 0)
     {
@@ -808,6 +813,11 @@ void ElegooCC::connect()
     {
         transport.webSocket.disconnect();
     }
+
+    // Track this connection attempt for reconnection logic
+    transport.lastReconnectAttemptMs = millis();
+    transport.lastAttemptedIp        = transport.ipAddress;
+
     transport.webSocket.setReconnectInterval(3000);
     logger.logf("Attempting connection to Elegoo CC @ %s", transport.ipAddress.c_str());
     transport.connectionStartMs = millis();
@@ -830,7 +840,15 @@ void ElegooCC::updateTransport(unsigned long currentTime)
 
     if (transport.webSocket.isConnected())
     {
+        // CONNECTED: Clear connection tracking and reset backoff on successful reconnection
         transport.connectionStartMs = 0;
+        if (transport.consecutiveFailures > 0)
+        {
+            logger.logf("Reconnected after %d failed attempts", transport.consecutiveFailures);
+            transport.consecutiveFailures = 0;
+            transport.reconnectBackoffMs  = 5000;  // Reset backoff to initial value
+        }
+
         if (transport.waitingForAck &&
             (currentTime - transport.ackWaitStartTime) >= ACK_TIMEOUT_MS)
         {
@@ -847,45 +865,62 @@ void ElegooCC::updateTransport(unsigned long currentTime)
             transport.webSocket.sendTXT("ping");
             transport.lastPing = currentTime;
         }
-     
+
         transport.webSocket.loop();
     }
     else
     {
-        // Allow frequent loop() calls for a short window after connect() starts
+        // DISCONNECTED: Active reconnection with exponential backoff
+
+        // Check if IP has changed (settings update) - trigger immediate reconnection
+        String currentIp = settingsManager.getElegooIP();
+        if (currentIp != transport.lastAttemptedIp && currentIp.length() > 0 &&
+            currentIp != "1.1.1.1")
+        {
+            logger.logf("Printer IP changed from %s to %s, reconnecting immediately",
+                        transport.lastAttemptedIp.c_str(), currentIp.c_str());
+            transport.reconnectBackoffMs  = 0;  // Allow immediate retry
+            transport.consecutiveFailures = 0;
+        }
+
+        // Check if a connection attempt is in progress (first 10 seconds after connect())
         bool connectionInProgress = (transport.connectionStartMs != 0) &&
                                     ((currentTime - transport.connectionStartMs) < 10000);
-        if (!connectionInProgress && transport.connectionStartMs != 0 &&
-            (currentTime - transport.connectionStartMs) >= 10000)
-        {
-            transport.connectionStartMs = 0;  // Connection attempt timed out
-        }
-
-        // When disconnected, throttle loop() calls to avoid blocking the main loop
-        // during TCP connection attempts. WebSocketsClient blocks for ~5s on unreachable IPs.
-        static unsigned long lastDisconnectedLoopMs = 0;
-        static bool initialized = false;
-
-        // On first call, initialize timestamp to current time to prevent immediate block
-        if (!initialized)
-        {
-            lastDisconnectedLoopMs = currentTime;
-            initialized = true;
-            if (!connectionInProgress)
-            {
-                return;  // Skip the blocking call on first iteration
-            }
-        }
 
         if (connectionInProgress)
         {
+            // Connection attempt in progress - let library complete handshake
             transport.webSocket.loop();
-            lastDisconnectedLoopMs = currentTime;
         }
-        else if (currentTime - lastDisconnectedLoopMs >= 10000)
+        else
         {
-            lastDisconnectedLoopMs = currentTime;
-            transport.webSocket.loop();
+            // No connection in progress - handle timeout or initiate new attempt
+            if (transport.connectionStartMs != 0)
+            {
+                // Previous connection attempt timed out
+                transport.connectionStartMs = 0;
+                transport.consecutiveFailures++;
+
+                // Exponential backoff: 5s, 10s, 20s, 40s, 60s max
+                unsigned long backoff =
+                    5000UL * (1UL << min(transport.consecutiveFailures - 1, 4));
+                transport.reconnectBackoffMs = min(backoff, 60000UL);
+
+                logger.logf("Connection attempt timed out (failure #%d), next retry in %lus",
+                            transport.consecutiveFailures, transport.reconnectBackoffMs / 1000);
+            }
+
+            // Check if backoff has expired - time for a new connection attempt
+            if ((currentTime - transport.lastReconnectAttemptMs) >= transport.reconnectBackoffMs)
+            {
+                if (transport.consecutiveFailures > 0)
+                {
+                    logger.logf("Initiating reconnection attempt #%d",
+                                transport.consecutiveFailures + 1);
+                }
+                connect();  // This sets connectionStartMs and calls webSocket.begin()
+            }
+            // Note: No webSocket.loop() call here - avoids 5s blocking on unreachable IPs
         }
     }
 }

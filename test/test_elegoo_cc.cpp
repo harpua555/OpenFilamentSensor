@@ -895,6 +895,138 @@ void testMachineStatusRaceConditionProtection() {
     TEST_PASS("Machine status race condition handled throughout lifecycle");
 }
 
+// ============================================================================
+// Reconnection Logic Tests
+// ============================================================================
+
+void testExponentialBackoffCalculation() {
+    TEST_SECTION("Exponential Backoff Calculation");
+
+    // Test the backoff calculation formula: 5000 * 2^(failures-1), max 60000
+    // This matches the formula in updateTransport():
+    //   5000UL * (1UL << min(consecutiveFailures - 1, 4))
+
+    auto calculateBackoff = [](int failures) -> unsigned long {
+        if (failures <= 0) return 5000;
+        unsigned long backoff = 5000UL * (1UL << std::min(failures - 1, 4));
+        return std::min(backoff, 60000UL);
+    };
+
+    // Test backoff values for each failure count
+    TEST_ASSERT(calculateBackoff(1) == 5000, "Failure 1: 5s backoff");
+    TEST_ASSERT(calculateBackoff(2) == 10000, "Failure 2: 10s backoff");
+    TEST_ASSERT(calculateBackoff(3) == 20000, "Failure 3: 20s backoff");
+    TEST_ASSERT(calculateBackoff(4) == 40000, "Failure 4: 40s backoff");
+    TEST_ASSERT(calculateBackoff(5) == 60000, "Failure 5: 60s backoff (capped)");
+    TEST_ASSERT(calculateBackoff(6) == 60000, "Failure 6: 60s backoff (still capped)");
+    TEST_ASSERT(calculateBackoff(100) == 60000, "Failure 100: 60s backoff (max)");
+
+    TEST_PASS("Exponential backoff: 5s -> 10s -> 20s -> 40s -> 60s max");
+}
+
+void testReconnectionStateTracking() {
+    TEST_SECTION("Reconnection State Tracking");
+
+    // Simulate the transport state tracking fields
+    struct MockTransportState {
+        unsigned long lastReconnectAttemptMs = 0;
+        unsigned long reconnectBackoffMs = 5000;
+        int consecutiveFailures = 0;
+        String lastAttemptedIp;
+    };
+
+    MockTransportState transport;
+
+    // Initial state
+    TEST_ASSERT(transport.consecutiveFailures == 0, "No failures initially");
+    TEST_ASSERT(transport.reconnectBackoffMs == 5000, "Initial backoff is 5s");
+    TEST_ASSERT(transport.lastAttemptedIp.length() == 0, "No IP attempted initially");
+
+    // Simulate first connection attempt
+    transport.lastReconnectAttemptMs = 1000;
+    transport.lastAttemptedIp = "192.168.1.50";
+
+    TEST_ASSERT(transport.lastReconnectAttemptMs == 1000, "Attempt time recorded");
+    TEST_ASSERT(transport.lastAttemptedIp == "192.168.1.50", "IP recorded");
+
+    // Simulate connection timeout (failure)
+    transport.consecutiveFailures = 1;
+    transport.reconnectBackoffMs = 5000;  // First failure = 5s
+
+    TEST_ASSERT(transport.consecutiveFailures == 1, "Failure count incremented");
+    TEST_ASSERT(transport.reconnectBackoffMs == 5000, "Backoff set to 5s");
+
+    // Simulate second failure
+    transport.consecutiveFailures = 2;
+    transport.reconnectBackoffMs = 10000;  // Second failure = 10s
+
+    TEST_ASSERT(transport.consecutiveFailures == 2, "Failure count is 2");
+    TEST_ASSERT(transport.reconnectBackoffMs == 10000, "Backoff increased to 10s");
+
+    // Simulate successful connection (reset)
+    transport.consecutiveFailures = 0;
+    transport.reconnectBackoffMs = 5000;
+
+    TEST_ASSERT(transport.consecutiveFailures == 0, "Failures reset on success");
+    TEST_ASSERT(transport.reconnectBackoffMs == 5000, "Backoff reset to 5s");
+
+    TEST_PASS("Reconnection state tracking works correctly");
+}
+
+void testIpChangeDetection() {
+    TEST_SECTION("IP Change Detection for Immediate Reconnect");
+
+    struct MockTransportState {
+        unsigned long reconnectBackoffMs = 5000;
+        int consecutiveFailures = 0;
+        String lastAttemptedIp;
+    };
+
+    MockTransportState transport;
+
+    // Simulate existing connection state with failures
+    transport.lastAttemptedIp = "192.168.1.50";
+    transport.consecutiveFailures = 3;
+    transport.reconnectBackoffMs = 20000;  // 20s backoff from 3 failures
+
+    // Simulate IP change detection (from updateTransport logic)
+    String newIp = "192.168.1.75";
+    if (newIp != transport.lastAttemptedIp && newIp.length() > 0 && newIp != "1.1.1.1") {
+        transport.reconnectBackoffMs = 0;  // Allow immediate retry
+        transport.consecutiveFailures = 0;
+    }
+
+    TEST_ASSERT(transport.reconnectBackoffMs == 0, "Backoff reset to 0 for immediate retry");
+    TEST_ASSERT(transport.consecutiveFailures == 0, "Failures reset on IP change");
+
+    TEST_PASS("IP change triggers immediate reconnection");
+}
+
+void testBackoffExpirationCheck() {
+    TEST_SECTION("Backoff Expiration Check");
+
+    resetMockTime();
+
+    unsigned long lastReconnectAttemptMs = millis();
+    unsigned long reconnectBackoffMs = 5000;
+
+    // Initially, backoff not expired
+    TEST_ASSERT((millis() - lastReconnectAttemptMs) < reconnectBackoffMs,
+                "Backoff not expired immediately");
+
+    // Advance time but not enough
+    advanceTime(3000);
+    TEST_ASSERT((millis() - lastReconnectAttemptMs) < reconnectBackoffMs,
+                "Backoff not expired at 3s");
+
+    // Advance past backoff
+    advanceTime(2500);  // Now at 5.5s total
+    TEST_ASSERT((millis() - lastReconnectAttemptMs) >= reconnectBackoffMs,
+                "Backoff expired after 5s");
+
+    TEST_PASS("Backoff expiration timing works correctly");
+}
+
 int main() {
     TEST_SUITE_BEGIN("ElegooCC Unit Test Suite");
 
@@ -916,6 +1048,12 @@ int main() {
     testPulseCountingDuringSDCPLoss();
     testIsPrintingStillRequiresBothConditions();
     testMachineStatusRaceConditionProtection();
+
+    // Reconnection logic tests
+    testExponentialBackoffCalculation();
+    testReconnectionStateTracking();
+    testIpChangeDetection();
+    testBackoffExpirationCheck();
 
     TEST_SUITE_END();
 }

@@ -19,6 +19,7 @@ Logger::Logger()
     logCapacity     = MAX_LOG_ENTRIES;
     uuidCounter     = 0;
     currentLogLevel = LOG_NORMAL;  // Default to normal logging
+    _logMutex       = portMUX_INITIALIZER_UNLOCKED;
 
     logBuffer = new (std::nothrow) LogEntry[logCapacity];
     if (!logBuffer)
@@ -97,6 +98,9 @@ void Logger::logInternal(const char *message, LogLevel level)
     // Get current timestamp
     unsigned long timestamp = getTime();
 
+    // Critical section for buffer update
+    portENTER_CRITICAL(&_logMutex);
+
     // Store in circular buffer with fixed-size copy
     strncpy(logBuffer[currentIndex].uuid, uuid, sizeof(logBuffer[currentIndex].uuid) - 1);
     logBuffer[currentIndex].uuid[sizeof(logBuffer[currentIndex].uuid) - 1] = '\0';
@@ -114,6 +118,7 @@ void Logger::logInternal(const char *message, LogLevel level)
     {
         totalEntries = totalEntries + 1;  // Avoid ++ with volatile
     }
+    portEXIT_CRITICAL(&_logMutex);
 }
 
 void Logger::log(const char *message, LogLevel level)
@@ -275,6 +280,68 @@ String Logger::getLogsAsText(int maxEntries)
     return result;
 }
 
+void Logger::streamLogs(Print* printer)
+{
+    if (logCapacity == 0 || logBuffer == nullptr || printer == nullptr)
+    {
+        return;
+    }
+
+    portENTER_CRITICAL(&_logMutex);
+    int snapshotIndex = currentIndex;
+    int snapshotCount = totalEntries;
+    portEXIT_CRITICAL(&_logMutex);
+
+    if (snapshotCount == 0)
+    {
+        return;
+    }
+
+    // Determine start index based on whether buffer has wrapped
+    int startIndex = (snapshotCount < logCapacity) ? 0 : snapshotIndex;
+
+    for (int i = 0; i < snapshotCount; i++)
+    {
+        int bufferIndex = (startIndex + i) % logCapacity;
+        
+        // Bounds check
+        if (bufferIndex < 0 || bufferIndex >= logCapacity) continue;
+
+        // Note: Reading inside critical section for 250 entries might hold lock too long.
+        // Reading outside is risky but acceptable for "snapshot-like" streaming if
+        // we accept minor tearing. For safety with corruptable pointers, we'll
+        // format into a stack buffer one by one inside a short critical section,
+        // or just accept the race on the content (but not the pointer).
+        // Best approach here: lock, copy ONE entry to local stack, unlock, print, repeat.
+        
+        LogEntry entryCopy;
+        portENTER_CRITICAL(&_logMutex);
+        entryCopy = logBuffer[bufferIndex];
+        portEXIT_CRITICAL(&_logMutex);
+
+        // Format and print
+        time_t localTimestamp = entryCopy.timestamp;
+        struct tm *timeinfo = localtime(&localTimestamp);
+        
+        if (timeinfo != nullptr) {
+            char timeStr[24];
+            strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
+            printer->print(timeStr);
+        } else {
+            printer->print(entryCopy.timestamp);
+        }
+        printer->print(" ");
+        printer->print(entryCopy.message);
+        printer->print("\n");
+        
+        // Yield to watchdog occasionally
+        if (i % 10 == 0) {
+            yield();
+        }
+    }
+}
+
+
 void Logger::clearLogs()
 {
     currentIndex = 0;
@@ -284,6 +351,7 @@ void Logger::clearLogs()
         return;
     }
     // Clear the buffer
+    portENTER_CRITICAL(&_logMutex);
     for (int i = 0; i < logCapacity; i++)
     {
         memset(logBuffer[i].uuid, 0, sizeof(logBuffer[i].uuid));
@@ -291,6 +359,7 @@ void Logger::clearLogs()
         memset(logBuffer[i].message, 0, sizeof(logBuffer[i].message));
         logBuffer[i].level = LOG_NORMAL;
     }
+    portEXIT_CRITICAL(&_logMutex);
 }
 
 int Logger::getLogCount()

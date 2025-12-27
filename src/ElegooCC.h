@@ -228,6 +228,7 @@ class ElegooCC
     CachedSettings cachedSettings;
     JamConfig cachedJamConfig;
     portMUX_TYPE cacheLock;
+    portMUX_TYPE _stateMutex;
 
     // Command tracking
     unsigned long lastPauseRequestMs;

@@ -1617,6 +1617,7 @@
                 <div class="btn-group">
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
                     <button type="button" class="btn btn-secondary" onclick="downloadLogs()">Download All</button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadCoredump()">Download Coredump</button>
                     <button type="button" class="btn btn-secondary" onclick="clearLogsDisplay()">Clear Display</button>
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
@@ -3205,6 +3206,12 @@
                         <p class="form-help">Simulate under-extrusion by counting only a percentage of pulses. 100% = normal operation, 50% = every other pulse, 20% = 1 out of 5 pulses, 0% = complete blockage. Useful for testing jam detection without physically modifying filament flow.</p>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Crash Testing</label>
+                        <button type="button" class="btn btn-secondary" onclick="triggerPanic()">Trigger Panic</button>
+                        <p class="form-help">For support/debugging only. This will immediately crash the device and generate a coredump.</p>
+                    </div>
+
                     <h3 class="section-title">Connection Settings</h3>
 
                     <div class="form-group">
@@ -3786,6 +3793,53 @@
                 showToast(`Downloaded ${count.toLocaleString()} log entries`, 'success');
             } catch (error) {
                 showToast('Failed to download logs: ' + error.message, 'error');
+            }
+        }
+
+        async function downloadCoredump() {
+            try {
+                const response = await fetch('/api/coredump');
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showToast('No coredump available', 'warning');
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                if (!blob || blob.size === 0) {
+                    showToast('Coredump download was empty', 'warning');
+                    return;
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `coredump_${new Date().toISOString()}.bin`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                showToast('Coredump downloaded', 'success');
+            } catch (error) {
+                showToast('Failed to download coredump: ' + error.message, 'error');
+            }
+        }
+
+        async function triggerPanic() {
+            const confirmText = 'Trigger a panic crash now? The device will reboot and disconnect.';
+            if (!window.confirm(confirmText)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/panic', { method: 'POST' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                showToast('Panic triggered. Device will reboot.', 'warning');
+            } catch (error) {
+                showToast('Failed to trigger panic: ' + error.message, 'error');
             }
         }
 

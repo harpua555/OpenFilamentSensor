@@ -1,25 +1,44 @@
+#!/usr/bin/env python3
+"""
+Decode ESP32 coredump files using Windows GDB from WSL environment.
+Relocatable script that anchors paths to the repository root.
+"""
 import subprocess
 import os
-import sys
 import argparse
 from datetime import datetime
 
 def analyze():
-    # 1. Setup Argument Parser
+    # 1. Handle Script Location and Paths
+    # Finds the 'reporoot' by looking one level up from the 'tools' folder
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(script_dir, ".."))
+    
+    # 2. Setup Argument Parser
     parser = argparse.ArgumentParser(description="Decode ESP32 Coredump from WSL using Windows GDB")
-    parser.add_argument("chip", help="Chip type (e.g., esp32s3, esp32c3)")
-    parser.add_argument("--core", default=".coredump/coredump.bin", help="Path to coredump file")
+    # Chip now defaults to esp32s3
+    parser.add_argument("chip", nargs="?", default="esp32s3", help="Chip type (default: esp32s3)")
+    # Core now defaults to .coredump/coredump.bin relative to repo root
+    parser.add_argument("--core", default=os.path.join(repo_root, ".coredump/coredump.bin"), 
+                        help="Path to coredump file")
     args = parser.parse_args()
 
-    # 2. Define internal paths
-    elf_path = f".pio/build/{args.chip}/firmware.elf"
+    # 3. Define internal paths relative to repo root
+    elf_path = os.path.join(repo_root, f".pio/build/{args.chip}/firmware.elf")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
-    report_path = f".coredump/report_{args.chip}_{timestamp}.txt"
+    
+    # Analysis output folder
+    analysis_dir = os.path.join(repo_root, ".coredump/analysis")
+    os.makedirs(analysis_dir, exist_ok=True)
+    
+    report_path = os.path.join(analysis_dir, f"report_{args.chip}_{timestamp}.txt")
 
-    # 3. Convert Linux paths to Windows paths using 'wslpath'
+    # 4. Convert Linux paths to Windows paths using 'wslpath'
     try:
         def to_win(path):
-            return subprocess.check_output(["wslpath", "-w", path]).decode().strip()
+            # Resolve to absolute path before converting to ensure Windows can find it
+            abs_path = os.path.abspath(path)
+            return subprocess.check_output(["wslpath", "-w", abs_path]).decode().strip()
 
         win_core = to_win(args.core)
         win_elf = to_win(elf_path)
@@ -28,23 +47,33 @@ def analyze():
         print(f"Error converting paths: {e}")
         return
 
-    # 4. Construct the PowerShell Command
-    # Note: We use the S3 toolchain for S3 chips, and the generic one for others.
-    gdb_pkg = f"toolchain-xtensa-{args.chip}" if "s3" in args.chip else "toolchain-riscv32-esp"
-    gdb_path = f"$env:USERPROFILE\\.platformio\\packages\\{gdb_pkg}\\bin\\xtensa-{args.chip}-elf-gdb.exe"
-    
-    if "c3" in args.chip: # C3 uses RISC-V debugger
-        gdb_path = f"$env:USERPROFILE\\.platformio\\packages\\toolchain-riscv32-esp\\bin\\riscv32-esp-elf-gdb.exe"
+    # 5. Construct the PowerShell Command
+    # Map GDB package names based on chip architecture
+    if "c3" in args.chip or "c6" in args.chip: # RISC-V Chips
+        gdb_pkg = "toolchain-riscv32-esp"
+        gdb_exe = "riscv32-esp-elf-gdb.exe"
+    else: # Xtensa Chips (ESP32, S2, S3)
+        gdb_pkg = f"toolchain-xtensa-{args.chip}"
+        gdb_exe = f"xtensa-{args.chip}-elf-gdb.exe"
+
+    gdb_path = f"$env:USERPROFILE\\.platformio\\packages\\{gdb_pkg}\\bin\\{gdb_exe}"
 
     ps_cmd = (
         f"python.exe -m esp_coredump info_corefile "
         f"--gdb \"{gdb_path}\" --core \"{win_core}\" \"{win_elf}\" > \"{win_report}\""
     )
 
-    # 5. Execute via powershell.exe
+    # 6. Execute via powershell.exe
     print(f"--- Analyzing {args.chip} core dump ---")
-    subprocess.run(["powershell.exe", "-Command", ps_cmd])
-    print(f"Done! Report saved to: {report_path}")
+    print(f"Target ELF: {elf_path}")
+    
+    # Run the process
+    result = subprocess.run(["powershell.exe", "-Command", ps_cmd])
+    
+    if result.returncode == 0:
+        print(f"Success! Report saved to: {report_path}")
+    else:
+        print("Analysis failed. Ensure the .elf file exists and GDB is installed in Windows.")
 
 if __name__ == "__main__":
     analyze()

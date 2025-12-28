@@ -299,11 +299,23 @@ void WebServer::begin()
     server.on(kRouteLogsText, HTTP_GET,
               [](AsyncWebServerRequest *request)
               {
-                  String textResponse = logger.getLogsAsText();
-                  AsyncWebServerResponse *response =
-                      request->beginResponse(200, "text/plain", textResponse);
-                  response->addHeader("Content-Disposition", "attachment; filename=\"logs.txt\"");
-                  request->send(response);
+                /*
+                  AsyncWebServerResponse *response = request->beginChunkedResponse("text/plain",
+                    [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+                        // This uses a custom shim to adapt the Print interface to the chunked response
+                        // but since we don't have a direct "Print to buffer" adapter easily available for AsyncWebServer's callback style
+                        // without a class, we need a different approach.
+                        // Actually, Logger::streamLogs takes a Print*. AsyncResponseStream inherits from Print!
+                        return 0; 
+                    });
+                */ 
+         
+                  AsyncResponseStream *streamResponse = request->beginResponseStream("text/plain");
+                  streamResponse->addHeader("Content-Disposition", "attachment; filename=\"logs.txt\"");
+    
+                  logger.streamLogs(streamResponse);
+                  
+                  request->send(streamResponse);
               });
 
     // Live logs endpoint (last 100 entries for UI display)

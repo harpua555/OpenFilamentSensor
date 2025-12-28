@@ -37,6 +37,9 @@ class Logger
     // Current log level (loaded from settings)
     LogLevel currentLogLevel;
 
+    // Concurrency protection
+    portMUX_TYPE _logMutex;
+
     Logger();
 
     // Delete copy constructor and assignment operator
@@ -74,6 +77,7 @@ class Logger
 
     String getLogsAsText();
     String getLogsAsText(int maxEntries);
+    void   streamLogs(Print* printer);
     void   clearLogs();
     int    getLogCount();
 };

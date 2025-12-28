@@ -3,7 +3,8 @@ name: PR CI and Build All Boards
 on:
   pull_request:
     branches:
-      - dev
+      - zzdev
+      - main
   workflow_dispatch:
 
 jobs:

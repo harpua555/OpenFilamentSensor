@@ -62,6 +62,62 @@ JamConfig buildJamConfigFromSettings()
 // External function to get current time (from main.cpp)
 extern unsigned long getTime();
 
+// Get current printer information
+printer_info_t ElegooCC::getCurrentInformation()
+{
+    printer_info_t info;
+    JamState jamState = jamDetector.getState();
+    bool motionMonitoringEnabled = settingsManager.getEnabled();
+    if (!motionMonitoringEnabled)
+    {
+        jamState = JamState{};
+    }
+
+    portENTER_CRITICAL(&_stateMutex);
+    info.filamentStopped      = motionMonitoringEnabled ? filamentStopped : false;
+    info.filamentRunout       = filamentRunout;
+    info.runoutPausePending   = filamentRunout && runoutPausePending && settingsManager.getPauseOnRunout();
+    info.runoutPauseCommanded = runoutPauseCommanded;
+    info.runoutPauseRemainingMm = runoutPauseRemainingMm;
+    info.runoutPauseDelayMm   = runoutPauseDelayMm;
+    info.mainboardID          = mainboardID;
+    info.taskId               = taskId;
+    info.filename             = filename;
+    info.printStatus          = printStatus;
+    info.isPrinting           = (printStatus == SDCP_PRINT_STATUS_PRINTING && (machineStatusMask & (1 << SDCP_MACHINE_STATUS_PRINTING)) != 0);
+    info.currentLayer         = currentLayer;
+    info.totalLayer           = totalLayer;
+    info.progress             = progress;
+    info.currentTicks         = currentTicks;
+    info.totalTicks           = totalTicks;
+    info.PrintSpeedPct        = PrintSpeedPct;
+    info.isWebsocketConnected = transport.webSocket.isConnected();
+    info.currentZ             = currentZ;
+    info.waitingForAck        = transport.waitingForAck;
+    info.expectedFilamentMM   = expectedFilamentMM;
+    info.actualFilamentMM     = actualFilamentMM;
+    info.lastExpectedDeltaMM  = lastExpectedDeltaMM;
+    info.telemetryAvailable   = telemetryAvailableLastStatus;
+
+    // Expose deficit metrics for UI from jam detector (read inside critical section
+    // to avoid race with checkFilamentMovement() updates)
+    info.currentDeficitMm     = jamState.deficit;
+    info.deficitThresholdMm   = 0.0f;
+    float expectedDist        = motionSensor.getExpectedDistance();
+    info.deficitRatio         = jamState.deficit / (expectedDist > 0.1f ? expectedDist : 1.0f);
+    info.passRatio            = jamState.passRatio;
+    info.hardJamPercent       = jamState.hardJamPercent;
+    info.softJamPercent       = jamState.softJamPercent;
+    info.graceActive          = jamState.graceActive;
+    info.graceState           = static_cast<uint8_t>(jamState.graceState);
+    info.expectedRateMmPerSec = jamState.expectedRateMmPerSec;
+    info.actualRateMmPerSec   = jamState.actualRateMmPerSec;
+    info.movementPulseCount   = movementPulseCount;
+    portEXIT_CRITICAL(&_stateMutex);
+
+    return info;
+}
+
 ElegooCC &ElegooCC::getInstance()
 {
     static ElegooCC instance;
@@ -126,7 +182,8 @@ ElegooCC::ElegooCC()
     lastPauseRequestMs = 0;
     lastPrintEndMs     = 0;
     lastJamDetectorUpdateMs = 0;
-    cacheLock = portMUX_INITIALIZER_UNLOCKED;
+    cacheLock   = portMUX_INITIALIZER_UNLOCKED;
+    _stateMutex = portMUX_INITIALIZER_UNLOCKED;
 
     // event handler
     transport.webSocket.onEvent([this](WStype_t type, uint8_t *payload, size_t length)
@@ -275,7 +332,9 @@ void ElegooCC::handleStatus(JsonDocument &doc)
         if (firstComma != -1 && secondComma != -1)
         {
             String zStr = coordsStr.substring(secondComma + 1);
+            portENTER_CRITICAL(&_stateMutex);
             currentZ    = zStr.toFloat();
+            portEXIT_CRITICAL(&_stateMutex);
         }
     }
 
@@ -452,8 +511,14 @@ void ElegooCC::handleStatus(JsonDocument &doc)
                  resetFilamentTracking();
             }
         }
+            //}
+        //}
+        
+        portENTER_CRITICAL(&_stateMutex);
         printStatus  = newStatus;
-        bool nowPrinting = isPrinting();
+        bool nowPrinting = (printStatus == SDCP_PRINT_STATUS_PRINTING && (machineStatusMask & (1 << SDCP_MACHINE_STATUS_PRINTING)) != 0);
+        portEXIT_CRITICAL(&_stateMutex);
+
         if (wasPrinting && !nowPrinting)
         {
             lastPrintEndMs = statusTimestamp;
@@ -1382,57 +1447,6 @@ void ElegooCC::setMachineStatuses(const int *statusArray, int arraySize)
             machineStatusMask |= (1 << statusArray[i]);
         }
     }
-}
-
-// Get current printer information
-printer_info_t ElegooCC::getCurrentInformation()
-{
-    printer_info_t info;
-    JamState jamState = jamDetector.getState();
-    bool motionMonitoringEnabled = settingsManager.getEnabled();
-    if (!motionMonitoringEnabled)
-    {
-        jamState = JamState{};
-    }
-
-    info.filamentStopped      = motionMonitoringEnabled ? filamentStopped : false;
-    info.filamentRunout       = filamentRunout;
-    info.runoutPausePending   = filamentRunout && runoutPausePending && settingsManager.getPauseOnRunout();
-    info.runoutPauseCommanded = runoutPauseCommanded;
-    info.runoutPauseRemainingMm = runoutPauseRemainingMm;
-    info.runoutPauseDelayMm   = runoutPauseDelayMm;
-    info.mainboardID          = mainboardID;
-    info.taskId               = taskId;
-    info.filename             = filename;
-    info.printStatus          = printStatus;
-    info.isPrinting           = isPrinting();
-    info.currentLayer         = currentLayer;
-    info.totalLayer           = totalLayer;
-    info.progress             = progress;
-    info.currentTicks         = currentTicks;
-    info.totalTicks           = totalTicks;
-    info.PrintSpeedPct        = PrintSpeedPct;
-    info.isWebsocketConnected = transport.webSocket.isConnected();
-    info.currentZ             = currentZ;
-    info.waitingForAck        = transport.waitingForAck;
-    info.expectedFilamentMM   = expectedFilamentMM;
-    info.actualFilamentMM     = actualFilamentMM;
-    info.lastExpectedDeltaMM  = lastExpectedDeltaMM;
-    info.telemetryAvailable   = telemetryAvailableLastStatus;
-    // Expose deficit metrics for UI from jam detector
-    info.currentDeficitMm     = jamState.deficit;
-    info.deficitThresholdMm   = 0.0f;
-    info.deficitRatio         = jamState.deficit / (motionSensor.getExpectedDistance() > 0.1f ? motionSensor.getExpectedDistance() : 1.0f);
-    info.passRatio            = jamState.passRatio;
-    info.hardJamPercent       = jamState.hardJamPercent;
-    info.softJamPercent       = jamState.softJamPercent;
-    info.graceActive          = jamState.graceActive;
-    info.graceState           = static_cast<uint8_t>(jamState.graceState);
-    info.expectedRateMmPerSec = jamState.expectedRateMmPerSec;
-    info.actualRateMmPerSec   = jamState.actualRateMmPerSec;
-    info.movementPulseCount   = movementPulseCount;
-
-    return info;
 }
 
 bool ElegooCC::startDiscoveryAsync(unsigned long timeoutMs, DiscoveryCallback callback)

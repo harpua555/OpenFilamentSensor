@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <esp_system.h>
+#include <esp_core_dump.h>
 
 #include "ElegooCC.h"
 #include "LittleFS.h"
@@ -43,15 +45,39 @@ WebServer webServer(80);
 bool isElegooSetup    = false;
 bool isWebServerSetup = false;
 
+// Store reset reason for diagnostics
+static esp_reset_reason_t lastResetReason = ESP_RST_UNKNOWN;
+
+static const char* getResetReasonString(esp_reset_reason_t reason)
+{
+    switch (reason) {
+        case ESP_RST_POWERON:  return "Power-on";
+        case ESP_RST_SW:       return "Software";
+        case ESP_RST_PANIC:    return "Panic/Crash";
+        case ESP_RST_INT_WDT:  return "Interrupt watchdog";
+        case ESP_RST_TASK_WDT: return "Task watchdog";
+        case ESP_RST_WDT:      return "Other watchdog";
+        case ESP_RST_BROWNOUT: return "Brownout";
+        case ESP_RST_DEEPSLEEP: return "Deep sleep";
+        case ESP_RST_EXT:      return "External";
+        default:               return "Unknown";
+    }
+}
+
 void setup()
 {
-    // put your setup code here, to run once:
+    // Initialize serial and log reset reason FIRST for crash diagnostics
+    Serial.begin(115200);
+    lastResetReason = esp_reset_reason();
+    Serial.printf("Reset reason: %s (%d)\n", getResetReasonString(lastResetReason), lastResetReason);
+
+    // Set up pins
     pinMode(FILAMENT_RUNOUT_PIN, INPUT_PULLUP);
     pinMode(MOVEMENT_SENSOR_PIN, INPUT_PULLUP);
-    Serial.begin(115200);
 
     // Initialize logging system
     logger.log("ESP SFS System starting up...");
+    logger.logf("Reset reason: %s (%d)", getResetReasonString(lastResetReason), lastResetReason);
     logger.logf("Firmware version: %s", firmwareVersion);
     logger.logf("Chip family: %s", chipFamily);
     logger.logf("Build timestamp (UTC compile time): %s", buildTimestamp);
@@ -60,6 +86,18 @@ void setup()
     logger.log("Filesystem initialized");
     logger.logf("Filesystem usage: total=%u bytes, used=%u bytes",
                 SPIFFS.totalBytes(), SPIFFS.usedBytes());
+
+    // Check for coredump from previous crash
+    esp_err_t coredumpErr = esp_core_dump_image_check();
+    if (coredumpErr == ESP_OK) {
+        logger.log("WARNING: Coredump from previous crash detected!");
+        logger.log("Use 'espcoredump.py' tool to analyze the crash");
+    } else if (lastResetReason == ESP_RST_PANIC ||
+               lastResetReason == ESP_RST_TASK_WDT ||
+               lastResetReason == ESP_RST_INT_WDT) {
+        logger.logf("WARNING: Crash detected (reason=%s) but no coredump found",
+                    getResetReasonString(lastResetReason));
+    }
 
     // Load settings early
     settingsManager.load();

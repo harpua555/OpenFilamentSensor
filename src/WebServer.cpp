@@ -22,6 +22,8 @@ constexpr const char kRouteLogsText[]         = "/api/logs_text";
 constexpr const char kRouteLogsLive[]         = "/api/logs_live";
 constexpr const char kRouteLogsClear[]        = "/api/logs/clear";
 constexpr const char kRouteCoredump[]         = "/api/coredump";
+constexpr const char kRouteCoredumpStatus[]   = "/api/coredump/status";
+constexpr const char kRouteCoredumpClear[]    = "/api/coredump/clear";
 constexpr const char kRoutePanic[]            = "/api/panic";
 constexpr const char kRouteVersion[]          = "/version";
 constexpr const char kRouteStatusEvents[]     = "/status_events";
@@ -373,6 +375,45 @@ void WebServer::begin()
                   request->send(response);
               });
 
+    // Coredump status endpoint
+    server.on(kRouteCoredumpStatus, HTTP_GET,
+              [](AsyncWebServerRequest *request)
+              {
+                  const esp_partition_t *partition =
+                      esp_partition_find_first(ESP_PARTITION_TYPE_DATA,
+                                               ESP_PARTITION_SUBTYPE_DATA_COREDUMP,
+                                               nullptr);
+                  bool available = (partition != nullptr && partition->size > 0 &&
+                                    esp_core_dump_image_check() == ESP_OK);
+                  request->send(200, "application/json",
+                                available ? "{\"available\":true}" : "{\"available\":false}");
+              });
+
+    // Coredump clear endpoint (erase coredump partition)
+    server.on(kRouteCoredumpClear, HTTP_POST,
+              [](AsyncWebServerRequest *request)
+              {
+                  const esp_partition_t *partition =
+                      esp_partition_find_first(ESP_PARTITION_TYPE_DATA,
+                                               ESP_PARTITION_SUBTYPE_DATA_COREDUMP,
+                                               nullptr);
+                  if (!partition || partition->size == 0)
+                  {
+                      request->send(404, "text/plain", "Coredump partition not found");
+                      return;
+                  }
+
+                  esp_err_t err = esp_partition_erase_range(partition, 0, partition->size);
+                  if (err != ESP_OK)
+                  {
+                      request->send(500, "text/plain", "Failed to clear coredump");
+                      return;
+                  }
+
+                  logger.log("Coredump cleared via web UI");
+                  request->send(200, "text/plain", "ok");
+              });
+
     // Live logs endpoint (last 100 entries for UI display)
     server.on(kRouteLogsLive, HTTP_GET,
               [](AsyncWebServerRequest *request)
@@ -391,6 +432,7 @@ void WebServer::begin()
               });
 
     // Trigger a controlled panic for testing coredumps
+#ifdef ENABLE_CRASH_TESTING
     server.on(kRoutePanic, HTTP_POST,
               [](AsyncWebServerRequest *request)
               {
@@ -399,6 +441,7 @@ void WebServer::begin()
                   delay(250);
                   esp_system_abort("User-requested panic");
               });
+#endif
 
     // Version endpoint
     server.on(kRouteVersion, HTTP_GET,

@@ -1618,6 +1618,7 @@
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
                     <button type="button" class="btn btn-secondary" onclick="downloadLogs()">Download All</button>
                     <button type="button" class="btn btn-secondary" onclick="downloadCoredump()">Download Coredump</button>
+                    <button type="button" class="btn btn-secondary" id="clearCoredumpBtn" onclick="clearCoredump()" style="display: none;">Clear Coredump</button>
                     <button type="button" class="btn btn-secondary" onclick="clearLogsDisplay()">Clear Display</button>
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
@@ -1723,6 +1724,7 @@
     <script src="/lite/lite_ota.js"></script>
     <script>
         // Global state
+        const ENABLE_CRASH_TESTING = true; // Set false for release builds.
         let currentSettings = null;
         let settingsBaseline = null;
         let settingsDirty = false;
@@ -1731,6 +1733,7 @@
         let logsInterval = null;
         let versionCheckInterval = null;
         let metricsChart = null;
+        let coredumpAvailable = false;
         let metricsData = {
             labels: [],
             expected: [],
@@ -2254,6 +2257,7 @@
                 loadSettings();
             } else if (pageName === 'logs') {
                 loadLogs();
+                checkCoredumpStatus();
                 logsInterval = setInterval(loadLogs, 3000);
             } else if (pageName === 'about') {
                 loadAboutInfo();
@@ -3206,11 +3210,13 @@
                         <p class="form-help">Simulate under-extrusion by counting only a percentage of pulses. 100% = normal operation, 50% = every other pulse, 20% = 1 out of 5 pulses, 0% = complete blockage. Useful for testing jam detection without physically modifying filament flow.</p>
                     </div>
 
+                    ${ENABLE_CRASH_TESTING ? `
                     <div class="form-group">
                         <label class="form-label">Crash Testing</label>
                         <button type="button" class="btn btn-secondary" onclick="triggerPanic()">Trigger Panic</button>
                         <p class="form-help">For support/debugging only. This will immediately crash the device and generate a coredump.</p>
                     </div>
+                    ` : ''}
 
                     <h3 class="section-title">Connection Settings</h3>
 
@@ -3821,8 +3827,53 @@
                 window.URL.revokeObjectURL(url);
 
                 showToast('Coredump downloaded', 'success');
+                coredumpAvailable = true;
+                updateCoredumpClearVisibility();
             } catch (error) {
                 showToast('Failed to download coredump: ' + error.message, 'error');
+            }
+        }
+
+        function updateCoredumpClearVisibility() {
+            const btn = document.getElementById('clearCoredumpBtn');
+            if (!btn) return;
+            btn.style.display = coredumpAvailable ? 'inline-flex' : 'none';
+        }
+
+        async function checkCoredumpStatus() {
+            try {
+                const response = await fetch('/api/coredump/status');
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                coredumpAvailable = Boolean(data && data.available);
+                updateCoredumpClearVisibility();
+            } catch (error) {
+                // Ignore status failures; keep current visibility state.
+            }
+        }
+
+        async function clearCoredump() {
+            const confirmText = 'Clear the stored coredump from flash? This cannot be undone.';
+            if (!window.confirm(confirmText)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/coredump/clear', { method: 'POST' });
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showToast('Coredump partition not found', 'warning');
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                showToast('Coredump cleared from device', 'success');
+                coredumpAvailable = false;
+                updateCoredumpClearVisibility();
+            } catch (error) {
+                showToast('Failed to clear coredump: ' + error.message, 'error');
             }
         }
 

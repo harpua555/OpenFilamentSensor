@@ -144,7 +144,7 @@ const buildAssetMap = (assets = []) => {
     return map;
 };
 
-const normalizeRelease = (release, index = 0) => {
+const normalizeRelease = (release) => {
     const rawTag = release.tag_name || '';
     const normalizedTag = rawTag ? `v${stripLeadingV(rawTag)}` : '';
     return {
@@ -156,7 +156,7 @@ const normalizeRelease = (release, index = 0) => {
         body: typeof release.body === 'string' ? release.body : '',
         isPrerelease: !!release.prerelease,
         isDraft: !!release.draft,
-        isCurrent: !release.draft && index === 0
+        isCurrent: false
     };
 };
 
@@ -170,7 +170,15 @@ const fetchReleasesList = async (perPage = 20) => {
         throw new Error(`Release lookup failed (${response.status})`);
     }
     const releases = await response.json();
-    return (releases || []).map((rel, idx) => normalizeRelease(rel, idx));
+    const normalized = (releases || []).map((rel) => normalizeRelease(rel));
+
+    // Mark the first stable (non-draft, non-prerelease) release as current
+    const firstStable = normalized.find((r) => !r.isDraft && !r.isPrerelease);
+    if (firstStable) {
+        firstStable.isCurrent = true;
+    }
+
+    return normalized;
 };
 
 const buildManifestForBoard = (board, mergedUrl, version, releaseTag) => {

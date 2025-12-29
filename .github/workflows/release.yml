@@ -148,6 +148,17 @@ jobs:
           fi
           echo "VERSION=$VERSION_FINAL" >> "$GITHUB_OUTPUT"
 
+      - name: Compute build timestamp overrides
+        id: build_time
+        shell: bash
+        run: |
+          BUILD_DATE="$(date +"%b %d %Y")"
+          BUILD_TIME="$(date +"%H:%M:%S")"
+          BUILD_TIMESTAMP="$(date +"%m%d%y%H%M%S")"
+          echo "build_date=$BUILD_DATE" >> "$GITHUB_OUTPUT"
+          echo "build_time=$BUILD_TIME" >> "$GITHUB_OUTPUT"
+          echo "build_timestamp=$BUILD_TIMESTAMP" >> "$GITHUB_OUTPUT"
+
       - name: Resolve chip family
         id: chip
         env:
@@ -202,15 +213,83 @@ jobs:
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           mkdir -p data
           echo "$VERSION" > data/build_version.txt
-          echo "$(date +%m%d%y%H%M%S)" > data/build_timestamp.txt
+          echo "${{ steps.build_time.outputs.build_timestamp }}" > data/build_timestamp.txt
           echo "$VERSION" > data/.version
 
       - name: Build firmware + filesystem for ${{ matrix.env }}
         env:
           FIRMWARE_VERSION: ${{ steps.get_version.outputs.VERSION }}
           CHIP_FAMILY: ${{ steps.chip.outputs.family }}
+          BUILD_DATE_OVERRIDE: ${{ steps.build_time.outputs.build_date }}
+          BUILD_TIME_OVERRIDE: ${{ steps.build_time.outputs.build_time }}
+          BUILD_TIMESTAMP_OVERRIDE: ${{ steps.build_time.outputs.build_timestamp }}
         run: |
           python tools/build_and_flash.py --env ${{ matrix.env }} --local --ignore-secrets
+
+      - name: Create build metadata
+        env:
+          ARTIFACT_DIR: release-assets-${{ matrix.env }}
+          BOARD_ENV: ${{ matrix.env }}
+          BUILD_DATE: ${{ steps.build_time.outputs.build_date }}
+          BUILD_TIME: ${{ steps.build_time.outputs.build_time }}
+          BUILD_TIMESTAMP: ${{ steps.build_time.outputs.build_timestamp }}
+          CHIP_FAMILY: ${{ steps.chip.outputs.family }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          mkdir -p "$ARTIFACT_DIR"
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          def run(args):
+              return subprocess.check_output(args, text=True).strip()
+
+          board_env = os.environ["BOARD_ENV"]
+          artifact_dir = os.environ["ARTIFACT_DIR"]
+          output_path = os.path.join(artifact_dir, f"{board_env}-build-metadata.json")
+
+          try:
+              platform_info = run(["pio", "platform", "show", "espressif32", "--json-output"])
+              platform_data = json.loads(platform_info)
+          except Exception:
+              platform_data = {}
+
+          platform_version = ""
+          if isinstance(platform_data, dict):
+              platform_version = platform_data.get("version", "")
+          elif isinstance(platform_data, list) and platform_data:
+              platform_version = platform_data[0].get("version", "")
+
+          try:
+              pio_packages = json.loads(run(["pio", "pkg", "list", "-e", board_env, "--json-output"]))
+          except Exception:
+              pio_packages = []
+
+          data = {
+              "git_ref": os.environ.get("GITHUB_REF", ""),
+              "git_sha": os.environ.get("GITHUB_SHA", ""),
+              "board_env": board_env,
+              "firmware_label": os.environ.get("VERSION", ""),
+              "build_version": os.environ.get("VERSION", ""),
+              "build_date": os.environ.get("BUILD_DATE", ""),
+              "build_time": os.environ.get("BUILD_TIME", ""),
+              "build_timestamp": os.environ.get("BUILD_TIMESTAMP", ""),
+              "timezone": os.environ.get("TZ", ""),
+              "chip_family": os.environ.get("CHIP_FAMILY", ""),
+              "platformio_version": run(["pio", "--version"]).split()[-1],
+              "espressif32_platform": platform_version,
+              "python_version": run([sys.executable, "--version"]).split()[-1],
+              "node_version": run(["node", "--version"]),
+              "pio_packages": pio_packages,
+          }
+
+          with open(output_path, "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          print(f"Wrote build metadata: {output_path}")
+          PY
 
       - name: Collect build artifacts
         shell: bash
@@ -342,6 +421,7 @@ jobs:
         run: |
           mkdir release-assets
           find all-release-assets -type f -name "*.bin" -exec mv {} release-assets/ \;
+          find all-release-assets -type f -name "*-build-metadata.json" -exec mv {} release-assets/ \;
           ls -l release-assets
           (cd release-assets && sha256sum *.bin > checksums.txt)
 

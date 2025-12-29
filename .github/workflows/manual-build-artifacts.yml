@@ -208,8 +208,12 @@ jobs:
           BUILD_TIME_OVERRIDE: ${{ inputs.build_time }}
           BUILD_TIMESTAMP_OVERRIDE: ${{ inputs.build_timestamp }}
         run: |
-          pio run -e ${{ matrix.env }} -t buildfs
-          pio run -e ${{ matrix.env }}
+          python tools/build_and_flash.py \
+            --env ${{ matrix.env }} \
+            --local \
+            --ignore-secrets \
+            --chip "${{ inputs.chip_prefix }}" \
+            --firmware-label "${{ inputs.firmware_label }}"
 
       - name: Collect build artifacts
         shell: bash

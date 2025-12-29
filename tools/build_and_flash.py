@@ -244,9 +244,17 @@ def create_build_version(data_dir: str, repo_root: str) -> str:
 
 def create_build_timestamp(data_dir: str) -> str:
     """Create build_timestamp.txt with format MMDDYYHHMMSS for filesystem identification."""
-    now = datetime.now()  # Use local time instead of UTC
-    # Format: MMDDYYHHMMSS
-    thumbprint = now.strftime("%m%d%y%H%M%S")
+    override = os.environ.get("BUILD_TIMESTAMP_OVERRIDE", "").strip()
+    if override:
+        if not re.fullmatch(r"\d{12}", override):
+            raise ValueError(
+                "BUILD_TIMESTAMP_OVERRIDE must be 12 digits in MMDDYYHHMMSS format."
+            )
+        thumbprint = override
+    else:
+        now = datetime.now()  # Use local time instead of UTC
+        # Format: MMDDYYHHMMSS
+        thumbprint = now.strftime("%m%d%y%H%M%S")
     timestamp_path = os.path.join(data_dir, "build_timestamp.txt")
     with open(timestamp_path, "w", encoding="utf-8") as f:
         f.write(thumbprint)

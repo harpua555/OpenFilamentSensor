@@ -7,10 +7,14 @@ on:
         description: 'Comma-separated PlatformIO envs (e.g., "esp32s3,esp32c3").'
         required: true
         default: "esp32s3"
-      ref:
-        description: 'Git ref to build (commit SHA, tag, or branch).'
+      git_ref:
+        description: 'Git ref to build (tag, branch, or SHA).'
         required: true
         default: "main"
+      git_sha:
+        description: 'Optional exact commit SHA (overrides git_ref when set).'
+        required: false
+        default: ""
       firmware_label:
         description: 'Firmware label for Project Status (FIRMWARE_VERSION).'
         required: true
@@ -43,6 +47,10 @@ on:
         description: 'PlatformIO Core version to install (e.g., 6.1.18).'
         required: true
         default: "6.1.18"
+      espressif32_platform:
+        description: 'Optional espressif32 platform version (e.g., 6.12.0).'
+        required: false
+        default: ""
       python_version:
         description: 'Python version for the build runner.'
         required: true
@@ -51,6 +59,10 @@ on:
         description: 'Node.js version for building the web UI.'
         required: true
         default: "20"
+      pio_packages:
+        description: 'Optional JSON array from build-metadata pio_packages to pin package versions.'
+        required: false
+        default: ""
       timezone:
         description: 'TZ environment value for the build.'
         required: true
@@ -106,7 +118,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.git_sha || inputs.git_ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -117,6 +129,43 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install "platformio==${{ inputs.platformio_version }}"
+
+      - name: Install ESP32 platform override (optional)
+        if: ${{ inputs.espressif32_platform != '' }}
+        shell: bash
+        run: |
+          pio platform install "espressif32@${{ inputs.espressif32_platform }}"
+
+      - name: Install pinned PlatformIO packages (optional)
+        if: ${{ inputs.pio_packages != '' }}
+        shell: bash
+        env:
+          PIO_PACKAGES_JSON: ${{ inputs.pio_packages }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          raw = os.environ.get("PIO_PACKAGES_JSON", "").strip()
+          if not raw:
+              raise SystemExit(0)
+
+          packages = json.loads(raw)
+          if not isinstance(packages, list):
+              raise SystemExit("PIO_PACKAGES_JSON must be a JSON array.")
+
+          for pkg in packages:
+              if not isinstance(pkg, dict):
+                  continue
+              pkg_type = pkg.get("type", "")
+              name = pkg.get("name") or pkg.get("metadata", {}).get("name", "")
+              version = pkg.get("version") or pkg.get("metadata", {}).get("version", "")
+              if not pkg_type or not name or not version:
+                  continue
+              cmd = ["pio", "pkg", "install", "--global", f"--{pkg_type}", f"{name}@{version}"]
+              subprocess.run(cmd, check=True)
+          PY
 
       - uses: actions/setup-node@v4
         with:

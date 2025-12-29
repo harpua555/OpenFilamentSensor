@@ -422,8 +422,9 @@ jobs:
           mkdir release-assets
           find all-release-assets -type f -name "*.bin" -exec mv {} release-assets/ \;
           find all-release-assets -type f -name "*-build-metadata.json" -exec mv {} release-assets/ \;
+          find all-release-assets -type f -name "*.elf" -exec mv {} release-assets/ \;
           ls -l release-assets
-          (cd release-assets && sha256sum *.bin > checksums.txt)
+          (cd release-assets && sha256sum *.bin *.elf *-build-metadata.json > checksums.txt)
 
       - name: Stage firmware assets for GitHub Pages
         shell: bash

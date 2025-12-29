@@ -21,12 +21,15 @@ def _as_string_literal(value: str) -> str:
     escaped = value.replace('"', r'\"')
     return f'\\"{escaped}\\"'
 
-# Generate current timestamp
+# Generate current timestamp (allow overrides for reproducible builds)
+override_date = os.environ.get("BUILD_DATE_OVERRIDE", "").strip()
+override_time = os.environ.get("BUILD_TIME_OVERRIDE", "").strip()
+
 now = datetime.now()
 
 # Create build flags with current date and time
-build_date = now.strftime("%b %d %Y")  # Format like __DATE__: "Nov 27 2025"
-build_time = now.strftime("%H:%M:%S")  # Format like __TIME__: "14:30:45"
+build_date = override_date or now.strftime("%b %d %Y")  # Format like __DATE__: "Nov 27 2025"
+build_time = override_time or now.strftime("%H:%M:%S")  # Format like __TIME__: "14:30:45"
 
 # Add build flags that will override __DATE__ and __TIME__
 env.Append(CPPDEFINES=[

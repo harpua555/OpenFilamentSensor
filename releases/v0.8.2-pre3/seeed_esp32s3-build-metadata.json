@@ -1,0 +1,17 @@
+{
+  "git_ref": "refs/heads/main",
+  "git_sha": "1da0e27bd84e9f175e71d89a8171a47c0db3b218",
+  "board_env": "seeed_esp32s3",
+  "firmware_label": "v0.8.2-pre3",
+  "build_version": "v0.8.2-pre3",
+  "build_date": "Dec 29 2025",
+  "build_time": "13:34:35",
+  "build_timestamp": "122925133435",
+  "timezone": "America/New_York",
+  "chip_family": "Seeed ESP32-S3",
+  "platformio_version": "6.1.18",
+  "espressif32_platform": "6.12.0",
+  "python_version": "3.11.14",
+  "node_version": "v20.19.6",
+  "pio_packages": []
+}

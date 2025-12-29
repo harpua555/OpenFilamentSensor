@@ -55,6 +55,10 @@ on:
         description: 'TZ environment value for the build.'
         required: true
         default: "America/New_York"
+      force_current_tools:
+        description: 'Override tools from main (e.g., timestamp override script) after checking out ref.'
+        required: true
+        default: "true"
 
 permissions:
   contents: read
@@ -121,6 +125,13 @@ jobs:
       - name: Install Lite UI dependencies
         working-directory: webui_lite
         run: npm ci
+
+      - name: Inject override-capable tools from main
+        if: ${{ inputs.force_current_tools == 'true' }}
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          git checkout origin/main -- tools/set_build_timestamp.py
 
       - name: Resolve chip family
         id: chip
@@ -192,16 +203,13 @@ jobs:
       - name: Build firmware + filesystem for ${{ matrix.env }}
         env:
           CHIP_FAMILY: ${{ steps.chip.outputs.family }}
+          FIRMWARE_VERSION: ${{ inputs.firmware_label }}
           BUILD_DATE_OVERRIDE: ${{ inputs.build_date }}
           BUILD_TIME_OVERRIDE: ${{ inputs.build_time }}
           BUILD_TIMESTAMP_OVERRIDE: ${{ inputs.build_timestamp }}
         run: |
-          python tools/build_and_flash.py \
-            --env ${{ matrix.env }} \
-            --local \
-            --ignore-secrets \
-            --chip "${{ inputs.chip_prefix }}" \
-            --firmware-label "${{ inputs.firmware_label }}"
+          pio run -e ${{ matrix.env }} -t buildfs
+          pio run -e ${{ matrix.env }}
 
       - name: Collect build artifacts
         shell: bash

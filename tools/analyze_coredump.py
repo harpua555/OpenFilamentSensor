@@ -19,8 +19,10 @@ def analyze():
     # Chip now defaults to esp32s3
     parser.add_argument("chip", nargs="?", default="esp32s3", help="Chip type (default: esp32s3)")
     # Core now defaults to .coredump/coredump.bin relative to repo root
-    parser.add_argument("--core", default=os.path.join(repo_root, ".coredump/coredump.bin"), 
+    parser.add_argument("--core", default=os.path.join(repo_root, ".coredump/coredump.bin"),
                         help="Path to coredump file")
+    parser.add_argument("--use-customlib", action="store_true",
+                        help="Use .customlib/esp_coredump instead of system esp_coredump.")
     args = parser.parse_args()
 
     # 3. Define internal paths relative to repo root
@@ -58,14 +60,26 @@ def analyze():
 
     gdb_path = f"$env:USERPROFILE\\.platformio\\packages\\{gdb_pkg}\\bin\\{gdb_exe}"
 
+    customlib_path = os.path.join(repo_root, ".customlib")
+    use_customlib = args.use_customlib and os.path.isdir(customlib_path)
+    win_customlib = to_win(customlib_path) if use_customlib else ""
+
+    ps_prefix = ""
+    if use_customlib:
+        ps_prefix = f"$env:PYTHONPATH=\"{win_customlib}\"; "
+
     ps_cmd = (
-        f"python.exe -m esp_coredump info_corefile "
+        f"{ps_prefix}python.exe -m esp_coredump info_corefile "
         f"--gdb \"{gdb_path}\" --core \"{win_core}\" \"{win_elf}\" > \"{win_report}\""
     )
 
     # 6. Execute via powershell.exe
     print(f"--- Analyzing {args.chip} core dump ---")
     print(f"Target ELF: {elf_path}")
+    if args.use_customlib and not use_customlib:
+        print(f"WARNING: .customlib not found at {customlib_path}; using system esp_coredump.")
+    if use_customlib:
+        print(f"Using custom esp_coredump from: {customlib_path}")
     
     # Run the process
     result = subprocess.run(["powershell.exe", "-Command", ps_cmd])

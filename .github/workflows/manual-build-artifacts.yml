@@ -1,0 +1,236 @@
+name: Manual Firmware Build (Artifacts Only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      board_envs:
+        description: 'Comma-separated PlatformIO envs (e.g., "esp32s3,esp32c3").'
+        required: true
+        default: "esp32s3"
+      ref:
+        description: 'Git ref to build (commit SHA, tag, or branch).'
+        required: true
+        default: "main"
+      firmware_label:
+        description: 'Firmware label for Project Status (FIRMWARE_VERSION).'
+        required: true
+        default: "alpha"
+      build_version:
+        description: 'Build version written to data/.version and build_version.txt (e.g., v0.8.2-pre1).'
+        required: true
+        default: "v0.0.0-dev"
+      build_timestamp:
+        description: 'Filesystem thumbprint (MMDDYYHHMMSS) for build_timestamp.txt.'
+        required: false
+        default: ""
+      build_date:
+        description: 'Compile date override (e.g., "Dec 28 2025").'
+        required: false
+        default: ""
+      build_time:
+        description: 'Compile time override (e.g., "10:27:37").'
+        required: false
+        default: ""
+      chip_prefix:
+        description: 'Chip prefix passed to build_and_flash.py (default: ESP32).'
+        required: true
+        default: "ESP32"
+      chip_family:
+        description: 'Override CHIP_FAMILY label (optional).'
+        required: false
+        default: ""
+      platformio_version:
+        description: 'PlatformIO Core version to install (e.g., 6.1.18).'
+        required: true
+        default: "6.1.18"
+      python_version:
+        description: 'Python version for the build runner.'
+        required: true
+        default: "3.11"
+      node_version:
+        description: 'Node.js version for building the web UI.'
+        required: true
+        default: "20"
+      timezone:
+        description: 'TZ environment value for the build.'
+        required: true
+        default: "America/New_York"
+      force_current_tools:
+        description: 'Override tools from main (e.g., timestamp override script) after checking out ref.'
+        required: true
+        default: "true"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  matrix-source:
+    name: Determine build matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: ${{ inputs.timezone }}
+    outputs:
+      board-matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix from input
+        id: set-matrix
+        shell: bash
+        env:
+          BOARD_ENVS: ${{ inputs.board_envs }}
+        run: |
+          MATRIX=$(python - << 'PY'
+          import json
+          import os
+
+          raw = os.environ.get("BOARD_ENVS", "")
+          envs = [item.strip() for item in raw.split(",") if item.strip()]
+          if not envs:
+              raise SystemExit("No board environments provided.")
+          print(json.dumps({"env": envs}))
+          PY
+          )
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  build-firmware:
+    name: Build firmware for ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    needs: [matrix-source]
+    env:
+      TZ: ${{ inputs.timezone }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix-source.outputs.board-matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install PlatformIO Core
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install "platformio==${{ inputs.platformio_version }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Install Lite UI dependencies
+        working-directory: webui_lite
+        run: npm ci
+
+      - name: Inject override-capable tools from main
+        if: ${{ inputs.force_current_tools == 'true' }}
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          git checkout origin/main -- tools/set_build_timestamp.py
+          git checkout origin/main -- tools/build_and_flash.py
+
+      - name: Resolve chip family
+        id: chip
+        env:
+          BOARD_ENV: ${{ matrix.env }}
+          CHIP_OVERRIDE: ${{ inputs.chip_family }}
+        run: |
+          CHIP="$CHIP_OVERRIDE"
+          if [ -z "$CHIP" ]; then
+            CHIP=$(python - << 'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("tools").resolve()))
+          from board_config import get_chip_family_for_board
+
+          env = os.environ["BOARD_ENV"]
+          print(get_chip_family_for_board(env))
+          PY
+            )
+          fi
+          echo "family=$CHIP" >> "$GITHUB_OUTPUT"
+
+      - name: Sanitize user settings (WiFi/IP)
+        shell: bash
+        run: |
+          PLACEHOLDER="PLACEHOLDER_WIFI_STRING_32_CHARS"
+          if [ -f "data/user_settings.json" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          
+          PLACEHOLDER = "PLACEHOLDER_WIFI_STRING_32_CHARS"
+          path = Path("data/user_settings.json")
+          try:
+              raw = path.read_text(encoding="utf-8")
+              data = json.loads(raw or "{}")
+          except Exception:
+              data = {}
+          
+          # Normalize WiFi credentials to placeholder and set a safe placeholder IP
+          if "ssid" in data:
+              data["ssid"] = PLACEHOLDER
+          if "passwd" in data:
+              data["passwd"] = PLACEHOLDER
+          if "elegooip" in data:
+              data["elegooip"] = "1.1.1.1"
+          
+          path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
+          fi
+
+      - name: Create version files
+        shell: bash
+        env:
+          VERSION: ${{ inputs.build_version }}
+          FS_TIMESTAMP: ${{ inputs.build_timestamp }}
+        run: |
+          mkdir -p data
+          echo "$VERSION" > data/build_version.txt
+          echo "$VERSION" > data/.version
+          if [ -n "$FS_TIMESTAMP" ]; then
+            echo "$FS_TIMESTAMP" > data/build_timestamp.txt
+          else
+            echo "$(date +%m%d%y%H%M%S)" > data/build_timestamp.txt
+          fi
+
+      - name: Build firmware + filesystem for ${{ matrix.env }}
+        env:
+          CHIP_FAMILY: ${{ steps.chip.outputs.family }}
+          FIRMWARE_VERSION: ${{ inputs.firmware_label }}
+          BUILD_DATE_OVERRIDE: ${{ inputs.build_date }}
+          BUILD_TIME_OVERRIDE: ${{ inputs.build_time }}
+          BUILD_TIMESTAMP_OVERRIDE: ${{ inputs.build_timestamp }}
+        run: |
+          python tools/build_and_flash.py \
+            --env ${{ matrix.env }} \
+            --local \
+            --ignore-secrets \
+            --chip "${{ inputs.chip_prefix }}" \
+            --firmware-label "${{ inputs.firmware_label }}"
+
+      - name: Collect build artifacts
+        shell: bash
+        run: |
+          BUILD_DIR=".pio/build/${{ matrix.env }}"
+          ARTIFACT_DIR="manual-assets-${{ matrix.env }}"
+          mkdir -p "$ARTIFACT_DIR"
+
+          for name in firmware.bin firmware_merged.bin littlefs.bin bootloader.bin partitions.bin firmware.elf; do
+            if [ -f "$BUILD_DIR/$name" ]; then
+              cp "$BUILD_DIR/$name" "$ARTIFACT_DIR/${{ matrix.env }}-$name"
+            fi
+          done
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-assets-${{ matrix.env }}
+          path: manual-assets-${{ matrix.env }}

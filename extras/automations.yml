@@ -1,0 +1,105 @@
+# OpenFilamentSensor Automations for Home Assistant
+# Add these to your automations.yaml file (or just create in GUI)
+
+- alias: "OFS: Notify on Filament Jam"
+  description: "Send notification when a filament jam is detected"
+  trigger:
+    - platform: state
+      entity_id: sensor.ofs_filament_stopped
+      to: "True"
+  condition: []
+  action:
+    - service: notify.mobile_app_<YOUR_PHONE>
+      data:
+        title: "Filament Jam Detected!"
+        message: >
+          Print paused at layer {{ states('sensor.ofs_current_layer') }}/{{ states('sensor.ofs_total_layers') }}.
+          Hard jam: {{ states('sensor.ofs_hard_jam_proximity') }}%,
+          Soft jam: {{ states('sensor.ofs_soft_jam_proximity') }}%
+        data:
+          tag: ofs_jam
+          priority: high
+          ttl: 0
+
+- alias: "OFS: Notify on Filament Runout"
+  description: "Send notification when physical runout sensor triggers"
+  trigger:
+    - platform: state
+      entity_id: sensor.ofs_filament_runout
+      to: "True"
+  condition: []
+  action:
+    - service: notify.mobile_app_<YOUR_PHONE>
+      data:
+        title: "Filament Runout!"
+        message: "The filament spool may be empty. Check the printer."
+        data:
+          tag: ofs_runout
+          priority: high
+          ttl: 0
+
+- alias: "OFS: Notify on ESP32 Offline"
+  description: "Send notification if the OFS device crashes or goes offline"
+  trigger:
+    - platform: state
+      entity_id: sensor.ofs_printing  # Any OFS sensor works here
+      to: "unavailable"
+      for:
+        minutes: 2
+  condition: []
+  action:
+    - service: notify.mobile_app_<YOUR_PHONE>
+      data:
+        title: "OFS Device Offline!"
+        message: "The filament sensor has stopped responding. It may have crashed or lost power."
+        data:
+          tag: ofs_offline
+          priority: high
+          ttl: 0
+
+- alias: "OFS: Notify on Printer Disconnect"
+  description: "Send notification if printer disconnects while printing"
+  trigger:
+    - platform: state
+      entity_id: sensor.ofs_printer_connected
+      to: "False"
+      for:
+        minutes: 2
+  condition:
+    - condition: state
+      entity_id: sensor.ofs_printing
+      state: "True"
+  action:
+    - service: notify.mobile_app_<YOUR_PHONE>
+      data:
+        title: "Printer Disconnected!"
+        message: "Lost connection to printer while printing."
+        data:
+          tag: ofs_disconnect
+          priority: high
+          ttl: 0
+
+
+# === Additional Automations ===
+
+- alias: "OFS: Notify on Print Complete"
+  description: "Send notification when print completes"
+  trigger:
+    - platform: state
+      entity_id: sensor.ofs_print_status
+      to: "Complete"
+  condition: []
+  action:
+    - service: notify.mobile_app_<YOUR_PHONE>
+      data:
+        title: "Print Complete!"
+        message: >
+          Your print has finished.
+          Total layers: {{ states('sensor.ofs_total_layers') }},
+          Filament used: {{ states('sensor.ofs_actual') }} mm
+        data:
+          tag: ofs_complete
+          priority: high
+          ttl: 0
+
+

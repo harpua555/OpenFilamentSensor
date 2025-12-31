@@ -8,6 +8,7 @@
 #include "SettingsManager.h"
 #include "SystemServices.h"
 #include "WebServer.h"
+#include "StatusDisplay.h"
 
 #define SPIFFS LittleFS
 
@@ -106,6 +107,9 @@ void setup()
     logger.logf("Settings snapshot: %s", settingsJson.c_str());
 
     systemServices.begin();
+
+    // Initialize optional OLED display (no-op if ENABLE_OLED_DISPLAY not defined)
+    statusDisplayBegin();
 }
 
 /**
@@ -154,6 +158,9 @@ void loop()
     {
         webServer.loop();
     }
+
+    // Update optional OLED display (no-op if ENABLE_OLED_DISPLAY not defined)
+    statusDisplayLoop();
 
     // Strategic 1ms delay to reduce CPU usage while maintaining detection accuracy.
     // This yields to the FreeRTOS scheduler, reducing CPU from 100% spin to ~10-20%.

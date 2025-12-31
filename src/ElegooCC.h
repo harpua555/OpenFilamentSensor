@@ -293,6 +293,11 @@ class ElegooCC
 
     // Get current printer information
     printer_info_t getCurrentInformation();
+
+    // Status display accessors
+    bool isJammed() const { return cachedJamState.jammed; }
+    bool isFilamentRunout() const { return filamentRunout; }
+
     // Discovery
     struct DiscoveryResult {
         String ip;

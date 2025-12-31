@@ -38,25 +38,22 @@
           priority: high
           ttl: 0
 
-- alias: "OFS: Notify on ESP32 Disconnect"
-  description: "Send notification if printer disconnects while printing"
+- alias: "OFS: Notify on ESP32 Offline"
+  description: "Send notification if the OFS device crashes or goes offline"
   trigger:
     - platform: state
-      entity_id: sensor.ofs_printer_connected
-      to: "False"
+      entity_id: sensor.ofs_printing  # Any OFS sensor works here
+      to: "unavailable"
       for:
         minutes: 2
-  condition:
-    - condition: state
-      entity_id: sensor.ofs_printing
-      state: "True"
+  condition: []
   action:
     - service: notify.mobile_app_<YOUR_PHONE>
       data:
-        title: "Printer Disconnected!"
-        message: "Lost connection to printer while printing."
+        title: "OFS Device Offline!"
+        message: "The filament sensor has stopped responding. It may have crashed or lost power."
         data:
-          tag: ofs_disconnect
+          tag: ofs_offline
           priority: high
           ttl: 0
 

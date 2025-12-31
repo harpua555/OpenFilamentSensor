@@ -21,7 +21,6 @@ def _as_string_literal(value: str) -> str:
     escaped = value.replace('"', r'\"')
     return f'\\"{escaped}\\"'
 
-# Generate current timestamp
 now = datetime.now()
 
 # Allow overrides from the environment so CI can reproduce old builds.
@@ -34,8 +33,8 @@ build_time = build_time_override or now.strftime("%H:%M:%S")  # Format like __TI
 
 # Add build flags that will override __DATE__ and __TIME__
 env.Append(CPPDEFINES=[
-    ('BUILD_DATE', f'\\"{build_date}\\"'),
-    ('BUILD_TIME', f'\\"{build_time}\\"'),
+    ("BUILD_DATE", _as_string_literal(build_date)),
+    ("BUILD_TIME", _as_string_literal(build_time)),
 ])
 
 print(f"Build timestamp set to: {build_date} {build_time}")

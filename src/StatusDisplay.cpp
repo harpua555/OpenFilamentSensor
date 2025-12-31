@@ -273,30 +273,20 @@ static void drawStatus(DisplayStatus status)
                 
                 display.setTextSize(1);
                 
-                // Line 1: ME: <last octet>
+                // Line 1: ME:<full IP>
                 display.setCursor(VIS_X(0), VIS_Y(0));
                 display.print("ME:");
-                display.print(myIp[3]);
+                display.print(myIp.toString());
                 
-                // Line 2: PR: <last octet or -->
+                // Line 2: PR:<full IP or -->
                 display.setCursor(VIS_X(0), VIS_Y(10));
                 display.print("PR:");
-                if (printerIp.length() > 0) {
-                    // Extract last octet from printer IP string
-                    int lastDot = printerIp.lastIndexOf('.');
-                    if (lastDot > 0) {
-                        display.print(printerIp.substring(lastDot + 1));
-                    } else {
-                        display.print(printerIp);
-                    }
-                } else {
-                    display.print("--");
-                }
+                display.print(printerIp.length() > 0 ? printerIp : "--");
                 
                 // Line 3: Connection status
                 display.setCursor(VIS_X(0), VIS_Y(22));
                 if (info.isWebsocketConnected) {
-                    display.print("* CONNECTED *");
+                    display.print("*CONNECTED*");
                 } else {
                     display.print("DISCONNECTED");
                 }

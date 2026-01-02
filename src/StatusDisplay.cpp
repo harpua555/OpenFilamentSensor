@@ -326,40 +326,59 @@ static void drawStatus(DisplayStatus status)
             }
 
 #elif OLED_DISPLAY_MODE == 5
-            // Mode 5: Uptime display - adaptive format
+            // Mode 5: Uptime display - 3 lines
+            // Line 1: "UPTIME" label
+            // Line 2: Friendly format (X.XX weeks/days/hours/mins)
+            // Line 3: Raw seconds
             {
+                /*
+                // DEBUG: Add offset to test different uptime values
+                const unsigned long DEBUG_UPTIME_OFFSET_SEC = 621132;
+                unsigned long uptimeSec = millis() / 1000 + DEBUG_UPTIME_OFFSET_SEC;
+                */
                 unsigned long uptimeSec = millis() / 1000;
-                unsigned long secs = uptimeSec % 60;
-                unsigned long mins = (uptimeSec / 60) % 60;
-                unsigned long hours = (uptimeSec / 3600) % 24;
-                unsigned long days = uptimeSec / 86400;
 
                 display.setTextSize(1);
-                display.setCursor(VIS_X(12), VIS_Y(2));
+
+                // Line 1: UPTIME label (centered)
+                display.setCursor(VIS_X(18), VIS_Y(0));
                 display.print("UPTIME");
 
-                display.setTextSize(2);
-                char buf[12];
+                // Line 2: Friendly human-readable format
+                char buf[14];
+                const unsigned long SECS_PER_MIN = 60;
+                const unsigned long SECS_PER_HOUR = 3600;
+                const unsigned long SECS_PER_DAY = 86400;
+                const unsigned long SECS_PER_WEEK = 604800;
 
-                if (days > 0) {
-                    // D:HH:MMd (drop seconds)
-                    snprintf(buf, sizeof(buf), "%lu:%02lu:%02lud", days, hours, mins);
-                } else if (hours > 0) {
-                    // H:MM:SSh
-                    snprintf(buf, sizeof(buf), "%lu:%02lu:%02luh", hours, mins, secs);
-                } else if (mins > 0) {
-                    // M:SSm
-                    snprintf(buf, sizeof(buf), "%lu:%02lum", mins, secs);
+                if (uptimeSec >= SECS_PER_WEEK) {
+                    float weeks = (float)uptimeSec / SECS_PER_WEEK;
+                    snprintf(buf, sizeof(buf), "%.2f wks", weeks);
+                } else if (uptimeSec >= SECS_PER_DAY) {
+                    float days = (float)uptimeSec / SECS_PER_DAY;
+                    snprintf(buf, sizeof(buf), "%.2f days", days);
+                } else if (uptimeSec >= SECS_PER_HOUR) {
+                    float hours = (float)uptimeSec / SECS_PER_HOUR;
+                    snprintf(buf, sizeof(buf), "%.2f hrs", hours);
+                } else if (uptimeSec >= SECS_PER_MIN) {
+                    float mins = (float)uptimeSec / SECS_PER_MIN;
+                    snprintf(buf, sizeof(buf), "%.2f min", mins);
                 } else {
-                    // SSs
-                    snprintf(buf, sizeof(buf), "%lus", secs);
+                    snprintf(buf, sizeof(buf), "%lu sec", uptimeSec);
                 }
 
-                // Center the text
                 int len = strlen(buf);
-                int width = len * 12;  // TextSize 2 = 12px per char
+                int width = len * 6;  // TextSize 1 = 6px per char
                 int xPos = (VISIBLE_WIDTH - width) / 2;
                 display.setCursor(VIS_X(xPos), VIS_Y(14));
+                display.print(buf);
+
+                // Line 3: Raw seconds
+                snprintf(buf, sizeof(buf), "%lu s", uptimeSec);
+                len = strlen(buf);
+                width = len * 6;
+                xPos = (VISIBLE_WIDTH - width) / 2;
+                display.setCursor(VIS_X(xPos), VIS_Y(28));
                 display.print(buf);
             }
 #endif

@@ -1,0 +1,7 @@
+{
+  "name": "Open Filament Sensor",
+  "render_readme": true,
+  "content_in_root": false,
+  "zip_release": false,
+  "filename": "open_filament_sensor"
+}

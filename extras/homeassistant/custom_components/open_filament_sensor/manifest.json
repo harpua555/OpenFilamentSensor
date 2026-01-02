@@ -1,0 +1,12 @@
+{
+  "domain": "open_filament_sensor",
+  "name": "Open Filament Sensor",
+  "codeowners": ["@harpua555"],
+  "config_flow": true,
+  "documentation": "https://github.com/harpua555/OpenFilamentSensor",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/harpua555/OpenFilamentSensor/issues",
+  "requirements": ["aiohttp"],
+  "version": "1.0.0"
+}

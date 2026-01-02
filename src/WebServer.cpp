@@ -514,6 +514,7 @@ void WebServer::buildStatusJson(DynamicJsonDocument &jsonDoc, const printer_info
 
     jsonDoc["mac"] = WiFi.macAddress();
     jsonDoc["ip"]  = WiFi.localIP().toString();
+    jsonDoc["uptimeSec"] = millis() / 1000;
 
     JsonObject elegoo = jsonDoc["elegoo"].to<JsonObject>();
     elegoo["mainboardID"]          = elegooStatus.mainboardID;

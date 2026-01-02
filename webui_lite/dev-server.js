@@ -217,7 +217,8 @@ function buildStatusData() {
             uiRefreshIntervalMs: 1000
         },
         mac: '24:0A:C4:XX:XX:XX',
-        ip: '192.168.1.100'
+        ip: '192.168.1.100',
+        uptimeSec: Math.floor(process.uptime())
     };
 }
 

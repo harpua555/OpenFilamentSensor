@@ -204,6 +204,18 @@ void ElegooCC::setup()
                     RISING);
     logger.logf("Pulse detection via GPIO%d interrupt enabled", MOVEMENT_SENSOR_PIN);
 
+    // Initialize filament runout state from actual pin reading at startup
+    // This ensures jam detection is correctly disarmed if device boots with no filament
+    int pinValue = digitalRead(FILAMENT_RUNOUT_PIN);
+#ifdef INVERT_RUNOUT_PIN
+    pinValue = !pinValue;
+#endif
+    filamentRunout = (pinValue == LOW);
+    if (filamentRunout)
+    {
+        logger.log("Startup: No filament detected");
+    }
+
     bool shouldConect = !settingsManager.isAPMode();
     if (shouldConect)
     {
@@ -1004,8 +1016,10 @@ void ElegooCC::loop()
     }
 
     // Check filament sensors before determining if we should pause
-    checkFilamentMovement(currentTime);
+    // NOTE: checkFilamentRunout must run FIRST to update filamentRunout flag
+    // before checkFilamentMovement uses it to decide whether to run jam detection
     checkFilamentRunout(currentTime);
+    checkFilamentMovement(currentTime);
 
     // Check if we should pause the print
     if (shouldPausePrint(currentTime))

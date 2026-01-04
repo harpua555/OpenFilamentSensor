@@ -7,57 +7,23 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_MAC, DOMAIN, PANEL_ICON, SCAN_INTERVAL
+from .const import CONF_MAC, DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 
-def _panel_id(entry_id: str) -> str:
-    return f"{DOMAIN}_{entry_id}"
-
-
-def _register_panel(hass: HomeAssistant, entry: ConfigEntry, host: str) -> None:
-    """Register an iframe panel for the device's web UI."""
-    panel_id = _panel_id(entry.entry_id)
-    try:
-        async_remove_panel(hass, panel_id)
-    except ValueError:
-        pass
-    try:
-        async_register_built_in_panel(
-            hass,
-            component_name="iframe",
-            sidebar_title=entry.title,
-            sidebar_icon=PANEL_ICON,
-            frontend_url_path=panel_id,
-            config={"url": f"http://{host}"},
-            require_admin=False,
-        )
-    except Exception as err:
-        _LOGGER.warning("Failed to register panel: %s", err)
-
-
-def _unregister_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Unregister the iframe panel."""
-    try:
-        async_remove_panel(hass, _panel_id(entry.entry_id))
-    except ValueError:
-        pass
-
-
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle config entry updates."""
     coordinator: OFSDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     coordinator.set_host(entry.data[CONF_HOST])
-    _register_panel(hass, entry, entry.data[CONF_HOST])
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -70,7 +36,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    _register_panel(hass, entry, host)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -82,7 +47,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        _unregister_panel(hass, entry)
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok

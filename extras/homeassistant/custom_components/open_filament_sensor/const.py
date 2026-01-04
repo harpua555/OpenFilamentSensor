@@ -9,7 +9,6 @@ from homeassistant.const import (
 DOMAIN = "open_filament_sensor"
 SCAN_INTERVAL = 5  # seconds
 CONF_MAC = "mac"
-PANEL_ICON = "mdi:printer-3d"
 
 # Sensor definitions: (key, name, unit, device_class, state_class, icon, json_path)
 # json_path is dot-notation: "elegoo.hardJamPercent" means data["elegoo"]["hardJamPercent"]

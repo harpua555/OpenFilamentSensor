@@ -3,7 +3,6 @@
   "name": "Open Filament Sensor",
   "codeowners": ["@harpua555"],
   "config_flow": true,
-  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/harpua555/OpenFilamentSensor",
   "integration_type": "device",
   "iot_class": "local_polling",

@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import aiohttp
 import voluptuous as vol
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -15,6 +15,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import CONF_MAC, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from homeassistant.components.zeroconf import ZeroconfServiceInfo
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -86,10 +89,23 @@ class OFSConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_zeroconf(
-        self, discovery_info: ZeroconfServiceInfo
+        self, discovery_info: dict[str, Any] | "ZeroconfServiceInfo"
     ) -> ConfigFlowResult:
         """Handle a zeroconf discovery."""
-        host = discovery_info.host or discovery_info.ip_address
+        host = None
+        if isinstance(discovery_info, dict):
+            host = discovery_info.get("host") or discovery_info.get("ip_address")
+            if not host:
+                address = discovery_info.get("address")
+                if address:
+                    try:
+                        host = str(ipaddress.ip_address(address))
+                    except ValueError:
+                        host = None
+        else:
+            host = getattr(discovery_info, "host", None) or getattr(
+                discovery_info, "ip_address", None
+            )
         if not host:
             return self.async_abort(reason="cannot_connect")
         host = str(host)

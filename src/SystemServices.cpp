@@ -314,6 +314,16 @@ void SystemServices::checkWifiConnection()
         logger.log("WiFi reconnected successfully");
         isReconnecting = false;
 
+        MDNS.end();
+        if (!MDNS.begin("OFS"))
+        {
+            logger.log("Error setting up MDNS responder after reconnect!");
+        }
+        else
+        {
+            setupMdns();
+        }
+
         if (!settingsManager.getHasConnected())
         {
             settingsManager.setHasConnected(true);

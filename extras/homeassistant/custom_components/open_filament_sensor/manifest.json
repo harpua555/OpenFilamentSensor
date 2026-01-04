@@ -4,9 +4,11 @@
   "codeowners": ["@harpua555"],
   "config_flow": true,
   "documentation": "https://github.com/harpua555/OpenFilamentSensor",
+  "dependencies": ["panel_iframe"],
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/harpua555/OpenFilamentSensor/issues",
   "requirements": ["aiohttp"],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "zeroconf": ["_openfilament._tcp.local."]
 }

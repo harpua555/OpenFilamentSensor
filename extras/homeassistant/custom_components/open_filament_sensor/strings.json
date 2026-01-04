@@ -7,6 +7,10 @@
         "data": {
           "host": "Host"
         }
+      },
+      "confirm": {
+        "title": "Discovered Open Filament Sensor",
+        "description": "Found a device at {host}. Do you want to set it up?"
       }
     },
     "error": {
@@ -14,7 +18,8 @@
       "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This device is already configured."
+      "already_configured": "This device is already configured.",
+      "cannot_connect": "Failed to connect to the discovered device."
     }
   }
 }

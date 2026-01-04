@@ -27,6 +27,7 @@ class SystemServices
     void syncTimeWithNTP(unsigned long currentTime);
     void monitorHeap(unsigned long currentTime);
     void handleWifiReconnectRequest();
+    void setupMdns();
 
     bool          wifiSetupAttempted        = false;
     bool          wifiSetupAttemptedThisLoop = false;

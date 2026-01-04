@@ -166,6 +166,10 @@ void SystemServices::startAPMode()
     {
         logger.log("Error setting up MDNS responder in AP mode!");
     }
+    else
+    {
+        setupMdns();
+    }
 }
 
 void SystemServices::handleSuccessfulWifiConnection()
@@ -189,6 +193,23 @@ void SystemServices::handleSuccessfulWifiConnection()
     {
         logger.log("Error setting up MDNS responder!");
     }
+    else
+    {
+        setupMdns();
+    }
+}
+
+void SystemServices::setupMdns()
+{
+    if (!MDNS.addService("openfilament", "tcp", 80))
+    {
+        logger.log("Failed to advertise OpenFilament mDNS service");
+        return;
+    }
+
+    String mac = WiFi.macAddress();
+    MDNS.addServiceTxt("openfilament", "tcp", "mac", mac.c_str());
+    MDNS.addServiceTxt("openfilament", "tcp", "model", "OpenFilamentSensor");
 }
 
 bool SystemServices::connectToWifiStation(bool isReconnect)

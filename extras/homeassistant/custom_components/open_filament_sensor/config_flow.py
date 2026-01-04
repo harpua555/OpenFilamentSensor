@@ -124,6 +124,9 @@ class OFSConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered_mac = info["mac"]
         self._discovered_title = info["title"]
 
+        # Set what shows in the discovery card
+        self.context["title_placeholders"] = {"name": info["host"]}
+
         return await self.async_step_confirm()
 
     async def async_step_confirm(

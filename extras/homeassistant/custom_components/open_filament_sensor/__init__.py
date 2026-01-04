@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 
 import aiohttp
-from homeassistant.components import panel_iframe
+from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
@@ -26,23 +26,31 @@ def _panel_id(entry_id: str) -> str:
 
 
 def _register_panel(hass: HomeAssistant, entry: ConfigEntry, host: str) -> None:
+    """Register an iframe panel for the device's web UI."""
+    panel_id = _panel_id(entry.entry_id)
     try:
-        panel_iframe.async_unregister_panel(hass, _panel_id(entry.entry_id))
-    except KeyError:
+        async_remove_panel(hass, panel_id)
+    except ValueError:
         pass
-    panel_iframe.async_register_panel(
-        hass,
-        panel_id=_panel_id(entry.entry_id),
-        title=entry.title,
-        url=f"http://{host}",
-        icon=PANEL_ICON,
-    )
+    try:
+        async_register_built_in_panel(
+            hass,
+            component_name="iframe",
+            sidebar_title=entry.title,
+            sidebar_icon=PANEL_ICON,
+            frontend_url_path=panel_id,
+            config={"url": f"http://{host}"},
+            require_admin=False,
+        )
+    except Exception as err:
+        _LOGGER.warning("Failed to register panel: %s", err)
 
 
 def _unregister_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Unregister the iframe panel."""
     try:
-        panel_iframe.async_unregister_panel(hass, _panel_id(entry.entry_id))
-    except KeyError:
+        async_remove_panel(hass, _panel_id(entry.entry_id))
+    except ValueError:
         pass
 
 

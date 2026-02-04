@@ -1,0 +1,17 @@
+{
+  "git_ref": "refs/heads/main",
+  "git_sha": "ddd6a6b667fd0d9aae08cd3b27c6396b982f2312",
+  "board_env": "seeed_esp32c6",
+  "firmware_label": "v0.8.6-pre1",
+  "build_version": "v0.8.6-pre1",
+  "build_date": "Feb 04 2026",
+  "build_time": "17:25:21",
+  "build_timestamp": "020426172521",
+  "timezone": "America/New_York",
+  "chip_family": "Seeed ESP32-C6",
+  "platformio_version": "6.1.19",
+  "espressif32_platform": "55.3.35",
+  "python_version": "3.11.14",
+  "node_version": "v20.20.0",
+  "pio_packages": []
+}

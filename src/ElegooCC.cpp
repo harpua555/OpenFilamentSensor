@@ -206,6 +206,8 @@ void ElegooCC::setup()
 
     // Initialize filament runout state from actual pin reading at startup
     // This ensures jam detection is correctly disarmed if device boots with no filament
+    // Configure pin with pullup to prevent floating state that causes crashes during idle
+    pinMode(FILAMENT_RUNOUT_PIN, INPUT_PULLUP);
     int pinValue = digitalRead(FILAMENT_RUNOUT_PIN);
 #ifdef INVERT_RUNOUT_PIN
     pinValue = !pinValue;

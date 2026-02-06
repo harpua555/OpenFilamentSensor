@@ -119,21 +119,20 @@ void WebServer::begin()
 
     // --- GET /get_settings ---
     // Serves pre-built cached settings JSON (built in loop() on main task)
-    // Thread-safe: only reads a String that is written by the main loop
+    // Thread-safe: double-buffered read, no lock or heap allocation
     server.on(kRouteGetSettings, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
-                  portENTER_CRITICAL(&cacheMutex);
-                  String response = cachedSettingsJson;
-                  portEXIT_CRITICAL(&cacheMutex);
+                  size_t len;
+                  const char *json = cachedSettings.read(len);
 
-                  if (response.length() == 0)
+                  if (len == 0)
                   {
                       request->send(503, "application/json", "{\"error\":\"initializing\"}");
                   }
                   else
                   {
-                      request->send(200, "application/json", response);
+                      request->send(200, "application/json", json);
                   }
               });
 
@@ -202,25 +201,21 @@ void WebServer::begin()
               });
 
     // GET /discover_printer - Poll discovery status and results
-    // Read-only access to discovery state is acceptable (results are only
-    // modified by the main loop after discovery completes)
+    // Thread-safe: double-buffered read, no lock or heap allocation
     server.on(kRouteDiscoverPrinter, HTTP_GET,
-              [](AsyncWebServerRequest *request)
+              [this](AsyncWebServerRequest *request)
               {
-                  StaticJsonDocument<1024> jsonDoc;
-                  jsonDoc["active"] = elegooCC.isDiscoveryActive();
+                  size_t len;
+                  const char *json = cachedDiscovery.read(len);
 
-                  JsonArray printers = jsonDoc.createNestedArray("printers");
-                  for (const auto &res : elegooCC.getDiscoveryResults())
+                  if (len == 0)
                   {
-                      JsonObject p = printers.createNestedObject();
-                      p["ip"]      = res.ip;
-                      p["payload"] = res.payload;
+                      request->send(200, "application/json", "{\"active\":false,\"printers\":[]}");
                   }
-
-                  String response;
-                  serializeJson(jsonDoc, response);
-                  request->send(200, "application/json", response);
+                  else
+                  {
+                      request->send(200, "application/json", json);
+                  }
               });
 
     // Setup ElegantOTA
@@ -252,21 +247,20 @@ void WebServer::begin()
     server.addHandler(&statusEvents);
 
     // --- GET /sensor_status ---
-    // Thread-safe: serves pre-built cached JSON from main loop
+    // Thread-safe: double-buffered read, no lock or heap allocation
     server.on(kRouteSensorStatus, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
-                  portENTER_CRITICAL(&cacheMutex);
-                  String response = cachedSensorStatusJson;
-                  portEXIT_CRITICAL(&cacheMutex);
+                  size_t len;
+                  const char *json = cachedSensorStatus.read(len);
 
-                  if (response.length() == 0)
+                  if (len == 0)
                   {
                       request->send(503, "application/json", "{\"error\":\"initializing\"}");
                   }
                   else
                   {
-                      request->send(200, "application/json", response);
+                      request->send(200, "application/json", json);
                   }
               });
 
@@ -403,31 +397,33 @@ void WebServer::begin()
               });
 #endif
 
-    // Version endpoint
+    // Build version JSON once at startup (avoids LittleFS reads from async handler)
+    {
+        #ifdef BUILD_DATE
+            const char* buildDate = BUILD_DATE;
+            const char* buildTime = BUILD_TIME;
+        #else
+            const char* buildDate = __DATE__;
+            const char* buildTime = __TIME__;
+        #endif
+
+        StaticJsonDocument<512> jsonDoc;
+        jsonDoc["firmware_version"] = firmwareVersion;
+        jsonDoc["chip_family"]      = chipFamily;
+        jsonDoc["build_date"]       = buildDate;
+        jsonDoc["build_time"]       = buildTime;
+        jsonDoc["firmware_thumbprint"] = getBuildThumbprint(buildDate, buildTime);
+        jsonDoc["filesystem_thumbprint"] = getFilesystemThumbprint();
+        jsonDoc["build_version"] = getBuildVersion();
+
+        serializeJson(jsonDoc, cachedVersionJson, sizeof(cachedVersionJson));
+    }
+
+    // Version endpoint - serves pre-built JSON (no LittleFS access, thread-safe)
     server.on(kRouteVersion, HTTP_GET,
-              [](AsyncWebServerRequest *request)
+              [this](AsyncWebServerRequest *request)
               {
-                  // Use BUILD_DATE and BUILD_TIME if set by build script, otherwise fall back to __DATE__ and __TIME__
-                  #ifdef BUILD_DATE
-                      const char* buildDate = BUILD_DATE;
-                      const char* buildTime = BUILD_TIME;
-                  #else
-                      const char* buildDate = __DATE__;
-                      const char* buildTime = __TIME__;
-                  #endif
-
-                  StaticJsonDocument<512> jsonDoc;
-                  jsonDoc["firmware_version"] = firmwareVersion;
-                  jsonDoc["chip_family"]      = chipFamily;
-                  jsonDoc["build_date"]       = buildDate;
-                  jsonDoc["build_time"]       = buildTime;
-                  jsonDoc["firmware_thumbprint"] = getBuildThumbprint(buildDate, buildTime);
-                  jsonDoc["filesystem_thumbprint"] = getFilesystemThumbprint();
-                  jsonDoc["build_version"] = getBuildVersion();
-
-                  String jsonResponse;
-                  serializeJson(jsonDoc, jsonResponse);
-                  request->send(200, "application/json", jsonResponse);
+                  request->send(200, "application/json", cachedVersionJson);
               });
 
     // Serve lightweight UI from /lite (if available)
@@ -584,14 +580,30 @@ void WebServer::refreshCachedResponses()
         StaticJsonDocument<768> jsonDoc;
         buildStatusJson(jsonDoc, elegooStatus);
 
-        String newJson;
-        newJson.reserve(600);
-        serializeJson(jsonDoc, newJson);
+        char jsonBuf[kCacheBufSize];
+        size_t len = serializeJson(jsonDoc, jsonBuf, sizeof(jsonBuf));
 
-        portENTER_CRITICAL(&cacheMutex);
-        cachedSensorStatusJson = newJson;
+        cachedSensorStatus.publish(jsonBuf, len);
         cachedPrintStatus = elegooStatus.printStatus;
-        portEXIT_CRITICAL(&cacheMutex);
+    }
+
+    // Rebuild discovery JSON (only while discovery is active or results exist)
+    {
+        StaticJsonDocument<1024> jsonDoc;
+        jsonDoc["active"] = elegooCC.isDiscoveryActive();
+
+        JsonArray printers = jsonDoc.createNestedArray("printers");
+        for (const auto &res : elegooCC.getDiscoveryResults())
+        {
+            JsonObject p = printers.createNestedObject();
+            p["ip"]      = res.ip;
+            p["payload"] = res.payload;
+        }
+
+        char jsonBuf[kCacheBufSize];
+        size_t len = serializeJson(jsonDoc, jsonBuf, sizeof(jsonBuf));
+
+        cachedDiscovery.publish(jsonBuf, len);
     }
 
     // Rebuild settings JSON only when dirty
@@ -600,9 +612,7 @@ void WebServer::refreshCachedResponses()
         settingsJsonDirty = false;
         String newSettingsJson = settingsManager.toJson(false);
 
-        portENTER_CRITICAL(&cacheMutex);
-        cachedSettingsJson = newSettingsJson;
-        portEXIT_CRITICAL(&cacheMutex);
+        cachedSettings.publish(newSettingsJson.c_str(), newSettingsJson.length());
     }
 }
 
@@ -707,13 +717,12 @@ void WebServer::buildStatusJson(StaticJsonDocument<768> &jsonDoc, const printer_
 
 void WebServer::broadcastStatusUpdate()
 {
-    // Use the pre-built cached sensor status JSON (already built in refreshCachedResponses)
-    portENTER_CRITICAL(&cacheMutex);
-    String payload = cachedSensorStatusJson;
+    // Use the pre-built cached sensor status JSON (double-buffered, lock-free read)
+    size_t payloadLen;
+    const char *payload = cachedSensorStatus.read(payloadLen);
     sdcp_print_status_t printStatus = cachedPrintStatus;
-    portEXIT_CRITICAL(&cacheMutex);
 
-    if (payload.length() == 0)
+    if (payloadLen == 0)
     {
         return;
     }
@@ -723,7 +732,7 @@ void WebServer::broadcastStatusUpdate()
 
     if (idleState)
     {
-        uint32_t payloadCrc = crc32(payload.c_str(), payload.length());
+        uint32_t payloadCrc = crc32(payload, payloadLen);
         if (hasLastIdlePayload && payloadCrc == lastIdlePayloadCrc)
         {
             statusBroadcastIntervalMs = 5000;
@@ -737,7 +746,7 @@ void WebServer::broadcastStatusUpdate()
         hasLastIdlePayload = false;
     }
 
-    statusEvents.send(payload.c_str(), "status");
+    statusEvents.send(payload, "status");
 
     bool isPrinting = (printStatus != SDCP_PRINT_STATUS_IDLE &&
                        printStatus != SDCP_PRINT_STATUS_COMPLETE);

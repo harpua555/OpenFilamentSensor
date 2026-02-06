@@ -39,16 +39,47 @@ class WebServer
     volatile bool pendingDiscovery = false;
     volatile bool pendingReconnect = false;  // Set when IP changed during settings update
 
-    // --- Pre-built cached responses (built in loop(), served from async handlers) ---
+    // --- Pre-built cached responses (double-buffered, lock-free reads) ---
+    // Main loop writes to buf[!activeIdx], then flips activeIdx.
+    // Async handlers read buf[activeIdx] without any lock (no malloc under spinlock).
+    static constexpr size_t kCacheBufSize = 1536;  // Fits sensor (~600B), settings (~1KB), discovery (~1KB)
 
-    // Cached sensor status JSON (rebuilt every loop iteration)
-    String cachedSensorStatusJson;
+    struct CachedResponse {
+        char   buf[2][kCacheBufSize];
+        size_t len[2] = {0, 0};
+        volatile int activeIdx = 0;  // Single-word write is atomic on ESP32
+
+        // Main loop: write to inactive buffer, then flip
+        void publish(const char *json, size_t jsonLen) {
+            int writeIdx = !activeIdx;
+            size_t copyLen = (jsonLen < kCacheBufSize - 1) ? jsonLen : (kCacheBufSize - 1);
+            memcpy(buf[writeIdx], json, copyLen);
+            buf[writeIdx][copyLen] = '\0';
+            len[writeIdx] = copyLen;
+            // Memory barrier + atomic flip
+            portENTER_CRITICAL(&_mutex);
+            activeIdx = writeIdx;
+            portEXIT_CRITICAL(&_mutex);
+        }
+
+        // Async handler: read active buffer (lock-free, no heap alloc)
+        const char *read(size_t &outLen) const {
+            int idx = activeIdx;
+            outLen = len[idx];
+            return buf[idx];
+        }
+
+        portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
+    };
+
+    CachedResponse cachedSensorStatus;
+    CachedResponse cachedSettings;
+    CachedResponse cachedDiscovery;
     sdcp_print_status_t cachedPrintStatus = SDCP_PRINT_STATUS_IDLE;
-    portMUX_TYPE cacheMutex = portMUX_INITIALIZER_UNLOCKED;
-
-    // Cached settings JSON (rebuilt when settings change)
-    String cachedSettingsJson;
     volatile bool settingsJsonDirty = true;  // Start dirty to build initial cache
+
+    // Cached version JSON (built once at startup, never changes)
+    char cachedVersionJson[512] = {0};
 
     // --- SSE deduplication ---
     // CRC32 of last idle payload for dedup (replaces full String comparison)

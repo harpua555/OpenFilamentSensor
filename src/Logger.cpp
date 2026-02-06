@@ -91,15 +91,16 @@ void Logger::logInternal(const char *message, LogLevel level)
         return;
     }
 
-    // Generate UUID
-    char uuid[37];
-    generateUUID(uuid);
-
-    // Get current timestamp
+    // Get current timestamp (safe to call outside critical section)
     unsigned long timestamp = getTime();
 
-    // Critical section for buffer update
+    // Critical section for buffer update - UUID generation is inside
+    // to prevent duplicate uuidCounter values from concurrent log() calls
     portENTER_CRITICAL(&_logMutex);
+
+    // Generate UUID inside critical section (uuidCounter++ must be atomic)
+    char uuid[37];
+    generateUUID(uuid);
 
     // Store in circular buffer with fixed-size copy
     strncpy(logBuffer[currentIndex].uuid, uuid, sizeof(logBuffer[currentIndex].uuid) - 1);
@@ -211,9 +212,11 @@ String Logger::getLogsAsText(int maxEntries)
         return result;
     }
 
-    // Snapshot indices atomically to avoid race conditions
+    // Snapshot indices atomically under mutex (same pattern as streamLogs)
+    portENTER_CRITICAL(&_logMutex);
     int snapshotIndex = currentIndex;
     int snapshotCount = totalEntries;
+    portEXIT_CRITICAL(&_logMutex);
 
     // Validate snapshot
     if (snapshotCount < 0 || snapshotCount > logCapacity)
@@ -344,14 +347,15 @@ void Logger::streamLogs(Print* printer)
 
 void Logger::clearLogs()
 {
-    currentIndex = 0;
-    totalEntries = 0;
     if (logCapacity == 0 || logBuffer == nullptr)
     {
         return;
     }
-    // Clear the buffer
+    // Clear the buffer - indices MUST be inside the critical section
+    // to avoid TOCTOU race with logInternal()
     portENTER_CRITICAL(&_logMutex);
+    currentIndex = 0;
+    totalEntries = 0;
     for (int i = 0; i < logCapacity; i++)
     {
         memset(logBuffer[i].uuid, 0, sizeof(logBuffer[i].uuid));

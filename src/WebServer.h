@@ -39,9 +39,9 @@ class WebServer
     volatile bool pendingDiscovery = false;
     volatile bool pendingReconnect = false;  // Set when IP changed during settings update
 
-    // --- Pre-built cached responses (double-buffered, lock-free reads) ---
+    // --- Pre-built cached responses (double-buffered, short-lock copy) ---
     // Main loop writes to buf[!activeIdx], then flips activeIdx.
-    // Async handlers read buf[activeIdx] without any lock (no malloc under spinlock).
+    // Async handlers snapshot activeIdx/len under a short lock (no heap allocation).
     static constexpr size_t kCacheBufSize = 1536;  // Fits sensor (~600B), settings (~1KB), discovery (~1KB)
 
     struct CachedResponse {
@@ -62,14 +62,25 @@ class WebServer
             portEXIT_CRITICAL(&_mutex);
         }
 
-        // Async handler: read active buffer (lock-free, no heap alloc)
-        const char *read(size_t &outLen) const {
+        // Async handler: copy active buffer under short lock (no heap alloc)
+        size_t read(char *out, size_t outSize) const {
+            if (outSize == 0) {
+                return 0;
+            }
+            size_t copyLen = 0;
+            portENTER_CRITICAL(&_mutex);
             int idx = activeIdx;
-            outLen = len[idx];
-            return buf[idx];
+            copyLen = len[idx];
+            if (copyLen >= outSize) {
+                copyLen = outSize - 1;
+            }
+            memcpy(out, buf[idx], copyLen);
+            out[copyLen] = '\0';
+            portEXIT_CRITICAL(&_mutex);
+            return copyLen;
         }
 
-        portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
+        mutable portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
     };
 
     CachedResponse cachedSensorStatus;

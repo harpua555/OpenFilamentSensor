@@ -119,12 +119,12 @@ void WebServer::begin()
 
     // --- GET /get_settings ---
     // Serves pre-built cached settings JSON (built in loop() on main task)
-    // Thread-safe: double-buffered read, no lock or heap allocation
+    // Thread-safe: double-buffered copy, short lock, no heap allocation
     server.on(kRouteGetSettings, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
-                  size_t len;
-                  const char *json = cachedSettings.read(len);
+                  char jsonBuf[kCacheBufSize];
+                  size_t len = cachedSettings.read(jsonBuf, sizeof(jsonBuf));
 
                   if (len == 0)
                   {
@@ -132,7 +132,7 @@ void WebServer::begin()
                   }
                   else
                   {
-                      request->send(200, "application/json", json);
+                      request->send(200, "application/json", jsonBuf);
                   }
               });
 
@@ -201,12 +201,12 @@ void WebServer::begin()
               });
 
     // GET /discover_printer - Poll discovery status and results
-    // Thread-safe: double-buffered read, no lock or heap allocation
+    // Thread-safe: double-buffered copy, short lock, no heap allocation
     server.on(kRouteDiscoverPrinter, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
-                  size_t len;
-                  const char *json = cachedDiscovery.read(len);
+                  char jsonBuf[kCacheBufSize];
+                  size_t len = cachedDiscovery.read(jsonBuf, sizeof(jsonBuf));
 
                   if (len == 0)
                   {
@@ -214,7 +214,7 @@ void WebServer::begin()
                   }
                   else
                   {
-                      request->send(200, "application/json", json);
+                      request->send(200, "application/json", jsonBuf);
                   }
               });
 
@@ -247,12 +247,12 @@ void WebServer::begin()
     server.addHandler(&statusEvents);
 
     // --- GET /sensor_status ---
-    // Thread-safe: double-buffered read, no lock or heap allocation
+    // Thread-safe: double-buffered copy, short lock, no heap allocation
     server.on(kRouteSensorStatus, HTTP_GET,
               [this](AsyncWebServerRequest *request)
               {
-                  size_t len;
-                  const char *json = cachedSensorStatus.read(len);
+                  char jsonBuf[kCacheBufSize];
+                  size_t len = cachedSensorStatus.read(jsonBuf, sizeof(jsonBuf));
 
                   if (len == 0)
                   {
@@ -260,7 +260,7 @@ void WebServer::begin()
                   }
                   else
                   {
-                      request->send(200, "application/json", json);
+                      request->send(200, "application/json", jsonBuf);
                   }
               });
 
@@ -717,9 +717,9 @@ void WebServer::buildStatusJson(StaticJsonDocument<768> &jsonDoc, const printer_
 
 void WebServer::broadcastStatusUpdate()
 {
-    // Use the pre-built cached sensor status JSON (double-buffered, lock-free read)
-    size_t payloadLen;
-    const char *payload = cachedSensorStatus.read(payloadLen);
+    // Use the pre-built cached sensor status JSON (double-buffered, short-lock copy)
+    char payloadBuf[kCacheBufSize];
+    size_t payloadLen = cachedSensorStatus.read(payloadBuf, sizeof(payloadBuf));
     sdcp_print_status_t printStatus = cachedPrintStatus;
 
     if (payloadLen == 0)
@@ -732,7 +732,7 @@ void WebServer::broadcastStatusUpdate()
 
     if (idleState)
     {
-        uint32_t payloadCrc = crc32(payload, payloadLen);
+        uint32_t payloadCrc = crc32(payloadBuf, payloadLen);
         if (hasLastIdlePayload && payloadCrc == lastIdlePayloadCrc)
         {
             statusBroadcastIntervalMs = 5000;
@@ -746,7 +746,7 @@ void WebServer::broadcastStatusUpdate()
         hasLastIdlePayload = false;
     }
 
-    statusEvents.send(payload, "status");
+    statusEvents.send(payloadBuf, "status");
 
     bool isPrinting = (printStatus != SDCP_PRINT_STATUS_IDLE &&
                        printStatus != SDCP_PRINT_STATUS_COMPLETE);

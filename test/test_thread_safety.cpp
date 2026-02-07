@@ -6,8 +6,9 @@
  *   Thread B (async handler): reads logs, clears logs, reads caches
  *
  * Run with ThreadSanitizer to detect data races:
- *   g++ -std=c++17 -fsanitize=thread -g -lpthread -I. -I./mocks -I../src \
- *       -o test_thread_safety test_thread_safety.cpp && ./test_thread_safety
+ *   g++ -std=c++17 -fsanitize=thread -g -fPIE -pie -lpthread -I. -I./mocks -I../src \
+ *       -o test_thread_safety test_thread_safety.cpp && \
+ *       setarch "$(uname -m)" -R ./test_thread_safety
  *
  * Run with AddressSanitizer to detect heap corruption:
  *   g++ -std=c++17 -fsanitize=address -fno-omit-frame-pointer -g -lpthread \
@@ -288,7 +289,7 @@ struct CachedResponse {
     char         buf[2][kCacheBufSize];
     size_t       len[2] = {0, 0};
     volatile int activeIdx = 0;
-    portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
+    mutable portMUX_TYPE _mutex = portMUX_INITIALIZER_UNLOCKED;
 
     void publish(const char *json, size_t jsonLen) {
         int writeIdx = !activeIdx;
@@ -301,10 +302,21 @@ struct CachedResponse {
         portEXIT_CRITICAL(&_mutex);
     }
 
-    const char *read(size_t &outLen) const {
+    size_t read(char *out, size_t outSize) const {
+        if (outSize == 0) {
+            return 0;
+        }
+        size_t copyLen = 0;
+        portENTER_CRITICAL(&_mutex);
         int idx = activeIdx;
-        outLen = len[idx];
-        return buf[idx];
+        copyLen = len[idx];
+        if (copyLen >= outSize) {
+            copyLen = outSize - 1;
+        }
+        memcpy(out, buf[idx], copyLen);
+        out[copyLen] = '\0';
+        portEXIT_CRITICAL(&_mutex);
+        return copyLen;
     }
 };
 
@@ -519,14 +531,14 @@ void testCachedResponseDoubleBuffer() {
 
     std::thread reader([&]() {
         while (running.load()) {
-            size_t len;
-            const char *data = cache.read(len);
+            char dataBuf[kCacheBufSize];
+            size_t len = cache.read(dataBuf, sizeof(dataBuf));
             readCount.fetch_add(1);
 
             if (len > 0) {
                 // Check that we got one of the two payloads, not a mix
-                bool isA = (strncmp(data, payloadA, len) == 0 && len == lenA);
-                bool isB = (strncmp(data, payloadB, len) == 0 && len == lenB);
+                bool isA = (strncmp(dataBuf, payloadA, len) == 0 && len == lenA);
+                bool isB = (strncmp(dataBuf, payloadB, len) == 0 && len == lenB);
                 if (!isA && !isB) {
                     tornReads.fetch_add(1);
                 }
@@ -639,12 +651,12 @@ void testCachePublishLargePayload() {
 
     std::thread reader([&]() {
         while (running.load()) {
-            size_t len;
-            const char *data = cache.read(len);
+            char dataBuf[kCacheBufSize];
+            size_t len = cache.read(dataBuf, sizeof(dataBuf));
             if (len > 0) {
                 // Verify first and last chars are consistent
-                assert(data[0] == '{');
-                assert(data[len - 1] == '}');
+                assert(dataBuf[0] == '{');
+                assert(dataBuf[len - 1] == '}');
             }
             readCount.fetch_add(1);
         }

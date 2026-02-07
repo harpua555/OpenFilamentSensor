@@ -644,6 +644,13 @@ void WebServer::loop()
 
     // Rebuild cached JSON responses on the main task (thread-safe)
     refreshCachedResponses();
+    if (kStressCacheRefreshes > 0)
+    {
+        for (int i = 0; i < kStressCacheRefreshes; i++)
+        {
+            refreshCachedResponses();
+        }
+    }
 
     // Periodic SSE client cleanup
     cleanupSSEClients();
@@ -735,7 +742,7 @@ void WebServer::broadcastStatusUpdate()
         uint32_t payloadCrc = crc32(payloadBuf, payloadLen);
         if (hasLastIdlePayload && payloadCrc == lastIdlePayloadCrc)
         {
-            statusBroadcastIntervalMs = 5000;
+            statusBroadcastIntervalMs = kStatusBroadcastIntervalMsDefault;
             return;
         }
         lastIdlePayloadCrc = payloadCrc;
@@ -750,5 +757,6 @@ void WebServer::broadcastStatusUpdate()
 
     bool isPrinting = (printStatus != SDCP_PRINT_STATUS_IDLE &&
                        printStatus != SDCP_PRINT_STATUS_COMPLETE);
-    statusBroadcastIntervalMs = isPrinting ? 1000 : 5000;
+    statusBroadcastIntervalMs = isPrinting ? kStatusBroadcastIntervalMsPrinting
+                                           : kStatusBroadcastIntervalMsDefault;
 }

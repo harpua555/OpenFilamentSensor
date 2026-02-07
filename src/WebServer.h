@@ -18,13 +18,23 @@
 // Maximum SSE clients allowed simultaneously
 static constexpr int kMaxSSEClients = 4;
 
+#ifdef STRESS_MODE
+static constexpr unsigned long kStatusBroadcastIntervalMsDefault = 200;
+static constexpr unsigned long kStatusBroadcastIntervalMsPrinting = 50;
+static constexpr int kStressCacheRefreshes = 3;
+#else
+static constexpr unsigned long kStatusBroadcastIntervalMsDefault = 5000;
+static constexpr unsigned long kStatusBroadcastIntervalMsPrinting = 1000;
+static constexpr int kStressCacheRefreshes = 0;
+#endif
+
 class WebServer
 {
    private:
     AsyncWebServer server;
     AsyncEventSource statusEvents;
     unsigned long lastStatusBroadcastMs = 0;
-    unsigned long statusBroadcastIntervalMs = 5000;
+    unsigned long statusBroadcastIntervalMs = kStatusBroadcastIntervalMsDefault;
 
     // --- Thread-safe command queue (async handlers set flags, loop() processes) ---
 

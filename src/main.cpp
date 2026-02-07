@@ -49,6 +49,12 @@ bool isWebServerSetup = false;
 // Store reset reason for diagnostics
 static esp_reset_reason_t lastResetReason = ESP_RST_UNKNOWN;
 
+#ifdef STRESS_MODE
+static constexpr uint32_t kMainLoopDelayMs = 0;
+#else
+static constexpr uint32_t kMainLoopDelayMs = 1;
+#endif
+
 static const char* getResetReasonString(esp_reset_reason_t reason)
 {
     switch (reason) {
@@ -82,6 +88,9 @@ void setup()
     logger.logf("Firmware version: %s", firmwareVersion);
     logger.logf("Chip family: %s", chipFamily);
     logger.logf("Build timestamp (UTC compile time): %s", buildTimestamp);
+#ifdef STRESS_MODE
+    logger.log("STRESS_MODE enabled: reduced delays and extra cache refreshes");
+#endif
 
     SPIFFS.begin();  // note: this must be done before wifi/server setup
     logger.log("Filesystem initialized");
@@ -168,5 +177,5 @@ void loop()
     // - Motion sensor: ~60ms between pulses at typical speeds
     // - Jam detector: 250ms update interval
     // - Printer polling: 250ms status interval
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(kMainLoopDelayMs));
 }

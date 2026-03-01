@@ -1,0 +1,17 @@
+{
+  "git_ref": "refs/heads/main",
+  "git_sha": "2df4d7e98e0916cd8f8c3e25d8d2d30eb8cd0a39",
+  "board_env": "esp32c6m",
+  "firmware_label": "v0.8.7",
+  "build_version": "v0.8.7",
+  "build_date": "Mar 01 2026",
+  "build_time": "10:17:31",
+  "build_timestamp": "030126101731",
+  "timezone": "America/New_York",
+  "chip_family": "ESP32-C6 DevKitM-1",
+  "platformio_version": "6.1.19",
+  "espressif32_platform": "55.3.35",
+  "python_version": "3.11.14",
+  "node_version": "v20.20.0",
+  "pio_packages": []
+}

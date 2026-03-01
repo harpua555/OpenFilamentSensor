@@ -32,7 +32,8 @@ Connect your BigTreeTech Smart Filament Sensor (or generic motion/runout sensor)
 
 | Board Type | Runout Signal Pin | Motion Signal Pin |
 | :--- | :--- | :--- |
-| **Generic ESP32 / ESP32-S3** | GPIO 14 | GPIO 27 |
+| **Generic ESP32** | GPIO 14 | GPIO 27 |
+| **Generic ESP32-S3** | GPIO 12 | GPIO 13 |
 | **Seeed XIAO ESP32-S3** | GPIO 5 | GPIO 6 |
 | **Seeed XIAO ESP32-C3** | GPIO 3 | GPIO 2 |
 | **ESP32-C3 SuperMini** | GPIO 3 | GPIO 2 |

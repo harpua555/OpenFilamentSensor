@@ -1,0 +1,17 @@
+{
+  "git_ref": "refs/heads/main",
+  "git_sha": "e56ef666a4d94f9ddab35be8626884adc3aa61f5",
+  "board_env": "esp32c3",
+  "firmware_label": "v0.8.8-pre1",
+  "build_version": "v0.8.8-pre1",
+  "build_date": "Mar 01 2026",
+  "build_time": "10:55:15",
+  "build_timestamp": "030126105515",
+  "timezone": "America/New_York",
+  "chip_family": "ESP32-C3",
+  "platformio_version": "6.1.19",
+  "espressif32_platform": "6.12.0",
+  "python_version": "3.11.14",
+  "node_version": "v20.20.0",
+  "pio_packages": []
+}

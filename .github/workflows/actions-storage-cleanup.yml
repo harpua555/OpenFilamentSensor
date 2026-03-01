@@ -37,16 +37,14 @@ jobs:
             core.info(`Keeping newest ${keepRuns} run(s) per workflow.`);
 
             const workflows = await github.paginate(
-              github.request,
-              'GET /repos/{owner}/{repo}/actions/workflows',
+              github.rest.actions.listRepoWorkflows,
               { owner, repo, per_page: 100 }
             );
 
             let deletedRuns = 0;
             for (const workflow of workflows) {
               const runs = await github.paginate(
-                github.request,
-                'GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs',
+                github.rest.actions.listWorkflowRuns,
                 { owner, repo, workflow_id: workflow.id, per_page: 100 }
               );
 
@@ -81,8 +79,7 @@ jobs:
             }
 
             const caches = await github.paginate(
-              github.request,
-              'GET /repos/{owner}/{repo}/actions/caches',
+              github.rest.actions.getActionsCacheList,
               { owner, repo, per_page: 100 }
             );
 

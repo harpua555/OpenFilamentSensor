@@ -18,7 +18,7 @@ python -m http.server 8000
 Then open `http://localhost:8000`. Use `?tag=v0.6.1-alpha` (or omit to use the latest release).
 
 ## Expected release assets
-For each PlatformIO env (e.g., `esp32s3`, `esp32c3`, `esp32`, `seeed_esp32c3`, `seeed_esp32s3`, `esp32c3supermini`), the Release must include:
+For each PlatformIO env (e.g., `esp32s3`, `esp32c3`, `esp32`, `seeed_esp32c3`, `seeed_esp32s3`, `esp32c3supermini`, `esp32c6`, `esp32c6m`, `seeed_esp32c6`), the Release must include:
 - `<env>-firmware_merged.bin` (used for WebSerial flashing)
 - `<env>-firmware.bin` (OTA app)
 - `<env>-littlefs.bin` (OTA filesystem)

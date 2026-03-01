@@ -101,6 +101,54 @@
       "files": [
         "firmware/seeed_esp32c3/firmware_merged.bin"
       ]
+    },
+    {
+      "id": "esp32c6",
+      "name": "OpenFilamentSensor",
+      "variant": "ESP32-C6",
+      "chipFamily": "ESP32-C6",
+      "status": "experimental",
+      "version": "0.5.0",
+      "released": "2026-03-01",
+      "manifest": "firmware/esp32c6/manifest.json",
+      "notes": [
+        "Experimental C6 build - untested"
+      ],
+      "files": [
+        "firmware/esp32c6/firmware_merged.bin"
+      ]
+    },
+    {
+      "id": "esp32c6m",
+      "name": "OpenFilamentSensor",
+      "variant": "ESP32-C6 DevKitM-1",
+      "chipFamily": "ESP32-C6",
+      "status": "experimental",
+      "version": "0.5.0",
+      "released": "2026-03-01",
+      "manifest": "firmware/esp32c6m/manifest.json",
+      "notes": [
+        "Experimental C6 DevKitM-1 build - untested"
+      ],
+      "files": [
+        "firmware/esp32c6m/firmware_merged.bin"
+      ]
+    },
+    {
+      "id": "seeed_esp32c6",
+      "name": "OpenFilamentSensor",
+      "variant": "Seeed XIAO ESP32-C6",
+      "chipFamily": "ESP32-C6",
+      "status": "experimental",
+      "version": "0.5.0",
+      "released": "2026-03-01",
+      "manifest": "firmware/seeed_esp32c6/manifest.json",
+      "notes": [
+        "Experimental Seeed XIAO ESP32-C6 build - untested"
+      ],
+      "files": [
+        "firmware/seeed_esp32c6/firmware_merged.bin"
+      ]
     }
   ]
 }

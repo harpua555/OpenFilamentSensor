@@ -126,6 +126,59 @@ build_flags =
     -DSTRESS_MODE
 ```
 
+## UDP Discovery
+
+The firmware listens on **UDP port 3000** and responds to the ASCII probe `M99999` sent to the subnet broadcast address.  The commands below replicate this from a terminal so you can find devices without the web UI.
+
+### Python (cross-platform — recommended)
+
+```bash
+python tools/udp_discover.py            # listen 5 s (default)
+python tools/udp_discover.py --timeout 10
+```
+
+### Linux (bash one-liner)
+
+```bash
+python3 -c "
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('', 3000))
+s.settimeout(0.4)
+deadline = time.monotonic() + 5
+while time.monotonic() < deadline:
+    s.sendto(b'M99999', ('255.255.255.255', 3000))
+    try:
+        data, addr = s.recvfrom(256)
+        print(addr[0] + ':', data.decode())
+    except socket.timeout: pass
+s.close()
+"
+```
+
+### Windows (PowerShell one-liner)
+
+```powershell
+& {
+  $u = [System.Net.Sockets.UdpClient]::new(3000)
+  $u.EnableBroadcast = $true
+  $b = [Text.Encoding]::ASCII.GetBytes('M99999')
+  $ep = [System.Net.IPEndPoint]::new([Net.IPAddress]::Any, 0)
+  $deadline = [DateTime]::Now.AddSeconds(5)
+  while ([DateTime]::Now -lt $deadline) {
+    $u.Send($b, $b.Length, '255.255.255.255', 3000) | Out-Null
+    if ($u.Available -gt 0) {
+      $data = $u.Receive([ref]$ep)
+      Write-Host "$($ep.Address): $([Text.Encoding]::ASCII.GetString($data))"
+    }
+    Start-Sleep -Milliseconds 400
+  }
+  $u.Close()
+}
+```
+
 ## Contributing
 
 - Run `python tools/build_and_flash.py --local` before opening a PR (verifies the build still succeeds).  

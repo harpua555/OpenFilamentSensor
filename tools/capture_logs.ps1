@@ -3,7 +3,7 @@
 # Logs will be written to:  reporoot/logs
 
 param(
-    [string]$DeviceIP = "192.168.0.153"
+    [string]$DeviceIP = "192.168.1.150"
 )
 
 # Determine repo root from script location (one level up from tools/)

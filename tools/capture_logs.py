@@ -37,7 +37,7 @@ def main():
     parser.add_argument(
         "device_ip",
         nargs="?",
-        default="192.168.0.153",
+        default="192.168.1.150",
         help="IP address of the ESP32 device (default: 192.168.0.153)",
     )
     parser.add_argument(

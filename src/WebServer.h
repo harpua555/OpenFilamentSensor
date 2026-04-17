@@ -16,7 +16,8 @@
 #define SPIFFS LittleFS
 
 // Maximum SSE clients allowed simultaneously
-static constexpr int kMaxSSEClients = 4;
+// Kept low to reduce memory pressure on page refresh (old connection lingers briefly)
+static constexpr int kMaxSSEClients = 2;
 
 #ifdef STRESS_MODE
 static constexpr unsigned long kStatusBroadcastIntervalMsDefault = 200;

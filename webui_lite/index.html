@@ -1739,6 +1739,8 @@
         let settingsDirty = false;
         let pendingPageSwitch = null;
         let statusEventSource = null;
+        let sseRetryDelayMs = 2000;
+        const SSE_RETRY_MAX_MS = 30000;
         let logsInterval = null;
         let versionCheckInterval = null;
         let metricsChart = null;
@@ -2250,7 +2252,9 @@
             const needsStatusStream = (pageName === 'status' || pageName === 'debug');
             const streamWasActive = Boolean(statusEventSource);
             if (needsStatusStream && !streamWasActive) {
-                startStatusStream();
+                // Delay SSE open slightly so the ESP32 finishes serving the page before
+                // we open a persistent connection (reduces memory spike on refresh)
+                setTimeout(startStatusStream, 500);
                 requestStatusSnapshot(true);
             } else if (!needsStatusStream && streamWasActive) {
                 stopStatusStream();
@@ -4142,22 +4146,37 @@
             statusEventSource.onmessage = handleStatusEvent;
             // Explicitly handle named "status" events emitted by the firmware
             statusEventSource.addEventListener('status', handleStatusEvent);
+            statusEventSource.onopen = () => {
+                sseRetryDelayMs = 2000;  // Reset backoff on successful connection
+            };
             statusEventSource.onerror = () => {
-                statusEventSource.close();
+                const src = statusEventSource;
                 statusEventSource = null;
+                if (src) {
+                    src.onerror = null;
+                    src.onopen = null;
+                    src.onmessage = null;
+                    src.removeEventListener('status', handleStatusEvent);
+                    src.close();
+                }
                 if (isStatusPageActive()) {
+                    const delay = sseRetryDelayMs;
+                    sseRetryDelayMs = Math.min(sseRetryDelayMs * 2, SSE_RETRY_MAX_MS);
                     showToast('Status stream disconnected. Retrying...', 'warning');
-                    setTimeout(startStatusStream, 2000);
+                    setTimeout(startStatusStream, delay);
                 }
             };
         }
 
         function stopStatusStream() {
             if (!statusEventSource) return;
-            statusEventSource.removeEventListener('status', handleStatusEvent);
-            statusEventSource.onmessage = null;
-            statusEventSource.close();
+            const src = statusEventSource;
             statusEventSource = null;
+            src.onerror = null;  // Prevent stale retry timer on deliberate close
+            src.onopen = null;
+            src.onmessage = null;
+            src.removeEventListener('status', handleStatusEvent);
+            src.close();
         }
 
         window.addEventListener('load', () => {

@@ -38,7 +38,7 @@ def main():
         "device_ip",
         nargs="?",
         default="192.168.1.150",
-        help="IP address of the ESP32 device (default: 192.168.0.153)",
+        help="IP address of the ESP32 device (default: 192.168.1.150)",
     )
     parser.add_argument(
         "--interval",

@@ -26,7 +26,7 @@
 1763916207 Discovery reply from 192.168.0.198: {"Id":"979d4C788A4a78bC777A870F1A02867A","Data":{"Name":"Centauri Carbon","MachineName":"Centauri Carbon","BrandName":"ELEGOO",
 1763916207 Settings saved successfully
 1763916207 Disconnected from Carbon Centauri
-1763916207 Attempting connection to Elegoo CC @ 192.168.0.198
+1763916207 Attempting connection to Elegoo CC @ 192.168.1.150
 1763916207 Connected to Carbon Centauri
 1763916219 Settings saved successfully
 1763916413 Flow debug: SDCP status print=0 layer=1/1 progress=0 expected=196.16mm delta=0.00mm telemetry=1

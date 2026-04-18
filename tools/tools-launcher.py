@@ -49,10 +49,10 @@ class Settings:
     release_version = "ver"  # skip, build, ver, release
 
     # Capture logs settings
-    capture_logs_ip = "192.168.0.153"
+    capture_logs_ip = "192.168.1.150"
 
     # Elegoo status settings
-    elegoo_ip = "192.168.0.153"
+    elegoo_ip = "192.168.1.150"
     elegoo_timeout = 5
 
     # Extract log settings

@@ -236,15 +236,12 @@ void WebServer::begin()
                   ESP.restart();
               });
 
-    // SSE client connect handler with client cap
-    statusEvents.onConnect([this](AsyncEventSourceClient *client) {
-        if (statusEvents.count() > kMaxSSEClients)
-        {
-            logger.logf("SSE client rejected: closing excess client (count=%d, max=%d)",
-                        statusEvents.count(), kMaxSSEClients);
-            client->close();
-            return;
-        }
+    // SSE client connect handler.
+    // NOTE: Do NOT call statusEvents.count() here. AsyncEventSource::_addClient() holds
+    // _client_queue_lock when it calls this callback, so calling count() (which also
+    // acquires that mutex) causes a recursive-lock deadlock → Task WDT crash.
+    // Excess client cleanup is handled by cleanupSSEClients() in the main loop.
+    statusEvents.onConnect([](AsyncEventSourceClient *client) {
         client->send("connected", "init", millis(), 1000);
     });
     server.addHandler(&statusEvents);
@@ -630,7 +627,7 @@ void WebServer::refreshCachedResponses()
 void WebServer::cleanupSSEClients()
 {
     unsigned long now = millis();
-    if (now - lastSSECleanupMs < 30000)
+    if (now - lastSSECleanupMs < 10000)
     {
         return;
     }

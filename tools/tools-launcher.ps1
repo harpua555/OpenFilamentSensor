@@ -80,10 +80,10 @@ $BuildModeMap = @{
 }
 
 # --- capture_logs.ps1 defaults ---
-$Global:CaptureLogsIP = "192.168.0.153"
+$Global:CaptureLogsIP = "192.168.1.150"
 
 # --- elegoo_status_cli.py defaults ---
-$Global:ElegooIP = "192.168.0.153"
+$Global:ElegooIP = "192.168.1.150"
 $Global:ElegooTimeout = 5
 
 

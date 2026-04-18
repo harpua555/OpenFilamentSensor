@@ -1335,7 +1335,8 @@
     <div id="resetModal" class="modal-backdrop">
         <div class="modal-card">
             <h3>Reset ESP32</h3>
-            <p>This immediately reboots the ESP32. This can disrupt an active print, drop the printer connection completely, and
+            <p>This immediately reboots the ESP32. This can disrupt an active print, drop the printer connection
+                completely, and
                 clear in-memory logs. Only continue if it is safe to restart.</p>
             <div class="btn-group">
                 <button type="button" class="btn btn-danger" id="confirmResetBtn">Reset Now</button>
@@ -1415,7 +1416,7 @@
     </header>
 
     <div id="versionBanner" class="version-banner hidden">
-        A new version is available! <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer">Update
+        A new version is available! <a href="https://YOUR_DOMAIN.com" target="_blank" rel="noopener noreferrer">Update
             now</a>
     </div>
 
@@ -1440,9 +1441,12 @@
                 </div>
                 <div style="padding: 16px;">
                     <div class="btn-group">
-                        <button type="button" class="btn btn-secondary" onclick="testPause()">Send Pause Command</button>
-                        <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume Command</button>
-                        <button type="button" class="btn btn-secondary" onclick="openPrinterUi()">Open Printer UI</button>
+                        <button type="button" class="btn btn-secondary" onclick="testPause()">Send Pause
+                            Command</button>
+                        <button type="button" class="btn btn-secondary" onclick="testResume()">Send Resume
+                            Command</button>
+                        <button type="button" class="btn btn-secondary" onclick="openPrinterUi()">Open Printer
+                            UI</button>
                         <button type="button" class="btn btn-danger" onclick="openResetModal()">Restart ESP32</button>
                     </div>
                 </div>
@@ -1510,9 +1514,12 @@
                 </div>
                 <div style="padding: 16px;">
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="enable_minimal_mode" ${isMinimalModeEnabled ? 'checked' : ''}>
-                        <label class="form-label" for="enable_minimal_mode" style="margin: 0;">Enable Minimal Mode</label>
-                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Switch to a lightweight text-only interface. Disables charts, animations, and SSE streaming to reduce CPU/memory usage on low-power devices. This preference is saved in your browser.</p>
+                        <input type="checkbox" id="enable_minimal_mode" ${isMinimalModeEnabled ? 'checked' : '' }>
+                        <label class="form-label" for="enable_minimal_mode" style="margin: 0;">Enable Minimal
+                            Mode</label>
+                        <p class="form-help" style="margin-left: 36px; margin-top: 8px;">Switch to a lightweight
+                            text-only interface. Disables charts, animations, and SSE streaming to reduce CPU/memory
+                            usage on low-power devices. This preference is saved in your browser.</p>
                     </div>
                 </div>
             </div>
@@ -1617,8 +1624,10 @@
                 <div class="btn-group">
                     <button type="button" class="btn" onclick="refreshLogs()">Refresh</button>
                     <button type="button" class="btn btn-secondary" onclick="downloadLogs()">Download All</button>
-                    <button type="button" class="btn btn-secondary" onclick="downloadCoredump()">Download Coredump</button>
-                    <button type="button" class="btn btn-secondary" id="clearCoredumpBtn" onclick="clearCoredump()" style="display: none;">Clear Coredump</button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadCoredump()">Download
+                        Coredump</button>
+                    <button type="button" class="btn btn-secondary" id="clearCoredumpBtn" onclick="clearCoredump()"
+                        style="display: none;">Clear Coredump</button>
                     <button type="button" class="btn btn-secondary" onclick="clearLogsDisplay()">Clear Display</button>
                     <button type="button" class="btn btn-secondary" onclick="clearAccumulatedLogs()">Reset</button>
                 </div>
@@ -1643,8 +1652,8 @@
         <div id="update" class="page">
             <div class="info-banner">
                 <span>Looking to install the latest version? Use the web flasher to get the newest firmware.</span>
-                <a href="https://ofs.harpua555.dev" target="_blank" rel="noopener noreferrer"
-                    class="btn btn-secondary">Open Web Flasher</a>
+                <a href="https://[YOUR_DOMAIN]" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Open
+                    Web Flasher</a>
             </div>
             <div class="card">
                 <div class="card-header">
@@ -1730,6 +1739,8 @@
         let settingsDirty = false;
         let pendingPageSwitch = null;
         let statusEventSource = null;
+        let sseRetryDelayMs = 2000;
+        const SSE_RETRY_MAX_MS = 30000;
         let logsInterval = null;
         let versionCheckInterval = null;
         let metricsChart = null;
@@ -2241,7 +2252,9 @@
             const needsStatusStream = (pageName === 'status' || pageName === 'debug');
             const streamWasActive = Boolean(statusEventSource);
             if (needsStatusStream && !streamWasActive) {
-                startStatusStream();
+                // Delay SSE open slightly so the ESP32 finishes serving the page before
+                // we open a persistent connection (reduces memory spike on refresh)
+                setTimeout(startStatusStream, 500);
                 requestStatusSnapshot(true);
             } else if (!needsStatusStream && streamWasActive) {
                 stopStatusStream();
@@ -4062,7 +4075,7 @@
             };
 
             try {
-                const response = await fetch('https://api.github.com/repos/harpua555/OpenFilamentSensor/releases/latest', { signal: controller.signal });
+                const response = await fetch('https://api.github.com/repos/YOUR_GITHUB_USERNAME/YOUR_GITHUB_REPO/releases/latest', { signal: controller.signal });
 
                 if (!response.ok) {
                     throw new Error(`GitHub API request failed with status ${response.status}`);
@@ -4133,22 +4146,37 @@
             statusEventSource.onmessage = handleStatusEvent;
             // Explicitly handle named "status" events emitted by the firmware
             statusEventSource.addEventListener('status', handleStatusEvent);
+            statusEventSource.onopen = () => {
+                sseRetryDelayMs = 2000;  // Reset backoff on successful connection
+            };
             statusEventSource.onerror = () => {
-                statusEventSource.close();
+                const src = statusEventSource;
                 statusEventSource = null;
+                if (src) {
+                    src.onerror = null;
+                    src.onopen = null;
+                    src.onmessage = null;
+                    src.removeEventListener('status', handleStatusEvent);
+                    src.close();
+                }
                 if (isStatusPageActive()) {
+                    const delay = sseRetryDelayMs;
+                    sseRetryDelayMs = Math.min(sseRetryDelayMs * 2, SSE_RETRY_MAX_MS);
                     showToast('Status stream disconnected. Retrying...', 'warning');
-                    setTimeout(startStatusStream, 2000);
+                    setTimeout(startStatusStream, delay);
                 }
             };
         }
 
         function stopStatusStream() {
             if (!statusEventSource) return;
-            statusEventSource.removeEventListener('status', handleStatusEvent);
-            statusEventSource.onmessage = null;
-            statusEventSource.close();
+            const src = statusEventSource;
             statusEventSource = null;
+            src.onerror = null;  // Prevent stale retry timer on deliberate close
+            src.onopen = null;
+            src.onmessage = null;
+            src.removeEventListener('status', handleStatusEvent);
+            src.close();
         }
 
         window.addEventListener('load', () => {

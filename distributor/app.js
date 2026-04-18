@@ -1,8 +1,8 @@
 import { initWifiPatcher, PLACEHOLDER_TOKEN } from './wifiPatcher.js';
 import { EspFlasher, FLASH_STATES } from './flasher.js';
 
-const GITHUB_OWNER = 'harpua555';
-const GITHUB_REPO = 'OpenFilamentSensor';
+const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME';
+const GITHUB_REPO = 'YOUR_GITHUB_REPO';
 const GITHUB_PAGES_BASE = `https://${GITHUB_OWNER}.github.io/${GITHUB_REPO}/releases`;
 const DEFAULT_RELEASE_TAG = null; // Use "latest" unless a tag is provided via query string
 
